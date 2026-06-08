@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TradeNova Portfolio</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+        }
+
+        .container {
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #111827;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .table th, .table td {
+            padding: 12px;
+            text-align: left;
+        }
+
+        .table th {
+            background: #1f2937;
+        }
+
+        .table tr {
+            border-bottom: 1px solid #1f2937;
+        }
+
+        .profit {
+            color: #22c55e;
+            font-weight: bold;
+        }
+
+        .loss {
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        .status-open {
+            color: #facc15;
+        }
+
+        .status-closed {
+            color: #60a5fa;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: #111827;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>📊 TradeNova Portfolio</h1>
+
+    <!-- SUMMARY CARDS -->
+    <div class="grid">
+
+        <div class="card">
+            <h3>Total Trades</h3>
+            <p id="totalTrades">0</p>
+        </div>
+
+        <div class="card">
+            <h3>Total Profit</h3>
+            <p id="totalProfit">0</p>
+        </div>
+
+    </div>
+
+    <br>
+
+    <!-- TABLE -->
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Direction</th>
+                <th>Stake</th>
+                <th>Entry</th>
+                <th>Exit</th>
+                <th>Profit</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+
+        <tbody id="tradeTable">
+        </tbody>
+    </table>
+
+</div>
+
+<script>
+async function loadPortfolio() {
+
+    const response = await fetch("/api/portfolio/portfolio/", {
+        headers: {
+            "Authorization": "Bearer YOUR_ACCESS_TOKEN"
+        }
+    });
+
+    const data = await response.json();
+
+    let table = document.getElementById("tradeTable");
+
+    let totalProfit = 0;
+
+    table.innerHTML = "";
+
+    data.forEach(trade => {
+
+        totalProfit += parseFloat(trade.profit || 0);
+
+        let row = `
+            <tr>
+                <td>${trade.symbol}</td>
+                <td>${trade.direction}</td>
+                <td>${trade.stake}</td>
+                <td>${trade.entry_price || "-"}</td>
+                <td>${trade.exit_price || "-"}</td>
+                <td class="${trade.profit >= 0 ? 'profit' : 'loss'}">
+                    ${trade.profit}
+                </td>
+                <td class="status-${trade.status}">
+                    ${trade.status}
+                </td>
+            </tr>
+        `;
+
+        table.innerHTML += row;
+    });
+
+    document.getElementById("totalTrades").innerText = data.length;
+    document.getElementById("totalProfit").innerText = totalProfit.toFixed(2);
+}
+
+loadPortfolio();
+</script>
+<script>
+const socket = new WebSocket("ws://127.0.0.1:8000/ws/portfolio/");
+
+socket.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+
+    console.log("LIVE UPDATE:", data);
+
+    if (data.type === "new_trade") {
+        addTradeToTable(data.trade);
+    }
+
+    if (data.type === "trade_update") {
+        updateTrade(data.trade_id, data);
+    }
+};
+
+function addTradeToTable(trade) {
+    const table = document.getElementById("tradeTable");
+
+    const row = `
+        <tr id="trade-${trade.id}">
+            <td>${trade.symbol}</td>
+            <td>${trade.direction}</td>
+            <td>${trade.stake}</td>
+            <td>-</td>
+            <td>-</td>
+            <td class="profit">${trade.profit}</td>
+            <td class="status-open">${trade.status}</td>
+        </tr>
+    `;
+
+    table.innerHTML += row;
+}
+
+function updateTrade(id, data) {
+    const row = document.getElementById(`trade-${id}`);
+
+    if (row) {
+        row.querySelector(".profit").innerText = data.profit;
+        row.querySelector("td:last-child").innerText = data.status;
+    }
+}
+</script>
+</body>
+
+</html>
