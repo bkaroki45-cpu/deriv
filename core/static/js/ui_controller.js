@@ -30,6 +30,36 @@
         });
     });
 
+    document.querySelectorAll("[data-chart-tool]").forEach((button) => {
+        button.addEventListener("click", () => {
+            if (!window.tradeNovaChart) return;
+            const selected = window.tradeNovaChart.setTool(button.dataset.chartTool);
+            document.querySelectorAll("[data-chart-tool]").forEach((item) => {
+                item.classList.toggle("is-selected-tool", item.dataset.chartTool === selected);
+            });
+        });
+    });
+
+    const demoBalance = document.getElementById("demo-balance");
+    const realBalance = document.getElementById("real-balance");
+    const savedDemo = localStorage.getItem("tradenova:demo-balance");
+    if (demoBalance && savedDemo) demoBalance.textContent = `$${Number(savedDemo).toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    document.querySelectorAll("[data-account-type]").forEach((button) => {
+        button.addEventListener("click", () => {
+            document.querySelectorAll("[data-account-type]").forEach((item) => item.classList.remove("is-active"));
+            button.classList.add("is-active");
+            const status = document.getElementById("contract-status");
+            if (status) status.textContent = `${button.dataset.accountType.toUpperCase()} selected`;
+        });
+    });
+    const resetDemo = document.getElementById("reset-demo-balance");
+    if (resetDemo) {
+        resetDemo.addEventListener("click", () => {
+            localStorage.setItem("tradenova:demo-balance", "10000");
+            if (demoBalance) demoBalance.textContent = "$10,000.00";
+        });
+    }
+
     const form = document.getElementById("trade-form");
     if (form) {
         form.addEventListener("submit", async (event) => {
@@ -45,6 +75,12 @@
                 contract_type: document.getElementById("trade-contract").value,
             };
             const warning = document.getElementById("risk-warning");
+            const status = document.getElementById("contract-status");
+            if (status) status.textContent = "Submitting";
+            if (window.tradeNovaChart) {
+                const activePrice = Number((document.getElementById("active-price") || {}).textContent);
+                if (Number.isFinite(activePrice)) window.tradeNovaChart.addTradeFlag("entry", activePrice);
+            }
             try {
                 const response = await fetch("/api/trading/", {
                     method: "POST",
@@ -57,6 +93,7 @@
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.error || "Trade rejected");
                 if (warning) warning.textContent = `Trade submitted. Contract ${data.contract_id || "pending"}.`;
+                if (status) status.textContent = "Open";
                 if (window.tradeNovaPortfolio) {
                     window.tradeNovaPortfolio.addLocal({
                         id: data.trade_id,
@@ -69,6 +106,7 @@
                 }
             } catch (error) {
                 if (warning) warning.textContent = error.message;
+                if (status) status.textContent = "Rejected";
             }
         });
     }

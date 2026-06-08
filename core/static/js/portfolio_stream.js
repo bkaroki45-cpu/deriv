@@ -30,6 +30,12 @@
                 const key = String(message.trade_id);
                 const current = this.trades.get(key) || { id: key };
                 this.trades.set(key, { ...current, ...message });
+                if (message.type === "trade_closed" && window.tradeNovaChart) {
+                    window.tradeNovaChart.addTradeFlag(Number(message.profit || 0) >= 0 ? "win" : "loss", Number(message.exit_price || document.getElementById("active-price").textContent));
+                }
+                if (message.type === "trade_closed" && window.tradeNovaDigits && message.winning_digit !== undefined) {
+                    window.tradeNovaDigits.flash(message.winning_digit, message.predicted_digit);
+                }
             }
             this.render();
         }

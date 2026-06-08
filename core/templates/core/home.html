@@ -4,16 +4,79 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>TradeNova Terminal</title>
+    <title>TradeNova | Premium Trading Platform</title>
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 </head>
-<body>
-    {% include "core/terminal.html" %}
-    <script src="{% static 'js/chart_engine.js' %}"></script>
-    <script src="{% static 'js/digits_widget.js' %}"></script>
-    <script src="{% static 'js/market_stream.js' %}"></script>
-    <script src="{% static 'js/portfolio_stream.js' %}"></script>
-    <script src="{% static 'js/bot_engine.js' %}"></script>
-    <script src="{% static 'js/ui_controller.js' %}"></script>
+<body class="landing-body">
+    <nav class="site-nav">
+        <a class="nav-brand" href="/">TradeNova</a>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/dashboard/#bots">Bot Dashboard</a>
+            <a href="/dashboard/#builder">Build Bot</a>
+            <a href="/trade/">Trade</a>
+            <a href="/analytics/">Analytics</a>
+            <a href="/account/">Account</a>
+            {% if request.user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
+        </div>
+        <a class="nav-cta" href="/trade/">Launch Terminal</a>
+    </nav>
+
+    <header class="landing-hero">
+        <div class="hero-copy">
+            <span class="hero-kicker">Real-time Deriv powered terminal</span>
+            <h1>Trade markets, build bots, and analyze every tick from one premium workspace.</h1>
+            <p>TradeNova combines live charts, digit analytics, portfolio tracking, and visual automation in a focused broker-style interface.</p>
+            <div class="hero-actions">
+                <a class="primary-cta" href="/trade/">Start trading</a>
+                <a class="secondary-cta" href="/dashboard/#bots">Build a bot</a>
+            </div>
+        </div>
+        <div class="hero-terminal glass-panel" aria-label="Trading terminal preview">
+            <div class="preview-top">
+                <span></span><span></span><span></span>
+                <strong>R_100</strong>
+            </div>
+            <div class="preview-chart">
+                <i style="height: 34%"></i><i style="height: 58%"></i><i style="height: 46%"></i><i style="height: 72%"></i>
+                <i style="height: 42%"></i><i style="height: 66%"></i><i style="height: 38%"></i><i style="height: 76%"></i>
+            </div>
+            <div class="preview-grid">
+                <div><small>Demo</small><b>$10,000.00</b></div>
+                <div><small>Real</small><b>$0.00</b></div>
+                <div><small>Win rate</small><b>64%</b></div>
+            </div>
+        </div>
+    </header>
+
+    <section class="landing-section feature-grid">
+        <article><h2>Canvas charts</h2><p>Candles, ticks, line mode, crosshair, overlays, and drawing tools without heavy frontend frameworks.</p></article>
+        <article><h2>Digit intelligence</h2><p>Live 0-9 probability bars highlight strongest and weakest digits as ticks arrive.</p></article>
+        <article><h2>Bot builder</h2><p>Start, stop, monitor, and iterate strategies with live logs and performance panels.</p></article>
+        <article><h2>Broker workflow</h2><p>Separate demo and real balances, contract status, portfolio rows, and admin controls.</p></article>
+    </section>
+
+    <section class="stats-band">
+        <div><strong>24/7</strong><span>Synthetic markets</span></div>
+        <div><strong>10</strong><span>Digit outcomes tracked</span></div>
+        <div><strong>0ms</strong><span>Page reloads for live updates</span></div>
+        <div><strong>100%</strong><span>Vanilla JavaScript UI</span></div>
+    </section>
+
+    <section class="landing-section testimonials">
+        <blockquote>“The interface feels like a focused desk: charts, tickets, bots, and portfolio updates all stay visible.”<span>Quant trader</span></blockquote>
+        <blockquote>“Digit trading finally has a panel that makes probability shifts readable at speed.”<span>Synthetic indices trader</span></blockquote>
+        <blockquote>“The bot studio is compact enough for live use and clear enough for strategy experiments.”<span>Automation user</span></blockquote>
+    </section>
+
+    <footer class="landing-footer">
+        <strong>TradeNova</strong>
+        <nav>
+            <a href="/trade/">Trade</a>
+            <a href="/dashboard/#bots">Bots</a>
+            <a href="/api/accounts/token/">API token</a>
+            <a href="/admin/">Admin</a>
+        </nav>
+    </footer>
 </body>
 </html>

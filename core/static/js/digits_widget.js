@@ -17,6 +17,7 @@
                 cell.innerHTML = `
                     <strong>${digit}</strong>
                     <div class="digit-bar"><span></span></div>
+                    <em class="digit-percent">0.0%</em>
                     <small>0 ticks</small>
                 `;
                 this.root.appendChild(cell);
@@ -36,14 +37,33 @@
 
         update() {
             const max = Math.max(...this.counts, 1);
+            const positive = this.counts.filter((count) => count > 0);
+            const min = positive.length ? Math.min(...positive) : 0;
             this.counts.forEach((count, digit) => {
                 const cell = this.root.querySelector(`[data-digit="${digit}"]`);
                 if (!cell) return;
                 const percent = this.total ? (count / this.total) * 100 : 0;
                 cell.classList.toggle("is-hot", count === max && count > 0);
+                cell.classList.toggle("is-low", count === min && count > 0 && min !== max);
                 cell.querySelector(".digit-bar span").style.width = `${percent}%`;
+                cell.querySelector(".digit-percent").textContent = `${percent.toFixed(1)}%`;
                 cell.querySelector("small").textContent = `${count} ticks`;
             });
+        }
+
+        flash(winningDigit, predictedDigit) {
+            const winner = this.root.querySelector(`[data-digit="${winningDigit}"]`);
+            const loser = this.root.querySelector(`[data-digit="${predictedDigit}"]`);
+            if (winner) {
+                winner.classList.remove("is-win");
+                void winner.offsetWidth;
+                winner.classList.add("is-win");
+            }
+            if (loser && Number(winningDigit) !== Number(predictedDigit)) {
+                loser.classList.remove("is-loss");
+                void loser.offsetWidth;
+                loser.classList.add("is-loss");
+            }
         }
     }
 
