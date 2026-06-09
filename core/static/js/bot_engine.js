@@ -18,7 +18,7 @@
             document.querySelectorAll("[data-bot-template]").forEach((button) => {
                 button.addEventListener("click", () => this.template(button.dataset.botTemplate));
             });
-            window.addEventListener("tradenova:tick", (event) => this.onTick(event.detail));
+            window.addEventListener("profitera:tick", (event) => this.onTick(event.detail));
         }
 
         template(name) {
@@ -73,5 +73,5 @@
         }
     }
 
-    window.tradeNovaBot = new BotEngine();
+    window.profiteraBot = new BotEngine();
 })();

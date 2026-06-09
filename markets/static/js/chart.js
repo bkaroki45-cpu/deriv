@@ -18,7 +18,7 @@ let candles = [];
 const socket = new WebSocket("ws://127.0.0.1:8000/ws/charts/");
 
 socket.onopen = function () {
-    console.log("📊 Connected to TradeNova Chart Stream");
+    console.log("Connected to Profitera Chart Stream");
 };
 
 socket.onerror = function (error) {

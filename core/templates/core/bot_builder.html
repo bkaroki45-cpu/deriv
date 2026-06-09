@@ -1,0 +1,95 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Profitera Bot Builder</title>
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+</head>
+<body>
+    <nav class="site-nav terminal-nav">
+        <a class="nav-brand" href="/">Profitera</a>
+        <div class="nav-links">
+            <a href="/trade/">Trade</a>
+            <a href="/bot-builder/">Bot Builder</a>
+            <a href="/analytics/">Analytics</a>
+            <a href="/account/">Account</a>
+            {% if request.user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
+        </div>
+        <a class="nav-cta" href="/trade/">Launch Terminal</a>
+    </nav>
+
+    <main class="bot-builder-shell">
+        <aside class="builder-palette glass-panel">
+            <div class="panel-header compact">
+                <div>
+                    <p class="eyebrow">Strategy blocks</p>
+                    <h1>Blocks</h1>
+                </div>
+            </div>
+            <div class="block-list">
+                <button class="strategy-block" draggable="true">Purchase conditions</button>
+                <button class="strategy-block" draggable="true">Trade conditions</button>
+                <button class="strategy-block" draggable="true">Logic blocks</button>
+                <button class="strategy-block" draggable="true">Indicator blocks</button>
+                <button class="strategy-block" draggable="true">Variable blocks</button>
+                <button class="strategy-block" draggable="true">Loop blocks</button>
+                <button class="strategy-block" draggable="true">RSI</button>
+                <button class="strategy-block" draggable="true">MACD</button>
+                <button class="strategy-block" draggable="true">EMA</button>
+                <button class="strategy-block" draggable="true">SMA</button>
+                <button class="strategy-block" draggable="true">Bollinger Bands</button>
+            </div>
+        </aside>
+
+        <section class="builder-canvas glass-panel">
+            <div class="panel-header compact">
+                <div>
+                    <p class="eyebrow">Visual builder</p>
+                    <h1>Deriv-style strategy flow</h1>
+                </div>
+                <span class="risk-chip normal" id="builder-validation">valid</span>
+            </div>
+            <div class="builder-stage" id="builder-stage">
+                <i class="node-connector" style="left: 210px; top: 91px; width: 120px;"></i>
+                <i class="node-connector" style="left: 430px; top: 91px; width: 120px;"></i>
+                <article class="builder-node" style="left: 32px; top: 52px;"><strong>Market</strong><small>Volatility 100 Index</small></article>
+                <article class="builder-node" style="left: 330px; top: 52px;"><strong>Purchase condition</strong><small>RSI crosses below 30</small></article>
+                <article class="builder-node" style="left: 552px; top: 52px;"><strong>Buy contract</strong><small>Accumulator, 2% growth</small></article>
+                <article class="builder-node" style="left: 168px; top: 220px;"><strong>Risk guard</strong><small>Profit target and stop loss</small></article>
+                <article class="builder-node" style="left: 456px; top: 312px;"><strong>Loop</strong><small>Run while bot is active</small></article>
+            </div>
+        </section>
+
+        <aside class="builder-config glass-panel">
+            <div class="panel-header compact">
+                <div>
+                    <p class="eyebrow">Parameters</p>
+                    <h1>Bot controls</h1>
+                </div>
+            </div>
+            <div class="config-grid">
+                <label>Market<select><option>Synthetic Indices</option><option>Forex</option></select></label>
+                <label>Symbol<select><option>Volatility 100 Index</option><option>Volatility 75 Index</option><option>Volatility 50 Index</option></select></label>
+                <label>Contract type<select><option>Accumulator</option><option>Rise/Fall</option><option>Matches/Differs</option><option>Over/Under</option></select></label>
+                <label>Stake<input type="number" value="10" min="0.35" step="0.01"></label>
+                <label>Duration<input type="number" value="5" min="1"></label>
+                <label>Currency<select><option>USD</option></select></label>
+                <label>Profit target<input type="number" placeholder="optional"></label>
+                <label>Stop loss<input type="number" placeholder="optional"></label>
+                <div class="ticket-actions">
+                    <button class="buy-btn" type="button">Start Bot</button>
+                    <button class="sell-btn" type="button">Stop Bot</button>
+                </div>
+                <div class="ticket-actions">
+                    <button class="secondary-cta" type="button">Pause Bot</button>
+                    <button class="secondary-cta" type="button">Save Strategy</button>
+                </div>
+                <button class="strategy-block" type="button">Load Strategy</button>
+            </div>
+        </aside>
+    </main>
+    <script src="{% static 'js/bot_builder.js' %}"></script>
+</body>
+</html>

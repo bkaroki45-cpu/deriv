@@ -1,7 +1,7 @@
 const socket = new WebSocket("ws://127.0.0.1:8000/ws/markets/");
 
 socket.onopen = function () {
-    console.log("Connected to TradeNova market stream");
+    console.log("Connected to Profitera market stream");
 };
 
 socket.onmessage = function (event) {

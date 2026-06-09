@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import home, dashboard
+from .views import home, dashboard, bot_builder
 
 urlpatterns = [
     path('', home),
@@ -8,5 +8,6 @@ urlpatterns = [
     path('analytics/', dashboard),
     path('account/', dashboard),
     path('bot-dashboard/', dashboard),
-    path('build-bot/', dashboard),
+    path('build-bot/', bot_builder),
+    path('bot-builder/', bot_builder),
 ]

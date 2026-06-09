@@ -15,6 +15,7 @@
                 cell.className = "digit-cell";
                 cell.dataset.digit = String(digit);
                 cell.innerHTML = `
+                    <span class="digit-flame">▲</span>
                     <strong>${digit}</strong>
                     <div class="digit-bar"><span></span></div>
                     <em class="digit-percent">0.0%</em>
@@ -33,6 +34,7 @@
             this.total += 1;
             if (this.lastDigitEl) this.lastDigitEl.textContent = String(digit);
             this.update();
+            this.pulse(digit);
         }
 
         update() {
@@ -51,6 +53,14 @@
             });
         }
 
+        pulse(digit) {
+            const cell = this.root.querySelector(`[data-digit="${digit}"]`);
+            if (!cell) return;
+            cell.classList.remove("is-active-tick");
+            void cell.offsetWidth;
+            cell.classList.add("is-active-tick");
+        }
+
         flash(winningDigit, predictedDigit) {
             const winner = this.root.querySelector(`[data-digit="${winningDigit}"]`);
             const loser = this.root.querySelector(`[data-digit="${predictedDigit}"]`);
@@ -67,5 +77,5 @@
         }
     }
 
-    window.tradeNovaDigits = new DigitsWidget("digits-grid");
+    window.profiteraDigits = new DigitsWidget("digits-grid");
 })();

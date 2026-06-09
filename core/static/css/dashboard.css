@@ -1,14 +1,15 @@
 :root {
     color-scheme: dark;
-    --bg: #080d14;
-    --panel: rgba(18, 27, 39, 0.82);
-    --panel-strong: rgba(23, 33, 48, 0.94);
-    --line: rgba(145, 161, 181, 0.18);
-    --text: #edf4ff;
-    --muted: #8ea0b8;
-    --accent: #31d4a0;
-    --accent-2: #5ab8ff;
-    --danger: #ff5f6d;
+    --bg: #07111f;
+    --panel: rgba(11, 22, 40, 0.88);
+    --panel-strong: rgba(11, 22, 40, 0.96);
+    --line: #1a2942;
+    --text: #ffffff;
+    --muted: #9db0c8;
+    --accent: #00d4aa;
+    --accent-2: #3aa8ff;
+    --danger: #ff4d5a;
+    --success: #00e676;
     --warning: #f5b942;
     --shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
 }
@@ -336,47 +337,72 @@ button {
     padding: 88px 12px 12px;
 }
 
-.account-switcher {
+.account-switcher,
+.tools-menu {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.account-card,
-.reset-demo {
+.account-current,
+.account-menu button,
+.account-menu a,
+.tools-trigger,
+.tools-dropdown button,
+.builder-link {
     border: 1px solid var(--line);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.045);
     color: var(--text);
     padding: 7px 10px;
+    text-decoration: none;
 }
 
-.account-card {
-    display: grid;
-    grid-template-columns: auto auto;
-    column-gap: 7px;
-    row-gap: 2px;
-    min-width: 130px;
+.account-current,
+.account-menu button,
+.account-menu a {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 168px;
+    text-align: left;
 }
 
-.account-card small {
+.account-current small,
+.account-menu small {
+    display: block;
     color: var(--muted);
 }
 
-.account-card strong {
-    grid-column: 1 / -1;
+.account-current strong,
+.account-menu strong {
+    display: block;
     font-size: 13px;
 }
 
-.account-card.demo.is-active {
-    border-color: rgba(49, 212, 160, 0.58);
+.account-menu,
+.tools-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 80;
+    display: none;
+    min-width: 230px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel-strong);
+    box-shadow: var(--shadow);
 }
 
-.account-card.real {
-    background: rgba(90, 184, 255, 0.075);
+.account-switcher.is-open .account-menu,
+.tools-menu.is-open .tools-dropdown {
+    display: grid;
+    gap: 6px;
 }
 
-.admin-mode .account-card {
+.admin-mode .account-current {
     border-color: rgba(245, 185, 66, 0.45);
 }
 
@@ -454,6 +480,14 @@ button {
 .chart-panel,
 .bottom-panel {
     padding: 14px;
+}
+
+.market-forex .digits-panel {
+    display: none;
+}
+
+.market-forex .barrier-field {
+    display: none;
 }
 
 .workspace {
@@ -671,13 +705,18 @@ select:focus {
     margin-bottom: 10px;
 }
 
-.tools {
-    flex: 1;
-    min-width: 360px;
-    justify-content: center;
+.tools-dropdown {
+    left: 0;
+    right: auto;
+    grid-template-columns: 1fr;
+    min-width: 260px;
 }
 
-.segmented button.is-selected-tool {
+.tools-dropdown button {
+    text-align: left;
+}
+
+.tools-dropdown button.is-selected-tool {
     border-color: rgba(245, 185, 66, 0.68);
     color: #ffe3a5;
 }
@@ -772,8 +811,19 @@ select:focus {
 .quote-box,
 .ticket-actions,
 .risk-copy,
-.barrier-field {
+.barrier-field,
+.accumulator-controls {
     grid-column: 1 / -1;
+}
+
+.accumulator-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid rgba(0, 212, 170, 0.22);
+    border-radius: 8px;
+    background: rgba(0, 212, 170, 0.06);
 }
 
 .quote-box {
@@ -818,20 +868,49 @@ select:focus {
 }
 
 .digit-cell {
+    position: relative;
+    overflow: hidden;
     display: grid;
     gap: 6px;
-    padding: 8px;
+    min-height: 92px;
+    padding: 9px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.035);
+    background: rgba(255, 255, 255, 0.04);
 }
 
 .digit-cell.is-hot {
-    border-color: rgba(49, 212, 160, 0.75);
+    border-color: rgba(0, 230, 118, 0.75);
 }
 
 .digit-cell.is-low {
-    border-color: rgba(255, 95, 109, 0.72);
+    border-color: rgba(255, 77, 90, 0.72);
+}
+
+.digit-cell.is-active-tick {
+    animation: digitBucket 520ms ease;
+}
+
+.digit-flame {
+    position: absolute;
+    top: 6px;
+    right: 7px;
+    font-size: 28px;
+    line-height: 1;
+    opacity: 0;
+    transform-origin: center bottom;
+}
+
+.digit-cell.is-hot .digit-flame {
+    color: var(--success);
+    opacity: 1;
+    animation: flamePulse 900ms ease-in-out infinite;
+}
+
+.digit-cell.is-low .digit-flame {
+    color: var(--danger);
+    opacity: 1;
+    animation: flamePulse 700ms ease-in-out infinite;
 }
 
 .digit-cell.is-win {
@@ -847,7 +926,21 @@ select:focus {
 }
 
 @keyframes digitLoss {
-    50% { background: rgba(255, 95, 109, 0.34); }
+    50% { background: rgba(255, 77, 90, 0.34); }
+}
+
+@keyframes digitBucket {
+    50% {
+        background: rgba(0, 212, 170, 0.2);
+        transform: translateY(-2px);
+    }
+}
+
+@keyframes flamePulse {
+    50% {
+        transform: scale(1.22);
+        filter: drop-shadow(0 0 12px currentColor);
+    }
 }
 
 .digit-bar {
@@ -899,6 +992,73 @@ select:focus {
     background: rgba(0, 0, 0, 0.24);
     color: var(--muted);
     white-space: pre-wrap;
+}
+
+.builder-link {
+    display: block;
+    margin-top: 10px;
+    text-align: center;
+    font-weight: 800;
+}
+
+.bot-builder-shell {
+    display: grid;
+    grid-template-columns: 260px minmax(420px, 1fr) 300px;
+    gap: 12px;
+    min-height: 100vh;
+    padding: 88px 12px 12px;
+}
+
+.builder-palette,
+.builder-canvas,
+.builder-config {
+    min-height: 0;
+    padding: 14px;
+}
+
+.block-list,
+.node-stack,
+.config-grid {
+    display: grid;
+    gap: 8px;
+}
+
+.strategy-block,
+.builder-node {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
+    padding: 10px;
+}
+
+.builder-stage {
+    position: relative;
+    min-height: 520px;
+    margin-top: 12px;
+    border: 1px dashed rgba(157, 176, 200, 0.32);
+    border-radius: 8px;
+    background:
+        linear-gradient(rgba(157, 176, 200, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(157, 176, 200, 0.06) 1px, transparent 1px);
+    background-size: 28px 28px;
+}
+
+.builder-node {
+    position: absolute;
+    width: 210px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+}
+
+.builder-node small {
+    color: var(--muted);
+}
+
+.node-connector {
+    position: absolute;
+    height: 2px;
+    background: var(--accent);
+    transform-origin: left center;
 }
 
 @media (max-width: 1180px) {
@@ -982,17 +1142,20 @@ select:focus {
 
     .portfolio-summary,
     .trade-ticket form,
-    .digits-grid {
+    .accumulator-controls {
         grid-template-columns: 1fr;
+    }
+
+    .digits-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
     }
 
     .strategy-row {
         grid-template-columns: 1fr;
     }
 
-    .tools {
-        min-width: 100%;
-        justify-content: flex-start;
-        overflow-x: auto;
+    .bot-builder-shell {
+        grid-template-columns: 1fr;
+        padding-top: 12px;
     }
 }

@@ -1,11 +1,11 @@
 (function () {
-    class TradeNovaChart {
+    class ProfiteraChart {
         constructor(canvasId) {
             this.canvas = document.getElementById(canvasId);
             if (!this.canvas) return;
             this.ctx = this.canvas.getContext("2d");
             this.mode = "candles";
-            this.interval = 1;
+            this.interval = 60;
             this.candles = [];
             this.ticks = [];
             this.zoom = 1;
@@ -287,7 +287,7 @@
         }
 
         drawDigitChart(ctx, width, height) {
-            const counts = window.tradeNovaDigits ? window.tradeNovaDigits.counts : Array.from({ length: 10 }, () => 0);
+            const counts = window.profiteraDigits ? window.profiteraDigits.counts : Array.from({ length: 10 }, () => 0);
             const max = Math.max(...counts, 1);
             const plotWidth = width - 110;
             const barWidth = plotWidth / 10 - 8;
@@ -307,7 +307,7 @@
 
         drawStudies(ctx, series, scale, width) {
             if (!series.length) return;
-            if (this.activeTool !== "ma" && this.activeTool !== "ema" && !this.drawings.some((item) => ["ma", "ema", "sr"].includes(item.tool))) return;
+            if (!["ma", "ema", "sr", "bb", "projection", "rsi", "macd"].includes(this.activeTool) && !this.drawings.some((item) => ["ma", "ema", "sr", "bb", "projection", "rsi", "macd"].includes(item.tool))) return;
             if (this.activeTool === "ma" || this.drawings.some((item) => item.tool === "ma")) {
                 this.drawAverage(ctx, series, scale, width, "ma", "#f5b942");
             }
@@ -328,6 +328,56 @@
                     ctx.setLineDash([]);
                 });
             }
+            if (this.activeTool === "bb" || this.drawings.some((item) => item.tool === "bb")) {
+                this.drawBollinger(ctx, series, scale, width);
+            }
+            if (this.activeTool === "projection" || this.drawings.some((item) => item.tool === "projection")) {
+                const last = series[series.length - 1];
+                const y = scale.y(last.close);
+                ctx.strokeStyle = "rgba(0, 212, 170, 0.78)";
+                ctx.setLineDash([10, 6]);
+                ctx.beginPath();
+                ctx.moveTo(width - 180, y);
+                ctx.lineTo(width - 92, y - 42 * devicePixelRatio);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            if (this.activeTool === "rsi" || this.drawings.some((item) => item.tool === "rsi")) this.drawStudyBadge(ctx, "RSI 14", width, "#00e676");
+            if (this.activeTool === "macd" || this.drawings.some((item) => item.tool === "macd")) this.drawStudyBadge(ctx, "MACD", width, "#f5b942");
+        }
+
+        drawBollinger(ctx, series, scale, width) {
+            const plotWidth = width - 92;
+            const step = plotWidth / Math.max(series.length - 1, 1);
+            const period = Math.min(20, Math.max(3, series.length));
+            ["upper", "lower"].forEach((band) => {
+                ctx.strokeStyle = "rgba(58, 168, 255, 0.72)";
+                ctx.lineWidth = 1.5 * devicePixelRatio;
+                ctx.beginPath();
+                series.forEach((item, index) => {
+                    const slice = series.slice(Math.max(0, index - period + 1), index + 1).map((point) => point.close);
+                    const mean = slice.reduce((sum, value) => sum + value, 0) / slice.length;
+                    const variance = slice.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / slice.length;
+                    const deviation = Math.sqrt(variance) * 2;
+                    const value = band === "upper" ? mean + deviation : mean - deviation;
+                    const x = index * step + this.pan;
+                    const y = scale.y(value);
+                    if (index === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            });
+        }
+
+        drawStudyBadge(ctx, label, width, color) {
+            ctx.fillStyle = "rgba(7, 17, 31, 0.82)";
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1 * devicePixelRatio;
+            ctx.strokeRect(width - 168, 18, 76, 24);
+            ctx.fillRect(width - 168, 18, 76, 24);
+            ctx.fillStyle = color;
+            ctx.font = `${11 * devicePixelRatio}px Inter, sans-serif`;
+            ctx.fillText(label, width - 158, 34);
         }
 
         drawAverage(ctx, series, scale, width, type, color) {
@@ -421,6 +471,6 @@
         }
     }
 
-    window.TradeNovaChart = TradeNovaChart;
-    window.tradeNovaChart = new TradeNovaChart("price-chart");
+    window.ProfiteraChart = ProfiteraChart;
+    window.profiteraChart = new ProfiteraChart("price-chart");
 })();

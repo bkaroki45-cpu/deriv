@@ -11,3 +11,7 @@ def dashboard(request):
         "demo_balance": "10000.00",
         "real_balance": getattr(wallet, "balance", "0.00") if wallet else "0.00",
     })
+
+
+def bot_builder(request):
+    return render(request, "core/bot_builder.html")
