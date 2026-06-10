@@ -95,6 +95,7 @@
     let activeTradeType = "rise_fall";
     let activeDirection = "rise";
     let activeDigit = 5;
+    let proposalTimer = null;
 
     function csrfToken() {
         const match = document.cookie.match(/csrftoken=([^;]+)/);
@@ -130,6 +131,7 @@
                 const barrier = byId("trade-barrier");
                 if (barrier) barrier.value = String(activeDigit);
                 renderDigits();
+                scheduleProposal();
             });
         });
     }
@@ -165,6 +167,9 @@
                     directionChoice.querySelectorAll("button").forEach((item) => item.classList.toggle("is-active", item === button));
                     const primary = byId("primary-action");
                     if (primary) primary.dataset.direction = activeDirection;
+                    const contractInput = byId("trade-contract");
+                    if (contractInput) contractInput.value = proposalContractType();
+                    scheduleProposal();
                 });
             });
         }
@@ -179,6 +184,85 @@
             show(field, has(field.dataset.field));
         });
         renderDigits();
+        scheduleProposal();
+    }
+
+    function syncUrlState() {
+        const url = new URL(window.location.href);
+        url.searchParams.set("contract", activeTradeType);
+        if (window.profiteraMarkets && window.profiteraMarkets.activeSymbol) {
+            url.searchParams.set("symbol", window.profiteraMarkets.activeSymbol);
+        }
+        window.history.replaceState({ contract: activeTradeType }, "", url);
+    }
+
+    function applyInitialState() {
+        const params = new URLSearchParams(window.location.search);
+        const contract = params.get("contract");
+        if (contract && TRADE_TYPES[contract]) activeTradeType = contract;
+        document.querySelectorAll("[data-trade-type]").forEach((button) => {
+            button.classList.toggle("is-active", button.dataset.tradeType === activeTradeType);
+        });
+    }
+
+    function scheduleProposal() {
+        clearTimeout(proposalTimer);
+        proposalTimer = setTimeout(refreshProposal, 180);
+    }
+
+    function proposalContractType() {
+        const config = TRADE_TYPES[activeTradeType] || TRADE_TYPES.rise_fall;
+        const directionMap = {
+            fall: "PUT",
+            lower: "PUT",
+            down: "MULTDOWN",
+            put: "VANILLALONGPUT",
+            no_touch: "NOTOUCH",
+            differs: "DIGITDIFF",
+            under: "DIGITUNDER",
+            odd: "DIGITODD",
+        };
+        return directionMap[activeDirection] || config.contract;
+    }
+
+    function proposalPayload() {
+        const payload = {
+            proposal: 1,
+            amount: Number(byId("trade-stake")?.value || 10),
+            basis: "stake",
+            contract_type: proposalContractType(),
+            currency: window.PROFITERA_DERIV_SESSION?.currency || "USD",
+            symbol: byId("trade-symbol")?.value || "1HZ100V",
+            duration: Number(byId("trade-duration")?.value || 5),
+            duration_unit: byId("trade-duration-unit")?.value || "m",
+        };
+        if (["match_diff", "over_under"].includes(activeTradeType)) payload.barrier = String(activeDigit);
+        else if (byId("barrier-field") && !byId("barrier-field").hidden && byId("trade-barrier")?.value) payload.barrier = byId("trade-barrier").value;
+        if (activeTradeType === "accumulator") payload.growth_rate = Number(byId("growth-rate")?.value || 0.03);
+        return payload;
+    }
+
+    function refreshProposal() {
+        if (!window.profiteraMarkets || !window.profiteraMarkets.sendDeriv) return;
+        const payload = proposalPayload();
+        if (!Number.isFinite(payload.amount) || payload.amount <= 0) return;
+        window.profiteraMarkets.sendDeriv(payload, "proposal")
+            .then((data) => {
+                if (!data.proposal) return;
+                const ask = Number(data.proposal.ask_price || payload.amount);
+                const payoutValue = Number(data.proposal.payout || data.proposal.display_value || 0);
+                const profit = Math.max(0, payoutValue - ask);
+                const payout = byId("proposal-payout");
+                const warning = byId("risk-warning");
+                if (payout) payout.textContent = `Payout ${payoutValue.toFixed(2)} ${payload.currency} / Profit ${profit.toFixed(2)} ${payload.currency}`;
+                if (warning && data.proposal.longcode) warning.textContent = data.proposal.longcode;
+            })
+            .catch((error) => {
+                const payout = byId("proposal-payout");
+                const warning = byId("risk-warning");
+                if (payout) payout.textContent = "Proposal unavailable";
+                if (warning && window.PROFITERA_DERIV_SESSION?.connected) warning.textContent = error.message;
+            });
     }
 
     document.querySelectorAll("[data-trade-type]").forEach((button) => {
@@ -186,6 +270,9 @@
             activeTradeType = button.dataset.tradeType;
             document.querySelectorAll("[data-trade-type]").forEach((item) => item.classList.toggle("is-active", item === button));
             renderTicket();
+            const contractInput = byId("trade-contract");
+            if (contractInput) contractInput.value = proposalContractType();
+            syncUrlState();
         });
     });
 
@@ -314,6 +401,26 @@
         });
     }
 
+    ["trade-stake", "trade-duration", "trade-barrier", "growth-rate"].forEach((id) => {
+        const input = byId(id);
+        if (input) input.addEventListener("input", scheduleProposal);
+    });
+
+    window.addEventListener("profitera:account", (event) => {
+        const account = event.detail || {};
+        const currency = account.currency || window.PROFITERA_DERIV_SESSION?.currency || "USD";
+        const numericBalance = Number(account.balance);
+        const balanceText = Number.isFinite(numericBalance)
+            ? `${numericBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
+            : `${account.balance || "0.00"} ${currency}`;
+        if (accountLabel && account.loginid) accountLabel.textContent = account.loginid;
+        if (accountBalance) accountBalance.textContent = balanceText;
+        const mobileLabel = byId("mobile-account-label");
+        const mobileBalance = byId("mobile-account-balance");
+        if (mobileLabel && account.loginid) mobileLabel.textContent = account.loginid;
+        if (mobileBalance) mobileBalance.textContent = balanceText;
+    });
+
     const form = byId("trade-form");
     if (form) {
         form.addEventListener("submit", async (event) => {
@@ -324,7 +431,7 @@
                 stake: byId("trade-stake").value,
                 duration: byId("trade-duration").value,
                 duration_unit: byId("trade-duration-unit").value,
-                contract_type: byId("trade-contract").value,
+                contract_type: proposalContractType(),
                 barrier: (byId("trade-barrier") || {}).value || undefined,
                 growth_rate: (byId("growth-rate") || {}).value || undefined,
                 take_profit: (byId("take-profit") || {}).value || undefined,
@@ -354,9 +461,17 @@
         if (!Number.isFinite(price)) return;
         const badge = byId("chart-price-badge");
         if (badge) badge.textContent = price.toFixed(2);
+        scheduleProposal();
     });
 
+    window.addEventListener("profitera:market", () => {
+        syncUrlState();
+        scheduleProposal();
+    });
+
+    applyInitialState();
     renderTicket();
+    syncUrlState();
     updateClock();
     setInterval(updateClock, 1000);
 })();

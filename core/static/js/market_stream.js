@@ -18,6 +18,11 @@
         { symbol: "RDBULL", display_name: "DEX 1500 UP Index", market: "synthetic_index", market_display_name: "DEX indices" },
         { symbol: "RDBEAR", display_name: "DEX 1500 DOWN Index", market: "synthetic_index", market_display_name: "DEX indices" },
         { symbol: "frxEURUSD", display_name: "EUR/USD", market: "forex", market_display_name: "Forex" },
+        { symbol: "frxGBPUSD", display_name: "GBP/USD", market: "forex", market_display_name: "Forex" },
+        { symbol: "frxUSDJPY", display_name: "USD/JPY", market: "forex", market_display_name: "Forex" },
+        { symbol: "frxXAUUSD", display_name: "Gold/USD", market: "commodities", market_display_name: "Commodities" },
+        { symbol: "cryBTCUSD", display_name: "BTC/USD", market: "cryptocurrency", market_display_name: "Crypto" },
+        { symbol: "cryETHUSD", display_name: "ETH/USD", market: "cryptocurrency", market_display_name: "Crypto" },
     ];
 
     class MarketStream {
@@ -32,12 +37,17 @@
             this.connection = document.querySelector('[data-connection="markets"]');
             this.markets = [];
             this.prices = new Map();
+            this.previousPrices = new Map();
             this.favorites = new Set(JSON.parse(localStorage.getItem("profitera:favorites") || "[]"));
-            this.activeSymbol = "1HZ100V";
+            this.recent = JSON.parse(localStorage.getItem("profitera:recent-markets") || "[]");
+            this.activeSymbol = new URLSearchParams(window.location.search).get("symbol") || "1HZ100V";
             this.filter = "all";
             this.derivSocket = null;
             this.localSocket = null;
             this.reconnectTimer = null;
+            this.pending = new Map();
+            this.requestId = 100;
+            this.visibleSubscriptions = new Set();
             this.bind();
             this.loadSymbols();
             this.connectLocal();
@@ -75,7 +85,9 @@
                 this.markets = this.syntheticFirst(DEFAULT_MARKETS);
                 this.note(`Using local symbol list: ${error.message}`);
             }
+            this.syncActiveSymbolUi();
             this.render();
+            this.subscribeVisibleRows();
         }
 
         syntheticFirst(markets) {
@@ -88,6 +100,19 @@
         isSynthetic(item) {
             const text = `${item.symbol} ${item.display_name} ${item.market} ${item.market_display_name}`.toLowerCase();
             return text.includes("synthetic") || text.includes("volatility") || text.includes("boom") || text.includes("crash") || text.includes("jump") || text.includes("range break") || text.includes("step") || text.includes("dex") || /^r_\d+/.test(String(item.symbol).toLowerCase());
+        }
+
+        matchesCategory(item, category) {
+            if (category === "all") return true;
+            if (category === "favorite") return this.favorites.has(item.symbol);
+            if (category === "recent") return this.recent.includes(item.symbol);
+            const text = `${item.symbol} ${item.display_name} ${item.market} ${item.market_display_name}`.toLowerCase();
+            if (["synthetic", "derived"].includes(category)) return this.isSynthetic(item);
+            if (category === "stock") return text.includes("stock") || text.includes("indices") || text.includes("otc stocks");
+            if (category === "basket") return text.includes("basket");
+            if (category === "crypto") return text.includes("crypto") || text.includes("cryptocurrency") || text.includes("btc") || text.includes("eth");
+            if (category === "commodities") return text.includes("commod") || text.includes("gold") || text.includes("silver") || text.includes("xau");
+            return text.includes(category);
         }
 
         derivRequest(payload) {
@@ -113,15 +138,44 @@
             });
         }
 
+        sendDeriv(payload, type = "request") {
+            return new Promise((resolve, reject) => {
+                if (!this.derivSocket || this.derivSocket.readyState !== WebSocket.OPEN) {
+                    reject(new Error("Deriv WebSocket is not connected"));
+                    return;
+                }
+                const reqId = this.requestId += 1;
+                this.pending.set(reqId, { resolve, reject, type });
+                this.derivSocket.send(JSON.stringify({ ...payload, req_id: reqId }));
+                setTimeout(() => {
+                    if (!this.pending.has(reqId)) return;
+                    this.pending.delete(reqId);
+                    reject(new Error("Deriv request timeout"));
+                }, 10000);
+            });
+        }
+
         connectDeriv() {
             const appId = window.PROFITERA_DERIV_APP_ID || "1089";
             this.derivSocket = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${appId}`);
             this.derivSocket.onopen = () => {
                 this.setConnection(true);
+                this.authorize();
                 this.subscribeActive();
             };
             this.derivSocket.onmessage = (event) => {
                 const data = JSON.parse(event.data);
+                if (data.req_id && this.pending.has(data.req_id)) {
+                    const pending = this.pending.get(data.req_id);
+                    this.pending.delete(data.req_id);
+                    if (data.error) pending.reject(new Error(data.error.message));
+                    else pending.resolve(data);
+                    if (pending.type !== "subscription") return;
+                }
+                if (data.authorize) this.requestBalance();
+                if (data.balance) {
+                    window.dispatchEvent(new CustomEvent("profitera:account", { detail: data.balance }));
+                }
                 if (data.tick) this.ingestTick({ symbol: data.tick.symbol, price: data.tick.quote, time: data.tick.epoch });
                 if (data.candles && window.profiteraChart) {
                     window.profiteraChart.clear();
@@ -142,6 +196,17 @@
             this.derivSocket.onerror = () => this.setConnection(false);
         }
 
+        authorize() {
+            const token = window.PROFITERA_DERIV_SESSION && window.PROFITERA_DERIV_SESSION.token;
+            if (!token || !this.derivSocket || this.derivSocket.readyState !== WebSocket.OPEN) return;
+            this.derivSocket.send(JSON.stringify({ authorize: token, req_id: this.requestId += 1 }));
+        }
+
+        requestBalance() {
+            if (!this.derivSocket || this.derivSocket.readyState !== WebSocket.OPEN) return;
+            this.derivSocket.send(JSON.stringify({ balance: 1, subscribe: 1, req_id: this.requestId += 1 }));
+        }
+
         connectLocal() {
             const scheme = window.location.protocol === "https:" ? "wss" : "ws";
             this.localSocket = new WebSocket(`${scheme}://${window.location.host}/ws/markets/`);
@@ -154,8 +219,7 @@
 
         subscribeActive() {
             if (!this.derivSocket || this.derivSocket.readyState !== WebSocket.OPEN) return;
-            this.derivSocket.send(JSON.stringify({ forget_all: "ticks" }));
-            this.derivSocket.send(JSON.stringify({ ticks: this.activeSymbol, subscribe: 1, req_id: 21 }));
+            this.subscribeVisibleRows();
             this.derivSocket.send(JSON.stringify({
                 ticks_history: this.activeSymbol,
                 end: "latest",
@@ -166,21 +230,49 @@
             }));
         }
 
+        subscribeVisibleRows() {
+            if (!this.derivSocket || this.derivSocket.readyState !== WebSocket.OPEN) return;
+            this.derivSocket.send(JSON.stringify({ forget_all: "ticks" }));
+            const symbols = new Set([this.activeSymbol]);
+            if (this.list) {
+                this.list.querySelectorAll("[data-symbol]").forEach((row) => {
+                    if (symbols.size < 24) symbols.add(row.dataset.symbol);
+                });
+            }
+            this.visibleSubscriptions = symbols;
+            symbols.forEach((symbol) => {
+                this.derivSocket.send(JSON.stringify({ ticks: symbol, subscribe: 1, req_id: this.requestId += 1 }));
+            });
+        }
+
+        syncActiveSymbolUi() {
+            const market = this.markets.find((item) => item.symbol === this.activeSymbol);
+            if (this.activeName) this.activeName.textContent = market ? (market.display_name || this.activeSymbol) : this.activeSymbol;
+            if (this.activeCode) this.activeCode.textContent = this.activeSymbol;
+            if (this.tradeSymbol) this.tradeSymbol.value = this.activeSymbol;
+            const synthetic = market ? this.isSynthetic(market) : !String(this.activeSymbol).startsWith("frx");
+            document.body.classList.toggle("market-forex", !synthetic);
+            document.body.classList.toggle("market-synthetic", synthetic);
+        }
+
+        rememberSymbol(symbol) {
+            this.recent = [symbol, ...this.recent.filter((item) => item !== symbol)].slice(0, 12);
+            localStorage.setItem("profitera:recent-markets", JSON.stringify(this.recent));
+        }
+
         setActive(symbol) {
             this.activeSymbol = symbol;
             const market = this.markets.find((item) => item.symbol === symbol);
-            if (this.activeName && market) this.activeName.textContent = market.display_name || symbol;
-            if (this.activeCode) this.activeCode.textContent = symbol;
-            if (this.tradeSymbol) this.tradeSymbol.value = symbol;
+            this.syncActiveSymbolUi();
+            this.rememberSymbol(symbol);
             const popover = document.getElementById("markets-popover");
             if (popover) popover.hidden = true;
             if (window.profiteraChart) window.profiteraChart.clear();
             const synthetic = market ? this.isSynthetic(market) : !String(symbol).startsWith("frx");
-            document.body.classList.toggle("market-forex", !synthetic);
-            document.body.classList.toggle("market-synthetic", synthetic);
             window.dispatchEvent(new CustomEvent("profitera:market", { detail: { symbol, market, synthetic } }));
             this.subscribeActive();
             this.render();
+            this.subscribeVisibleRows();
         }
 
         ingestTick(tick) {
@@ -188,6 +280,7 @@
             const price = Number(tick.price);
             if (!symbol || !Number.isFinite(price)) return;
             const previous = this.prices.get(symbol);
+            if (previous !== undefined) this.previousPrices.set(symbol, previous);
             this.prices.set(symbol, price);
             if (symbol === this.activeSymbol) {
                 if (this.activePrice) this.activePrice.textContent = price.toFixed(2);
@@ -207,11 +300,15 @@
             if (!this.list) return;
             const query = (this.search ? this.search.value : "").toLowerCase();
             const rows = this.markets
-                .filter((item) => this.filter === "all" || (this.filter === "favorite" ? this.favorites.has(item.symbol) : this.filter === "synthetic" || this.filter === "derived" ? this.isSynthetic(item) : `${item.market} ${item.market_display_name}`.toLowerCase().includes(this.filter)))
+                .filter((item) => this.matchesCategory(item, this.filter))
                 .filter((item) => `${item.symbol} ${item.display_name} ${item.market_display_name}`.toLowerCase().includes(query))
                 .slice(0, 140);
             this.list.innerHTML = rows.map((item) => {
                 const price = this.prices.get(item.symbol);
+                const previous = this.previousPrices.get(item.symbol);
+                const change = Number.isFinite(price) && Number.isFinite(previous) && previous !== 0
+                    ? ((price - previous) / previous) * 100
+                    : null;
                 const favorite = this.favorites.has(item.symbol);
                 return `
                     <article class="market-row ${item.symbol === this.activeSymbol ? "is-active" : ""}" data-symbol="${item.symbol}">
@@ -220,7 +317,8 @@
                             <span class="market-name">${item.display_name || item.symbol}</span>
                             <span class="market-meta">${item.symbol} / ${item.market_display_name || item.market || "Market"}</span>
                         </button>
-                        <strong class="market-price" data-price-symbol="${item.symbol}">${price ? price.toFixed(2) : "-"}</strong>
+                        <strong class="market-price" data-price-symbol="${item.symbol}">${Number.isFinite(price) ? price.toFixed(2) : "-"}</strong>
+                        <span class="market-change ${change > 0 ? "up" : change < 0 ? "down" : ""}" data-change-symbol="${item.symbol}">${change === null ? "-" : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}</span>
                     </article>
                 `;
             }).join("");
@@ -234,16 +332,26 @@
                     else this.favorites.add(symbol);
                     localStorage.setItem("profitera:favorites", JSON.stringify([...this.favorites]));
                     this.render();
+                    this.subscribeVisibleRows();
                 });
             });
+            this.subscribeVisibleRows();
         }
 
         updatePriceRow(symbol, price, previous) {
             const el = document.querySelector(`[data-price-symbol="${symbol}"]`);
-            if (!el) return;
-            el.textContent = price.toFixed(2);
-            el.classList.toggle("up", previous !== undefined && price > previous);
-            el.classList.toggle("down", previous !== undefined && price < previous);
+            if (el) {
+                el.textContent = price.toFixed(2);
+                el.classList.toggle("up", previous !== undefined && price > previous);
+                el.classList.toggle("down", previous !== undefined && price < previous);
+            }
+            const changeEl = document.querySelector(`[data-change-symbol="${symbol}"]`);
+            if (changeEl && previous) {
+                const change = ((price - previous) / previous) * 100;
+                changeEl.textContent = `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`;
+                changeEl.classList.toggle("up", change > 0);
+                changeEl.classList.toggle("down", change < 0);
+            }
         }
 
         setConnection(online) {

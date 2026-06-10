@@ -3,12 +3,22 @@ import os
 
 
 class DerivTradeEngine:
-    def __init__(self):
+    def __init__(self, token=None):
         app_id = os.getenv("DERIV_APP_ID", "1089")
-        self.token = os.getenv("DERIV_API_TOKEN")
+        self.token = token or os.getenv("DERIV_API_TOKEN")
         self.url = f"wss://ws.derivws.com/websockets/v3?app_id={app_id}"
 
-    async def buy_contract(self, symbol, contract_type, stake, duration=5, duration_unit="t"):
+    async def buy_contract(
+        self,
+        symbol,
+        contract_type,
+        stake,
+        duration=5,
+        duration_unit="t",
+        currency="USD",
+        barrier=None,
+        growth_rate=None,
+    ):
         try:
             import websockets
         except ImportError as exc:
@@ -28,11 +38,15 @@ class DerivTradeEngine:
                 "amount": float(stake),
                 "basis": "stake",
                 "contract_type": contract_type,
-                "currency": "USD",
+                "currency": currency,
                 "duration": int(duration),
                 "duration_unit": duration_unit,
                 "symbol": symbol,
             }
+            if barrier not in (None, ""):
+                proposal_payload["barrier"] = str(barrier)
+            if growth_rate not in (None, ""):
+                proposal_payload["growth_rate"] = float(growth_rate)
             await ws.send(json.dumps(proposal_payload))
             proposal = json.loads(await ws.recv())
             if proposal.get("error"):

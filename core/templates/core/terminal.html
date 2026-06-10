@@ -1,20 +1,20 @@
 <main class="deriv-terminal" data-theme="dark">
     <aside class="deriv-rail" aria-label="Main navigation">
-        <a class="deriv-logo" href="/trade/" aria-label="Profitera trade">DT</a>
-        <button class="rail-item is-active" type="button" title="Home" aria-label="Home">⌂<span>Home</span></button>
-        <button class="rail-item" type="button" data-toggle-positions title="Positions" aria-label="Positions">◴<span>Positions</span></button>
-        <button class="rail-item" type="button" title="Reports" aria-label="Reports">▱<span>Reports</span></button>
+        <a class="deriv-logo" href="{% url 'trade' %}" aria-label="Profitera trade">DT</a>
+        <button class="rail-item is-active" type="button" title="Home" aria-label="Home">H<span>Home</span></button>
+        <button class="rail-item" type="button" data-toggle-positions title="Positions" aria-label="Positions">P<span>Positions</span></button>
+        <button class="rail-item" type="button" title="Reports" aria-label="Reports">R<span>Reports</span></button>
         <span class="rail-spacer"></span>
         <button class="rail-item" type="button" title="Help" aria-label="Help">?</button>
-        <button class="rail-item" type="button" title="Language" aria-label="Language">◎</button>
-        <button class="rail-item" type="button" data-theme-toggle title="Theme" aria-label="Theme">☼<span>Theme</span></button>
-        <button class="rail-item" type="button" title="Account" aria-label="Account">♙<span>Account</span></button>
+        <button class="rail-item" type="button" title="Language" aria-label="Language">EN</button>
+        <button class="rail-item" type="button" data-theme-toggle title="Theme" aria-label="Theme">T<span>Theme</span></button>
+        <a class="rail-item" href="{% if deriv_session.is_connected %}{% url 'deriv_logout' %}{% else %}{% url 'deriv_login' %}{% endif %}" title="Account" aria-label="Account">A<span>Account</span></a>
     </aside>
 
     <section class="positions-drawer" id="positions-drawer" aria-label="Open positions">
         <header>
             <strong>Open positions</strong>
-            <button type="button" data-close-positions aria-label="Close positions">−</button>
+            <button type="button" data-close-positions aria-label="Close positions">-</button>
         </header>
         <div class="empty-state">You have no open positions.</div>
     </section>
@@ -23,13 +23,13 @@
         <header class="trade-topbar">
             <div class="mobile-account-strip">
                 <span class="deriv-logo">DT</span>
-                <span><small>Real account</small><strong>{{ real_balance|default:"0.00" }} USD</strong></span>
-                <a class="deposit-btn" href="/account/">Deposit</a>
+                <span><small id="mobile-account-label">{% if deriv_session.is_connected %}{{ deriv_session.account_id }}{% else %}Real account{% endif %}</small><strong id="mobile-account-balance">{{ real_balance|default:'0.00' }} {{ deriv_session.currency|default:'USD' }}</strong></span>
+                <a class="deposit-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'deriv_login' %}{% endif %}">{% if deriv_session.is_connected %}Deposit{% else %}Login{% endif %}</a>
             </div>
-            <button class="app-grid" type="button" aria-label="Apps">▦</button>
+            <button class="app-grid" type="button" aria-label="Apps">Apps</button>
             <nav class="trade-type-tabs" aria-label="Trade type">
-                <button class="is-active" data-trade-type="rise_fall" type="button">Rise/Fall 🔥</button>
-                <button data-trade-type="accumulator" type="button">Accumulators 🔥</button>
+                <button class="is-active" data-trade-type="rise_fall" type="button">Rise/Fall</button>
+                <button data-trade-type="accumulator" type="button">Accumulators</button>
                 <button data-trade-type="multiplier" type="button">Multipliers</button>
                 <button data-trade-type="turbos" type="button">Turbos</button>
                 <button data-trade-type="vanillas" type="button">Vanillas</button>
@@ -43,28 +43,28 @@
 
         <section class="chart-stage">
             <button class="symbol-card" type="button" id="symbol-card" aria-haspopup="dialog">
-                <span class="mini-candles">▥</span>
+                <span class="mini-candles">||</span>
                 <span>
                     <strong id="active-symbol-name">Volatility 100 (1s) Index</strong>
-                    <small><span id="active-price">Waiting</span> · <span id="active-change" class="neutral">0.00%</span></small>
+                    <small><span id="active-symbol-code">1HZ100V</span> / <span id="active-price">Waiting</span> / <span id="active-change" class="neutral">0.00%</span></small>
                 </span>
-                <span aria-hidden="true">⌄</span>
+                <span aria-hidden="true">v</span>
             </button>
 
             <div class="floating-tools" aria-label="Chart controls">
-                <button type="button" data-modal="chart-types" title="Chart type" aria-label="Chart type">▰</button>
-                <button type="button" data-modal="indicators" title="Indicators" aria-label="Indicators">▧</button>
-                <button type="button" data-modal="templates" title="Templates" aria-label="Templates">▤</button>
-                <button type="button" data-modal="drawings" title="Drawing tools" aria-label="Drawing tools">╱</button>
-                <button type="button" title="Download" aria-label="Download">⇩</button>
+                <button type="button" data-modal="chart-types" title="Chart type" aria-label="Chart type">CT</button>
+                <button type="button" data-modal="indicators" title="Indicators" aria-label="Indicators">I</button>
+                <button type="button" data-modal="templates" title="Templates" aria-label="Templates">T</button>
+                <button type="button" data-modal="drawings" title="Drawing tools" aria-label="Drawing tools">D</button>
+                <button type="button" title="Download" aria-label="Download">DL</button>
             </div>
 
             <canvas id="price-chart" aria-label="Live price chart"></canvas>
             <div class="price-badge" id="chart-price-badge">--</div>
             <div class="zoom-stack">
                 <button data-chart-action="zoom-in" type="button" aria-label="Zoom in">+</button>
-                <button data-chart-action="reset" type="button" aria-label="Reset chart">⚙</button>
-                <button data-chart-action="zoom-out" type="button" aria-label="Zoom out">−</button>
+                <button data-chart-action="reset" type="button" aria-label="Reset chart">R</button>
+                <button data-chart-action="zoom-out" type="button" aria-label="Zoom out">-</button>
             </div>
             <div class="crosshair-readout" id="crosshair-readout">Live Deriv feed</div>
         </section>
@@ -73,13 +73,20 @@
     <aside class="ticket-panel" id="ticket-panel">
         <div class="account-strip">
             <button class="account-current" id="account-current" type="button" aria-haspopup="true" aria-expanded="false">
-                <span><small id="account-label">Real account</small><strong id="account-balance">{{ real_balance|default:"0.00" }} USD</strong></span>
-                <span>⌄</span>
+                <span><small id="account-label">{% if deriv_session.is_connected %}{{ deriv_session.account_id }}{% else %}Real account{% endif %}</small><strong id="account-balance">{{ real_balance|default:'0.00' }} {{ deriv_session.currency|default:'USD' }}</strong></span>
+                <span>v</span>
             </button>
-            <a class="deposit-btn" href="/account/">Deposit</a>
+            <a class="deposit-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'deriv_login' %}{% endif %}">{% if deriv_session.is_connected %}Deposit{% else %}Login{% endif %}</a>
             <div class="account-menu" id="account-menu" role="menu">
-                <button type="button" data-account-type="real" data-label="Real account" data-balance="{{ real_balance|default:"0.00" }} USD"><span><small>Real Account</small><strong>REAL</strong></span></button>
-                <button type="button" data-account-type="demo" data-label="Demo account" data-balance="{{ demo_balance|default:"10000.00" }}"><span><small>Demo Account</small><strong>DEMO</strong></span></button>
+                {% if deriv_session.is_connected %}
+                <button type="button" data-account-type="{{ deriv_session.account_type }}" data-label="{{ deriv_session.account_id }}" data-balance="{{ real_balance|default:'0.00' }} {{ deriv_session.currency|default:'USD' }}"><span><small>Deriv Account</small><strong>{{ deriv_session.account_id }}</strong></span></button>
+                <a href="{% url 'deriv_logout' %}">Logout</a>
+                {% else %}
+                <a href="{% url 'deriv_login' %}">Login with Deriv</a>
+                <a href="{% url 'deriv_register' %}">Register with Deriv</a>
+                {% endif %}
+                <button type="button" data-account-type="real" data-label="Real account" data-balance="{{ real_balance|default:'0.00' }} USD"><span><small>Real Account</small><strong>REAL</strong></span></button>
+                <button type="button" data-account-type="demo" data-label="Demo account" data-balance="{{ demo_balance|default:'10000.00' }}"><span><small>Demo Account</small><strong>DEMO</strong></span></button>
                 <button type="button" id="reset-demo-balance">Reset demo balance</button>
             </div>
             <span id="demo-balance" hidden>{{ demo_balance|default:"10000.00" }}</span>
@@ -94,39 +101,42 @@
                 <div class="choice-pill" id="direction-choice"></div>
                 <div class="digit-picker" id="digit-picker" hidden></div>
                 <label class="ticket-field" data-field="duration"><span>Duration</span><input name="duration" id="trade-duration" value="5"><input name="duration_unit" id="trade-duration-unit" value="m" type="hidden"></label>
-                <label class="ticket-field" data-field="stake"><span>Stake</span><input name="stake" id="trade-stake" value="10"><b>USD</b></label>
+                <label class="ticket-field" data-field="stake"><span>Stake</span><input name="stake" id="trade-stake" value="10"><b>{{ deriv_session.currency|default:"USD" }}</b></label>
                 <label class="ticket-field" id="barrier-field" hidden><span>Barrier</span><input name="barrier" id="trade-barrier" value="+0.42"></label>
                 <label class="ticket-field" id="growth-field" hidden><span>Growth rate</span><select id="growth-rate" name="growth_rate"><option value="0.03">3%</option><option value="0.02">2%</option><option value="0.04">4%</option><option value="0.05">5%</option></select></label>
                 <label class="ticket-field" id="take-profit-field" hidden><span>Take profit</span><input id="take-profit" name="take_profit" placeholder="-"></label>
                 <label class="ticket-field" id="risk-field" hidden><span>Risk management</span><input id="stop-out" name="stop_out" placeholder="-"></label>
                 <div class="terms-list" id="terms-list"></div>
                 <button class="buy-btn" type="submit" id="primary-action" data-direction="rise">Buy<span id="proposal-payout">Payout 19.25 USD</span></button>
-                <p class="risk-copy" id="risk-warning">Real execution uses your Deriv credentials when available.</p>
+                <p class="risk-copy" id="risk-warning">{% if deriv_session.is_connected %}Connected to Deriv account {{ deriv_session.account_id }}.{% else %}Login with Deriv to stream account balance and trade with your account.{% endif %}</p>
                 <strong id="contract-status" hidden>Idle</strong>
             </form>
         </section>
 
-        <footer class="terminal-clock"><span>●</span><time id="terminal-time">--</time></footer>
+        <footer class="terminal-clock"><span>Live</span><time id="terminal-time">--</time></footer>
     </aside>
 
-    <button class="mobile-sheet-handle" type="button" data-toggle-ticket aria-label="Open trade ticket">⌃</button>
+    <button class="mobile-sheet-handle" type="button" data-toggle-ticket aria-label="Open trade ticket">Trade</button>
     <nav class="mobile-nav" aria-label="Mobile navigation">
-        <button type="button">⌂<span>Home</span></button>
-        <button class="is-active" type="button">▰<span>Trade</span></button>
-        <button type="button" data-toggle-positions>◴<span>Positions</span></button>
-        <a href="/bot-builder/">☰<span>Menu</span></a>
+        <button type="button">H<span>Home</span></button>
+        <button class="is-active" type="button">T<span>Trade</span></button>
+        <button type="button" data-toggle-positions>P<span>Positions</span></button>
+        <a href="{% url 'bot_builder' %}">M<span>Menu</span></a>
     </nav>
 
     <div class="markets-popover" id="markets-popover" role="dialog" aria-label="Markets" hidden>
         <aside>
             <strong>Markets</strong>
-            <button class="is-active" data-market-category="all" type="button">☆ Favorites</button>
-            <button data-market-category="stock" type="button">Stock indices</button>
-            <button data-market-category="derived" type="button">◎ Derived</button>
-            <button data-market-category="synthetic" type="button">Synthetics</button>
-            <button data-market-category="crypto" type="button">Cryptocurrencies</button>
+            <button class="is-active" data-market-category="all" type="button">All markets</button>
+            <button data-market-category="favorite" type="button">Favorites</button>
+            <button data-market-category="recent" type="button">Recently viewed</button>
+            <button data-market-category="synthetic" type="button">Synthetic Indices</button>
             <button data-market-category="forex" type="button">Forex</button>
             <button data-market-category="commodities" type="button">Commodities</button>
+            <button data-market-category="stock" type="button">Stocks</button>
+            <button data-market-category="derived" type="button">Derived Indices</button>
+            <button data-market-category="basket" type="button">Basket Indices</button>
+            <button data-market-category="crypto" type="button">Crypto</button>
         </aside>
         <section>
             <input id="market-search" type="search" placeholder="Search..." autocomplete="off">
@@ -136,43 +146,46 @@
 
     <div class="modal-layer" id="modal-layer" hidden>
         <section class="trade-modal" data-modal-panel="chart-types" hidden>
-            <header><strong>Chart types</strong><button data-close-modal type="button">×</button></header>
+            <header><strong>Chart types</strong><button data-close-modal type="button">x</button></header>
             <div class="chart-type-grid">
-                <button class="is-active" data-chart-mode="line" type="button">▰<span>Area</span></button>
-                <button data-chart-mode="candles" type="button">▥<span>Candle</span></button>
-                <button data-chart-mode="hollow" type="button">▥<span>Hollow</span></button>
-                <button data-chart-mode="ohlc" type="button">╂<span>OHLC</span></button>
+                <button class="is-active" data-chart-mode="line" type="button">A<span>Area</span></button>
+                <button data-chart-mode="candles" type="button">C<span>Candle</span></button>
+                <button data-chart-mode="hollow" type="button">H<span>Hollow</span></button>
+                <button data-chart-mode="ohlc" type="button">O<span>OHLC</span></button>
             </div>
             <h3>Time interval</h3>
             <div class="interval-grid">
                 <button class="is-active" data-chart-interval="1" type="button">1 tick</button>
                 <button data-chart-interval="60" type="button">1 minute</button>
                 <button data-chart-interval="120" type="button">2 minutes</button>
+                <button data-chart-interval="180" type="button">3 minutes</button>
                 <button data-chart-interval="300" type="button">5 minutes</button>
                 <button data-chart-interval="600" type="button">10 minutes</button>
+                <button data-chart-interval="900" type="button">15 minutes</button>
                 <button data-chart-interval="1800" type="button">30 minutes</button>
                 <button data-chart-interval="3600" type="button">1 hour</button>
+                <button data-chart-interval="14400" type="button">4 hours</button>
                 <button data-chart-interval="86400" type="button">1 day</button>
             </div>
             <label class="modal-toggle"><span>Smooth chart movement<small>Performance may vary by device.</small></span><input type="checkbox" checked></label>
         </section>
 
         <section class="trade-modal wide" data-modal-panel="indicators" hidden>
-            <header><strong>Indicators</strong><input type="search" placeholder="Search"><button data-close-modal type="button">×</button></header>
+            <header><strong>Indicators</strong><input type="search" placeholder="Search"><button data-close-modal type="button">x</button></header>
             <aside class="modal-sidebar"><button class="is-active">Active</button><button>Momentum</button><button>Trend</button><button>Volatility</button><button>Moving averages</button><button>Others</button></aside>
             <div class="modal-empty">You have no active indicators yet.</div>
         </section>
 
         <section class="trade-modal small" data-modal-panel="templates" hidden>
-            <header><strong>Templates</strong><button data-close-modal type="button">×</button></header>
+            <header><strong>Templates</strong><button data-close-modal type="button">x</button></header>
             <div class="modal-empty">You have no saved templates yet.</div>
             <button class="danger-link" type="button">+ Add new template</button>
         </section>
 
         <section class="trade-modal wide" data-modal-panel="drawings" hidden>
-            <header><strong>Drawing tools</strong><button data-close-modal type="button">×</button></header>
-            <aside class="modal-sidebar"><button class="is-active">Active</button><button>All drawings</button></aside>
-            <div class="modal-empty">You have no active drawings yet.</div>
+            <header><strong>Drawing tools</strong><button data-close-modal type="button">x</button></header>
+            <aside class="modal-sidebar"><button class="is-active">Active</button><button>Trend line</button><button>Horizontal line</button><button>Vertical line</button><button>Fibonacci</button><button>Rectangle</button><button>Brush</button><button>Text</button></aside>
+            <div class="modal-empty">Select a drawing tool to start annotating the chart.</div>
         </section>
     </div>
 </main>

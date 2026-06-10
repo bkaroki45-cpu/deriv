@@ -26,6 +26,10 @@ class TradeView(APIView):
             duration = request.data.get("duration", 5)
             duration_unit = request.data.get("duration_unit", "t")
             requested_contract_type = request.data.get("contract_type")
+            barrier = request.data.get("barrier")
+            growth_rate = request.data.get("growth_rate")
+            deriv_token = request.session.get("deriv_token")
+            currency = request.session.get("deriv_currency", "USD")
 
             if not symbol or not direction or not stake:
                 return Response(
@@ -69,11 +73,20 @@ class TradeView(APIView):
             # =========================
             # 3. EXECUTE DERIV TRADE
             # =========================
-            engine = DerivTradeEngine()
+            engine = DerivTradeEngine(token=deriv_token)
 
             try:
                 result = asyncio.run(
-                    engine.buy_contract(symbol, contract_type, float(stake), duration, duration_unit)
+                    engine.buy_contract(
+                        symbol,
+                        contract_type,
+                        float(stake),
+                        duration,
+                        duration_unit,
+                        currency=currency,
+                        barrier=barrier,
+                        growth_rate=growth_rate,
+                    )
                 )
             except Exception as e:
                 return Response(
