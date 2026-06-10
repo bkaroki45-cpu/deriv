@@ -7,88 +7,131 @@
     <title>Profitera Bot Builder</title>
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 </head>
-<body>
-    <nav class="site-nav terminal-nav">
-        <a class="nav-brand" href="/">Profitera</a>
-        <div class="nav-links">
-            <a href="/trade/">Trade</a>
-            <a href="/bot-builder/">Bot Builder</a>
-            <a href="/analytics/">Analytics</a>
-            <a href="/account/">Account</a>
-            {% if request.user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
-        </div>
-        <a class="nav-cta" href="/trade/">Launch Terminal</a>
-    </nav>
-
-    <main class="bot-builder-shell">
-        <aside class="builder-palette glass-panel">
-            <div class="panel-header compact">
-                <div>
-                    <p class="eyebrow">Strategy blocks</p>
-                    <h1>Blocks</h1>
-                </div>
-            </div>
-            <div class="block-list">
-                <button class="strategy-block" draggable="true">Purchase conditions</button>
-                <button class="strategy-block" draggable="true">Trade conditions</button>
-                <button class="strategy-block" draggable="true">Logic blocks</button>
-                <button class="strategy-block" draggable="true">Indicator blocks</button>
-                <button class="strategy-block" draggable="true">Variable blocks</button>
-                <button class="strategy-block" draggable="true">Loop blocks</button>
-                <button class="strategy-block" draggable="true">RSI</button>
-                <button class="strategy-block" draggable="true">MACD</button>
-                <button class="strategy-block" draggable="true">EMA</button>
-                <button class="strategy-block" draggable="true">SMA</button>
-                <button class="strategy-block" draggable="true">Bollinger Bands</button>
-            </div>
+<body class="bot-page">
+    <main class="deriv-bot-builder">
+        <aside class="deriv-rail" aria-label="Bot navigation">
+            <a class="deriv-logo" href="/bot-builder/" aria-label="Profitera bot">DB</a>
+            <a class="rail-item is-active" href="/bot-builder/">⌂<span>Home</span></a>
+            <a class="rail-item" href="/trade/">▱<span>Reports</span></a>
+            <span class="rail-spacer"></span>
+            <button class="rail-item" type="button" data-theme-toggle>☼<span>Theme</span></button>
+            <a class="rail-item" href="/accounts/logout/">⇱<span>Log out</span></a>
         </aside>
 
-        <section class="builder-canvas glass-panel">
-            <div class="panel-header compact">
-                <div>
-                    <p class="eyebrow">Visual builder</p>
-                    <h1>Deriv-style strategy flow</h1>
-                </div>
-                <span class="risk-chip normal" id="builder-validation">valid</span>
-            </div>
-            <div class="builder-stage" id="builder-stage">
-                <i class="node-connector" style="left: 210px; top: 91px; width: 120px;"></i>
-                <i class="node-connector" style="left: 430px; top: 91px; width: 120px;"></i>
-                <article class="builder-node" style="left: 32px; top: 52px;"><strong>Market</strong><small>Volatility 100 Index</small></article>
-                <article class="builder-node" style="left: 330px; top: 52px;"><strong>Purchase condition</strong><small>RSI crosses below 30</small></article>
-                <article class="builder-node" style="left: 552px; top: 52px;"><strong>Buy contract</strong><small>Accumulator, 2% growth</small></article>
-                <article class="builder-node" style="left: 168px; top: 220px;"><strong>Risk guard</strong><small>Profit target and stop loss</small></article>
-                <article class="builder-node" style="left: 456px; top: 312px;"><strong>Loop</strong><small>Run while bot is active</small></article>
+        <section class="bot-main">
+            <header class="bot-topbar">
+                <nav>
+                    <a href="/trade/">Dashboard</a>
+                    <a class="is-active" href="/bot-builder/">Bot Builder</a>
+                    <a href="/trade/">Charts</a>
+                    <a href="#">Tutorials</a>
+                </nav>
+                <div class="bot-account"><small>Real account</small><strong>0.00 USD</strong><a class="deposit-btn" href="/account/">Deposit</a></div>
+            </header>
+
+            <div class="bot-content">
+                <aside class="blocks-menu">
+                    <button class="quick-strategy" type="button">Quick strategy</button>
+                    <section>
+                        <h2>Blocks menu</h2>
+                        <input type="search" placeholder="Search">
+                        <button class="block-menu-item" draggable="true">Trade parameters</button>
+                        <button class="block-menu-item" draggable="true">Purchase conditions</button>
+                        <button class="block-menu-item" draggable="true">Sell conditions (optional)</button>
+                        <button class="block-menu-item" draggable="true">Restart trading conditions</button>
+                        <button class="block-menu-item" draggable="true">Analysis</button>
+                        <button class="block-menu-item" draggable="true">Utility</button>
+                    </section>
+                </aside>
+
+                <section class="bot-canvas-wrap">
+                    <div class="bot-toolbar" aria-label="Bot builder tools">
+                        <button data-bot-modal="reset" type="button" title="Reset">↻</button>
+                        <button data-bot-modal="import" type="button" title="Import">▱</button>
+                        <button data-bot-modal="save" type="button" title="Save">▣</button>
+                        <button data-bot-action="sort" type="button" title="Sort blocks">╞</button>
+                        <button data-bot-modal="chart" type="button" title="Chart">⌁</button>
+                        <button data-bot-modal="tradingview" type="button" title="TradingView Chart">↯</button>
+                        <button data-bot-action="undo" type="button" title="Undo">↶</button>
+                        <button data-bot-action="redo" type="button" title="Redo">↷</button>
+                        <button data-bot-action="zoom-in" type="button" title="Zoom in">⊕</button>
+                        <button data-bot-action="zoom-out" type="button" title="Zoom out">⊖</button>
+                    </div>
+
+                    <div class="bot-stage" id="builder-stage">
+                        <article class="bot-block block-large" style="left: 18px; top: 48px;">
+                            <h3>1. Trade parameters</h3>
+                            <p>Market: <span>Derived</span> &gt; <span>Continuous Indices</span> &gt; <span>Volatility 100 (1s) Index</span></p>
+                            <p>Trade Type: <span>Up/Down</span> &gt; <span>Rise/Fall</span></p>
+                            <p>Contract Type: <span>Both</span></p>
+                            <p>Default Candle Interval: <span>1 minute</span></p>
+                            <label>Restart buy/sell on error <input type="checkbox"></label>
+                            <label>Restart last trade on error <input type="checkbox" checked></label>
+                            <h4>Trade options:</h4>
+                            <p>Duration: <span>Ticks</span> <b>1</b> Stake: USD <b>1</b></p>
+                        </article>
+                        <article class="bot-block" style="left: 18px; top: 466px;">
+                            <h3>2. Purchase conditions</h3>
+                            <p>Purchase <span>Rise</span></p>
+                        </article>
+                        <article class="bot-block" style="left: 520px; top: 48px;">
+                            <h3>3. Sell conditions</h3>
+                            <p>if <span>Sell is available</span> then</p>
+                        </article>
+                        <article class="bot-block" style="left: 520px; top: 210px;">
+                            <h3>4. Restart trading conditions</h3>
+                            <p><span>Trade again</span></p>
+                        </article>
+                    </div>
+                </section>
+
+                <aside class="bot-summary">
+                    <div class="run-strip"><button type="button">▶ Run</button><strong>Bot is not running</strong></div>
+                    <nav><button class="is-active">Summary</button><button>Transactions</button><button>Journal</button></nav>
+                    <div class="summary-empty">When you're ready to trade, hit Run.<br>You'll be able to track your bot's performance here.</div>
+                    <footer>
+                        <span>Total stake<strong>0.00 USD</strong></span>
+                        <span>Total payout<strong>0.00 USD</strong></span>
+                        <span>No. of runs<strong>0</strong></span>
+                        <button type="button">Reset</button>
+                    </footer>
+                </aside>
             </div>
         </section>
 
-        <aside class="builder-config glass-panel">
-            <div class="panel-header compact">
-                <div>
-                    <p class="eyebrow">Parameters</p>
-                    <h1>Bot controls</h1>
-                </div>
-            </div>
-            <div class="config-grid">
-                <label>Market<select><option>Synthetic Indices</option><option>Forex</option></select></label>
-                <label>Symbol<select><option>Volatility 100 Index</option><option>Volatility 75 Index</option><option>Volatility 50 Index</option></select></label>
-                <label>Contract type<select><option>Accumulator</option><option>Rise/Fall</option><option>Matches/Differs</option><option>Over/Under</option></select></label>
-                <label>Stake<input type="number" value="10" min="0.35" step="0.01"></label>
-                <label>Duration<input type="number" value="5" min="1"></label>
-                <label>Currency<select><option>USD</option></select></label>
-                <label>Profit target<input type="number" placeholder="optional"></label>
-                <label>Stop loss<input type="number" placeholder="optional"></label>
-                <div class="ticket-actions">
-                    <button class="buy-btn" type="button">Start Bot</button>
-                    <button class="sell-btn" type="button">Stop Bot</button>
-                </div>
-                <div class="ticket-actions">
-                    <button class="secondary-cta" type="button">Pause Bot</button>
-                    <button class="secondary-cta" type="button">Save Strategy</button>
-                </div>
-                <button class="strategy-block" type="button">Load Strategy</button>
-            </div>
-        </aside>
+        <div class="modal-layer" id="bot-modal-layer" hidden>
+            <section class="bot-dialog small" data-bot-panel="reset" hidden>
+                <header><strong>Reset strategy?</strong><button data-close-bot-modal type="button">×</button></header>
+                <p>Do you want to cancel the settings made for this bot?</p>
+                <footer><button data-close-bot-modal type="button">Cancel</button><button class="danger-btn" data-close-bot-modal type="button">Reset</button></footer>
+            </section>
+
+            <section class="bot-dialog load" data-bot-panel="import" hidden>
+                <header><strong>Load strategy</strong><button data-close-bot-modal type="button">×</button></header>
+                <div class="load-tabs"><button class="is-active">Recent</button><button>Local</button><button>Google Drive</button></div>
+                <aside><strong>Untitled Bot</strong><small>Unsaved</small></aside>
+                <div class="bot-preview"><span>Preview</span><div class="preview-blocks"></div></div>
+                <footer><button class="danger-btn" type="button">Open</button></footer>
+            </section>
+
+            <section class="bot-dialog small" data-bot-panel="save" hidden>
+                <header><strong>Save strategy</strong><button data-close-bot-modal type="button">×</button></header>
+                <p>Enter your bot name, choose where to save it, and hit Save.</p>
+                <input type="text" placeholder="Bot name">
+                <div class="save-options"><button class="is-active">▰<span>Local</span></button><button>▲<span>Google Drive</span></button></div>
+                <footer><button data-close-bot-modal type="button">Cancel</button><button class="danger-btn" type="button">Save</button></footer>
+            </section>
+
+            <section class="bot-dialog chart-dialog" data-bot-panel="chart" hidden>
+                <header><strong>Chart</strong><button data-close-bot-modal type="button">×</button></header>
+                <div class="mini-chart"><strong>Volatility 100 (1s) Index</strong><svg viewBox="0 0 420 320" role="img"><polyline points="0,210 40,170 70,190 110,70 150,40 180,120 220,160 260,184 300,180 330,230 420,230" fill="none" stroke="black"/><path d="M0 210 L40 170 L70 190 L110 70 L150 40 L180 120 L220 160 L260 184 L300 180 L330 230 L420 230 L420 320 L0 320Z" fill="rgba(0,0,0,.08)"/></svg></div>
+            </section>
+
+            <section class="bot-dialog chart-dialog" data-bot-panel="tradingview" hidden>
+                <header><strong>TradingView Chart</strong><button data-close-bot-modal type="button">×</button></header>
+                <div class="tradingview-mock"><h2>deriv</h2><div class="tv-toolbar">R_25  24h  Save</div><svg viewBox="0 0 420 320"><polyline points="20,40 50,110 80,130 120,190 170,205 220,240 260,210 300,225 360,210 400,214" fill="none" stroke="#ff444f" stroke-width="4"/></svg></div>
+            </section>
+        </div>
     </main>
     <script src="{% static 'js/bot_builder.js' %}"></script>
 </body>

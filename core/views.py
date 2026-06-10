@@ -1,3 +1,5 @@
+import os
+
 from django.shortcuts import render
 
 def home(request):
@@ -10,6 +12,7 @@ def dashboard(request):
         "wallet": wallet,
         "demo_balance": "10000.00",
         "real_balance": getattr(wallet, "balance", "0.00") if wallet else "0.00",
+        "deriv_app_id": os.getenv("DERIV_APP_ID", "1089"),
     })
 
 

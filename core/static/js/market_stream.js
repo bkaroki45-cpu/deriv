@@ -1,5 +1,10 @@
 (function () {
     const DEFAULT_MARKETS = [
+        { symbol: "1HZ10V", display_name: "Volatility 10 (1s) Index", market: "synthetic_index", market_display_name: "Synthetics" },
+        { symbol: "1HZ25V", display_name: "Volatility 25 (1s) Index", market: "synthetic_index", market_display_name: "Synthetics" },
+        { symbol: "1HZ50V", display_name: "Volatility 50 (1s) Index", market: "synthetic_index", market_display_name: "Synthetics" },
+        { symbol: "1HZ75V", display_name: "Volatility 75 (1s) Index", market: "synthetic_index", market_display_name: "Synthetics" },
+        { symbol: "1HZ100V", display_name: "Volatility 100 (1s) Index", market: "synthetic_index", market_display_name: "Synthetics" },
         { symbol: "R_10", display_name: "Volatility 10 Index", market: "synthetic_index", market_display_name: "Synthetic Indices" },
         { symbol: "R_25", display_name: "Volatility 25 Index", market: "synthetic_index", market_display_name: "Synthetic Indices" },
         { symbol: "R_50", display_name: "Volatility 50 Index", market: "synthetic_index", market_display_name: "Synthetic Indices" },
@@ -28,8 +33,8 @@
             this.markets = [];
             this.prices = new Map();
             this.favorites = new Set(JSON.parse(localStorage.getItem("profitera:favorites") || "[]"));
-            this.activeSymbol = "R_100";
-            this.filter = "synthetic";
+            this.activeSymbol = "1HZ100V";
+            this.filter = "all";
             this.derivSocket = null;
             this.localSocket = null;
             this.reconnectTimer = null;
@@ -48,6 +53,14 @@
                     document.querySelectorAll("[data-market-filter]").forEach((item) => item.classList.remove("is-active"));
                     button.classList.add("is-active");
                     this.filter = button.dataset.marketFilter;
+                    this.render();
+                });
+            });
+            document.querySelectorAll("[data-market-category]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    document.querySelectorAll("[data-market-category]").forEach((item) => item.classList.remove("is-active"));
+                    button.classList.add("is-active");
+                    this.filter = button.dataset.marketCategory;
                     this.render();
                 });
             });
@@ -159,6 +172,8 @@
             if (this.activeName && market) this.activeName.textContent = market.display_name || symbol;
             if (this.activeCode) this.activeCode.textContent = symbol;
             if (this.tradeSymbol) this.tradeSymbol.value = symbol;
+            const popover = document.getElementById("markets-popover");
+            if (popover) popover.hidden = true;
             if (window.profiteraChart) window.profiteraChart.clear();
             const synthetic = market ? this.isSynthetic(market) : !String(symbol).startsWith("frx");
             document.body.classList.toggle("market-forex", !synthetic);
@@ -175,10 +190,10 @@
             const previous = this.prices.get(symbol);
             this.prices.set(symbol, price);
             if (symbol === this.activeSymbol) {
-                if (this.activePrice) this.activePrice.textContent = price.toFixed(5);
+                if (this.activePrice) this.activePrice.textContent = price.toFixed(2);
                 if (this.activeChange && previous) {
                     const change = ((price - previous) / previous) * 100;
-                    this.activeChange.textContent = `${change.toFixed(2)}%`;
+                    this.activeChange.textContent = `${price.toFixed(2)} ${change >= 0 ? "+" : ""}${change.toFixed(2)}%`;
                     this.activeChange.className = change > 0 ? "positive" : change < 0 ? "negative" : "neutral";
                 }
                 if (window.profiteraChart) window.profiteraChart.ingestTick(tick);
@@ -192,7 +207,7 @@
             if (!this.list) return;
             const query = (this.search ? this.search.value : "").toLowerCase();
             const rows = this.markets
-                .filter((item) => this.filter === "all" || (this.filter === "favorite" ? this.favorites.has(item.symbol) : this.filter === "synthetic" ? this.isSynthetic(item) : String(item.market).includes(this.filter)))
+                .filter((item) => this.filter === "all" || (this.filter === "favorite" ? this.favorites.has(item.symbol) : this.filter === "synthetic" || this.filter === "derived" ? this.isSynthetic(item) : `${item.market} ${item.market_display_name}`.toLowerCase().includes(this.filter)))
                 .filter((item) => `${item.symbol} ${item.display_name} ${item.market_display_name}`.toLowerCase().includes(query))
                 .slice(0, 140);
             this.list.innerHTML = rows.map((item) => {
@@ -205,7 +220,7 @@
                             <span class="market-name">${item.display_name || item.symbol}</span>
                             <span class="market-meta">${item.symbol} / ${item.market_display_name || item.market || "Market"}</span>
                         </button>
-                        <strong class="market-price" data-price-symbol="${item.symbol}">${price ? price.toFixed(5) : "-"}</strong>
+                        <strong class="market-price" data-price-symbol="${item.symbol}">${price ? price.toFixed(2) : "-"}</strong>
                     </article>
                 `;
             }).join("");
@@ -226,7 +241,7 @@
         updatePriceRow(symbol, price, previous) {
             const el = document.querySelector(`[data-price-symbol="${symbol}"]`);
             if (!el) return;
-            el.textContent = price.toFixed(5);
+            el.textContent = price.toFixed(2);
             el.classList.toggle("up", previous !== undefined && price > previous);
             el.classList.toggle("down", previous !== undefined && price < previous);
         }

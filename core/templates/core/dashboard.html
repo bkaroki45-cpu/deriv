@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
 </head>
 <body>
+    <script>
+        window.PROFITERA_DERIV_APP_ID = "{{ deriv_app_id|default:'1089'|escapejs }}";
+    </script>
     {% include "core/terminal.html" %}
     <script src="{% static 'js/chart_engine.js' %}"></script>
     <script src="{% static 'js/digits_widget.js' %}"></script>

@@ -4,7 +4,7 @@
             this.canvas = document.getElementById(canvasId);
             if (!this.canvas) return;
             this.ctx = this.canvas.getContext("2d");
-            this.mode = "candles";
+            this.mode = "line";
             this.interval = 60;
             this.candles = [];
             this.ticks = [];
@@ -194,7 +194,11 @@
             const width = this.canvas.width;
             const height = this.canvas.height;
             ctx.clearRect(0, 0, width, height);
-            ctx.fillStyle = "#09111b";
+            const terminal = document.querySelector(".deriv-terminal");
+            const styles = terminal ? getComputedStyle(terminal) : null;
+            const chartBg = styles ? styles.getPropertyValue("--dt-chart").trim() : "#09111b";
+            const chartLine = styles ? styles.getPropertyValue("--dt-chart-line").trim() : "#5ab8ff";
+            ctx.fillStyle = chartBg || "#09111b";
             ctx.fillRect(0, 0, width, height);
             this.drawGrid(ctx, width, height);
 
@@ -208,7 +212,7 @@
             this.drawPriceScale(ctx, scale, width, height);
             if (this.mode === "digits") this.drawDigitChart(ctx, width, height);
             else if (this.mode === "candles") this.drawCandles(ctx, series, scale, width);
-            else this.drawLine(ctx, series, scale, width);
+            else this.drawLine(ctx, series, scale, width, chartLine || "#5ab8ff");
             this.drawStudies(ctx, series, scale, width);
             this.drawDrawings(ctx, width, height);
             this.drawTradeFlags(ctx, series, scale, width);
@@ -271,10 +275,10 @@
             });
         }
 
-        drawLine(ctx, series, scale, width) {
+        drawLine(ctx, series, scale, width, color) {
             const plotWidth = width - 92;
             const step = plotWidth / Math.max(series.length - 1, 1);
-            ctx.strokeStyle = this.mode === "ticks" ? "#f5b942" : "#5ab8ff";
+            ctx.strokeStyle = this.mode === "ticks" ? "#f5b942" : color;
             ctx.lineWidth = 2 * devicePixelRatio;
             ctx.beginPath();
             series.forEach((item, index) => {
@@ -284,6 +288,16 @@
                 else ctx.lineTo(x, y);
             });
             ctx.stroke();
+            if (this.mode !== "ticks") {
+                ctx.lineTo((series.length - 1) * step + this.pan, this.canvas.height);
+                ctx.lineTo(this.pan, this.canvas.height);
+                ctx.closePath();
+                const gradient = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+                gradient.addColorStop(0, "rgba(0, 0, 0, 0.12)");
+                gradient.addColorStop(1, "rgba(0, 0, 0, 0.02)");
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
         }
 
         drawDigitChart(ctx, width, height) {
