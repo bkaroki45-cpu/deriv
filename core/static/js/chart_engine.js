@@ -14,6 +14,7 @@
             this.activeTool = null;
             this.drawings = [];
             this.tradeFlags = [];
+            this.contractOverlay = { type: "rise_fall" };
             this.readout = document.getElementById("crosshair-readout");
             this.resizeObserver = new ResizeObserver(() => this.resize());
             this.resizeObserver.observe(this.canvas.parentElement);
@@ -86,6 +87,11 @@
 
         setZoom(zoom) {
             this.zoom = Math.min(3.5, Math.max(0.55, zoom));
+            this.draw();
+        }
+
+        setContractOverlay(overlay) {
+            this.contractOverlay = { type: "rise_fall", ...(overlay || {}) };
             this.draw();
         }
 
@@ -213,6 +219,7 @@
             if (this.mode === "digits") this.drawDigitChart(ctx, width, height);
             else if (this.mode === "candles") this.drawCandles(ctx, series, scale, width);
             else this.drawLine(ctx, series, scale, width, chartLine || "#5ab8ff");
+            this.drawContractOverlay(ctx, series, scale, width, height);
             this.drawStudies(ctx, series, scale, width);
             this.drawDrawings(ctx, width, height);
             this.drawTradeFlags(ctx, series, scale, width);
@@ -317,6 +324,68 @@
                 ctx.fillStyle = "#edf4ff";
                 ctx.fillText(String(digit), x + barWidth / 2 - 4, height - 12);
             });
+        }
+
+        overlayPrice(series) {
+            const latest = series[series.length - 1];
+            if (!latest) return null;
+            const rawBarrier = String(this.contractOverlay.barrier || "").trim();
+            const numericBarrier = Number(rawBarrier);
+            if (Number.isFinite(numericBarrier)) {
+                if (/^[+-]/.test(rawBarrier)) return latest.close + numericBarrier;
+                if (numericBarrier < 20 && latest.close > 100) return latest.close + numericBarrier;
+                return numericBarrier;
+            }
+            const offset = Math.max(Math.abs(latest.close) * 0.0015, 0.35);
+            return latest.close + (this.contractOverlay.direction === "lower" ? -offset : offset);
+        }
+
+        drawContractOverlay(ctx, series, scale, width, height) {
+            const overlay = this.contractOverlay || {};
+            if (!series.length || ["rise_fall", "multiplier"].includes(overlay.type)) return;
+            const plotRight = width - 92;
+            const price = this.overlayPrice(series);
+            const y = Number.isFinite(price) ? scale.y(price) : null;
+            ctx.save();
+            if (overlay.type === "accumulator") {
+                const latest = series[series.length - 1].close;
+                const range = Math.max(Math.abs(latest) * 0.00045, 0.18);
+                const top = scale.y(latest + range);
+                const bottom = scale.y(latest - range);
+                ctx.fillStyle = "rgba(58, 168, 255, 0.16)";
+                ctx.fillRect(0, Math.min(top, bottom), plotRight, Math.max(8, Math.abs(bottom - top)));
+                ctx.strokeStyle = "rgba(58, 168, 255, 0.78)";
+                ctx.setLineDash([10, 7]);
+                [top, bottom].forEach((lineY) => {
+                    ctx.beginPath();
+                    ctx.moveTo(0, lineY);
+                    ctx.lineTo(plotRight, lineY);
+                    ctx.stroke();
+                });
+                this.drawOverlayLabel(ctx, "Accumulator range", 16, Math.max(28, Math.min(top, bottom) - 8), "#3aa8ff");
+            } else if (y !== null) {
+                ctx.strokeStyle = overlay.type === "touch" ? "#f5b942" : "#00d4aa";
+                ctx.lineWidth = 1.6 * devicePixelRatio;
+                ctx.setLineDash([8, 6]);
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(plotRight, y);
+                ctx.stroke();
+                const label = overlay.label || "Barrier";
+                this.drawOverlayLabel(ctx, `${label} ${price.toFixed(4)}`, Math.max(14, plotRight - 190), y - 8, ctx.strokeStyle);
+            }
+            ctx.restore();
+        }
+
+        drawOverlayLabel(ctx, label, x, y, color) {
+            ctx.font = `${12 * devicePixelRatio}px Inter, sans-serif`;
+            const padding = 7 * devicePixelRatio;
+            const width = ctx.measureText(label).width + padding * 2;
+            const height = 24 * devicePixelRatio;
+            ctx.fillStyle = "rgba(7, 17, 31, 0.88)";
+            ctx.fillRect(x, y - height, width, height);
+            ctx.fillStyle = color;
+            ctx.fillText(label, x + padding, y - 7 * devicePixelRatio);
         }
 
         drawStudies(ctx, series, scale, width) {

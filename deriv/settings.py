@@ -19,7 +19,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # =========================
 SECRET_KEY = 'django-insecure-*y)*9knie71f_yoxb$lr@inwlj$d20n42&&lewhnhr60=goirz'
 DEBUG = True
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,profiteraa.com,www.profiteraa.com").split(",")
+    if host.strip()
+]
 
 
 # =========================

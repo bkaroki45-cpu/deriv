@@ -1181,7 +1181,7 @@ body:has(.deriv-terminal) {
     --dt-accent: #00a884;
     --dt-red: #ff444f;
     display: grid;
-    grid-template-columns: 72px minmax(0, 1fr) 280px;
+    grid-template-columns: 72px minmax(0, 1fr) minmax(300px, 340px);
     height: 100vh;
     background: var(--dt-bg);
     color: var(--dt-text);
@@ -1237,13 +1237,13 @@ body.theme-light .deriv-terminal {
     display: grid;
     place-items: center;
     gap: 4px;
-    width: 58px;
-    min-height: 54px;
+    width: 52px;
+    min-height: 48px;
     border: 0;
     border-radius: 8px;
     background: transparent;
     color: var(--dt-text);
-    font-size: 20px;
+    font-size: 15px;
 }
 
 .rail-item span {
@@ -1300,7 +1300,8 @@ body.theme-light .deriv-terminal {
     border-radius: 999px;
     background: transparent;
     color: var(--dt-text);
-    padding: 8px 16px;
+    padding: 8px 13px;
+    font-size: 13px;
     white-space: nowrap;
 }
 
@@ -1381,13 +1382,14 @@ body.theme-light .deriv-terminal {
 
 .floating-tools button,
 .zoom-stack button {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
     border: 0;
     border-radius: 3px;
     background: #171b1c;
     color: #fff;
-    font-size: 22px;
+    font-size: 13px;
+    font-weight: 800;
 }
 
 .zoom-stack {
@@ -1507,12 +1509,13 @@ body.theme-light .deriv-terminal {
 }
 
 .ticket-field {
+    position: relative;
     display: grid;
     gap: 5px;
     border: 1px solid var(--dt-line);
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.02);
-    padding: 10px 16px;
+    padding: 10px 14px;
     color: var(--dt-muted);
 }
 
@@ -1528,6 +1531,9 @@ body.theme-light .deriv-terminal {
 .ticket-field b {
     position: absolute;
     right: 16px;
+    bottom: 10px;
+    color: var(--dt-muted);
+    font-size: 12px;
 }
 
 .terms-list {
@@ -1543,7 +1549,7 @@ body.theme-light .deriv-terminal {
 
 .digit-picker {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 7px;
     border: 1px solid var(--dt-line);
     border-radius: 6px;
@@ -1555,12 +1561,27 @@ body.theme-light .deriv-terminal {
     border-radius: 6px;
     background: #171b1c;
     color: var(--dt-text);
-    padding: 10px 0;
-    font-size: 18px;
+    min-width: 0;
+    padding: 9px 0;
+    font-size: 16px;
 }
 
 .digit-picker button.is-active {
     background: #000;
+}
+
+.digit-picker button.is-live {
+    box-shadow: 0 0 0 2px #fff inset;
+}
+
+.digit-picker button.is-favorable {
+    border-color: rgba(0, 212, 170, 0.72);
+    color: #7fffe2;
+}
+
+.digit-picker button.is-unfavorable {
+    border-color: rgba(255, 68, 79, 0.58);
+    color: #ff9aa1;
 }
 
 .digit-picker small {
@@ -1648,6 +1669,21 @@ body.theme-light .deriv-terminal {
     gap: 0;
     max-height: calc(100vh - 270px);
     overflow: auto;
+}
+
+.deriv-terminal .market-list {
+    height: auto;
+    max-height: calc(100vh - 270px);
+}
+
+.deriv-terminal .market-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.deriv-terminal .market-change {
+    color: var(--dt-muted);
+    font-size: 12px;
+    white-space: nowrap;
 }
 
 .market-row {
@@ -1858,7 +1894,7 @@ body.theme-light .deriv-terminal {
     }
 
     .deriv-terminal {
-        grid-template-columns: minmax(0, 390px);
+        grid-template-columns: minmax(0, 100vw);
         justify-content: center;
         height: 100vh;
         overflow: hidden;
@@ -1882,7 +1918,7 @@ body.theme-light .deriv-terminal {
         gap: 8px;
         height: auto;
         padding: 8px;
-        overflow: hidden;
+        overflow: visible;
     }
 
     .mobile-account-strip {
@@ -1908,18 +1944,19 @@ body.theme-light .deriv-terminal {
     }
 
     .chart-stage {
+        min-height: 360px;
         margin: 0 8px 252px;
         border-radius: 6px;
         overflow: visible;
     }
 
     .symbol-card {
-        top: -120px;
+        top: 10px;
         left: 8px;
         width: calc(100% - 16px);
         background: transparent;
-        border: 0;
-        padding: 0;
+        border: 1px solid var(--dt-line);
+        padding: 8px 10px;
     }
 
     .symbol-card strong {
@@ -1942,10 +1979,10 @@ body.theme-light .deriv-terminal {
         bottom: 58px;
         z-index: 18;
         width: min(390px, 100vw);
-        max-height: 58vh;
+        max-height: 62vh;
         border: 0;
         border-radius: 16px 16px 0 0;
-        transform: translate(-50%, calc(100% - 248px));
+        transform: translate(-50%, calc(100% - 236px));
         transition: transform 180ms ease;
     }
 
@@ -1961,7 +1998,7 @@ body.theme-light .deriv-terminal {
     }
 
     .trade-ticket {
-        padding: 28px 8px 10px;
+        padding: 28px 10px 10px;
     }
 
     .trade-ticket::before {
@@ -2030,6 +2067,21 @@ body.theme-light .deriv-terminal {
         grid-template-columns: 1fr;
         width: min(390px, calc(100vw - 18px));
         transform: translateX(-50%);
+    }
+
+    .trade-type-tabs {
+        padding-bottom: 4px;
+    }
+
+    .choice-pill button,
+    .buy-btn {
+        font-size: 14px;
+    }
+
+    .digit-picker {
+        grid-template-columns: repeat(5, minmax(38px, 1fr));
+        gap: 6px;
+        padding: 8px;
     }
 
     .markets-popover aside {

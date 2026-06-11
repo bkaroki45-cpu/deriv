@@ -38,6 +38,7 @@
         }
 
         update() {
+            if (!this.root) return;
             const max = Math.max(...this.counts, 1);
             const positive = this.counts.filter((count) => count > 0);
             const min = positive.length ? Math.min(...positive) : 0;
@@ -54,6 +55,7 @@
         }
 
         pulse(digit) {
+            if (!this.root) return;
             const cell = this.root.querySelector(`[data-digit="${digit}"]`);
             if (!cell) return;
             cell.classList.remove("is-active-tick");

@@ -13,6 +13,9 @@ def _absolute_redirect_uri(request):
     configured = os.getenv("DERIV_REDIRECT_URI")
     if configured:
         return configured
+    host = request.get_host().split(":", 1)[0].lower()
+    if host in {"profiteraa.com", "www.profiteraa.com"}:
+        return "https://profiteraa.com/auth/deriv/callback/"
     return request.build_absolute_uri(reverse("deriv_oauth_callback"))
 
 

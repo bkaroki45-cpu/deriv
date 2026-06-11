@@ -95,6 +95,7 @@
     let activeTradeType = "rise_fall";
     let activeDirection = "rise";
     let activeDigit = 5;
+    let lastDigit = null;
     let proposalTimer = null;
 
     function csrfToken() {
@@ -120,10 +121,11 @@
     function renderDigits() {
         const picker = byId("digit-picker");
         if (!picker) return;
-        const percentages = ["9.3%", "8.2%", "10.9%", "9.6%", "11.6%", "10.9%", "10.6%", "9.6%", "9.9%", "9.4%"];
+        const counts = window.profiteraDigits?.counts || Array.from({ length: 10 }, () => 0);
+        const total = counts.reduce((sum, count) => sum + count, 0) || 1;
         picker.innerHTML = Array.from({ length: 10 }, (_, digit) => `
-            <button type="button" data-digit="${digit}" class="${digit === activeDigit ? "is-active" : ""}">${digit}</button>
-            <small>${percentages[digit]}</small>
+            <button type="button" data-digit="${digit}" class="${digit === activeDigit ? "is-active" : ""} ${digit === lastDigit ? "is-live" : ""} ${digitOutcomeClass(digit)}">${digit}</button>
+            <small>${((counts[digit] / total) * 100).toFixed(1)}%</small>
         `).join("");
         picker.querySelectorAll("[data-digit]").forEach((button) => {
             button.addEventListener("click", () => {
@@ -131,9 +133,24 @@
                 const barrier = byId("trade-barrier");
                 if (barrier) barrier.value = String(activeDigit);
                 renderDigits();
+                updateChartOverlay();
                 scheduleProposal();
             });
         });
+    }
+
+    function digitOutcomeClass(digit) {
+        if (!["match_diff", "over_under", "even_odd"].includes(activeTradeType)) return "";
+        const isEven = digit % 2 === 0;
+        const favorable = (
+            (activeDirection === "matches" && digit === activeDigit) ||
+            (activeDirection === "differs" && digit !== activeDigit) ||
+            (activeDirection === "over" && digit > activeDigit) ||
+            (activeDirection === "under" && digit < activeDigit) ||
+            (activeDirection === "even" && isEven) ||
+            (activeDirection === "odd" && !isEven)
+        );
+        return favorable ? "is-favorable" : "is-unfavorable";
     }
 
     function renderTicket() {
@@ -169,6 +186,9 @@
                     if (primary) primary.dataset.direction = activeDirection;
                     const contractInput = byId("trade-contract");
                     if (contractInput) contractInput.value = proposalContractType();
+                    updatePrimaryAction();
+                    renderDigits();
+                    updateChartOverlay();
                     scheduleProposal();
                 });
             });
@@ -184,7 +204,48 @@
             show(field, has(field.dataset.field));
         });
         renderDigits();
+        updatePrimaryAction();
+        updateChartOverlay();
         scheduleProposal();
+    }
+
+    function updatePrimaryAction() {
+        const primary = byId("primary-action");
+        const config = TRADE_TYPES[activeTradeType] || TRADE_TYPES.rise_fall;
+        if (!primary) return;
+        const label = config.choices.length === 1 ? "Buy" : `Buy ${activeDirection.replace("_", " ")}`;
+        const payout = byId("proposal-payout")?.textContent || "";
+        primary.firstChild.nodeValue = `${label.charAt(0).toUpperCase()}${label.slice(1)} `;
+        primary.dataset.direction = activeDirection;
+        const contractInput = byId("trade-contract");
+        if (contractInput) contractInput.value = proposalContractType();
+        if (!payout) byId("proposal-payout").textContent = "";
+    }
+
+    function updateChartOverlay() {
+        if (!window.profiteraChart) return;
+        const barrier = ["match_diff", "over_under"].includes(activeTradeType)
+            ? String(activeDigit)
+            : byId("trade-barrier")?.value;
+        const labels = {
+            accumulator: "Accumulator range",
+            high_low: "Higher/Lower barrier",
+            touch: "Touch barrier",
+            turbos: "Turbo barrier",
+            vanillas: "Vanilla strike",
+            over_under: `Digit barrier ${activeDigit}`,
+            match_diff: `Digit ${activeDigit}`,
+            even_odd: "Last digit",
+        };
+        window.profiteraChart.setContractOverlay({
+            type: activeTradeType,
+            direction: activeDirection,
+            barrier,
+            label: labels[activeTradeType] || "",
+            digit: activeDigit,
+        });
+        if (["match_diff", "over_under", "even_odd"].includes(activeTradeType)) window.profiteraChart.setMode("digits");
+        else if (window.profiteraChart.mode === "digits") window.profiteraChart.setMode("line");
     }
 
     function syncUrlState() {
@@ -403,7 +464,10 @@
 
     ["trade-stake", "trade-duration", "trade-barrier", "growth-rate"].forEach((id) => {
         const input = byId(id);
-        if (input) input.addEventListener("input", scheduleProposal);
+        if (input) input.addEventListener("input", () => {
+            updateChartOverlay();
+            scheduleProposal();
+        });
     });
 
     window.addEventListener("profitera:account", (event) => {
@@ -459,6 +523,10 @@
     window.addEventListener("profitera:tick", (event) => {
         const price = Number(event.detail.price);
         if (!Number.isFinite(price)) return;
+        const parts = price.toFixed(5).replace(".", "");
+        lastDigit = Number(parts.charAt(parts.length - 1));
+        renderDigits();
+        updateChartOverlay();
         const badge = byId("chart-price-badge");
         if (badge) badge.textContent = price.toFixed(2);
         scheduleProposal();
