@@ -21,7 +21,7 @@ SECRET_KEY = 'django-insecure-*y)*9knie71f_yoxb$lr@inwlj$d20n42&&lewhnhr60=goirz
 DEBUG = True
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,profiteraa.com,www.profiteraa.com").split(",")
+    for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,profiteraa.com,www.profiteraa.com,95.179.193.38").split(",")
     if host.strip()
 ]
 
@@ -137,7 +137,8 @@ USE_TZ = True
 # =========================
 # STATIC FILES
 # =========================
-STATIC_URL = 'static/'
+STATIC_URL = os.getenv("STATIC_URL", "/static/")
+STATIC_ROOT = os.getenv("STATIC_ROOT", BASE_DIR / "static")
 
 
 # =========================
