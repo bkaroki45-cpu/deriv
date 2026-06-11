@@ -6,6 +6,8 @@
             choices: ["Rise", "Fall"],
             fields: ["duration", "stake"],
             payout: "19.25 USD",
+            duration: "5",
+            unit: "t",
             terms: [],
         },
         accumulator: {
@@ -34,6 +36,8 @@
             choices: ["Up", "Down"],
             fields: ["duration", "stake", "barrier", "takeProfit"],
             payout: "",
+            duration: "5",
+            unit: "t",
             terms: [["Payout per point", "2.4 USD"], ["Barrier", "-4.02"]],
         },
         vanillas: {
@@ -50,6 +54,8 @@
             choices: ["Higher", "Lower"],
             fields: ["duration", "barrier", "stake"],
             payout: "22.91 USD",
+            duration: "5",
+            unit: "m",
             terms: [],
         },
         touch: {
@@ -58,6 +64,8 @@
             choices: ["Touch", "No Touch"],
             fields: ["duration", "barrier", "stake"],
             payout: "17.21 USD",
+            duration: "5",
+            unit: "m",
             terms: [],
         },
         match_diff: {
@@ -84,7 +92,7 @@
             title: "Even/Odd",
             contract: "DIGITEVEN",
             choices: ["Even", "Odd"],
-            fields: ["duration", "stake"],
+            fields: ["digits", "duration", "stake"],
             payout: "19.53 USD",
             duration: "5",
             unit: "t",
@@ -224,6 +232,11 @@
 
     function updateChartOverlay() {
         if (!window.profiteraChart) return;
+        if (["match_diff", "over_under", "even_odd"].includes(activeTradeType)) {
+            window.profiteraChart.setContractOverlay({ type: "rise_fall" });
+            if (window.profiteraChart.mode === "digits") window.profiteraChart.setMode("line");
+            return;
+        }
         const barrier = ["match_diff", "over_under"].includes(activeTradeType)
             ? String(activeDigit)
             : byId("trade-barrier")?.value;
@@ -244,8 +257,7 @@
             label: labels[activeTradeType] || "",
             digit: activeDigit,
         });
-        if (["match_diff", "over_under", "even_odd"].includes(activeTradeType)) window.profiteraChart.setMode("digits");
-        else if (window.profiteraChart.mode === "digits") window.profiteraChart.setMode("line");
+        if (window.profiteraChart.mode === "digits") window.profiteraChart.setMode("line");
     }
 
     function syncUrlState() {
@@ -301,6 +313,13 @@
         else if (byId("barrier-field") && !byId("barrier-field").hidden && byId("trade-barrier")?.value) payload.barrier = byId("trade-barrier").value;
         if (activeTradeType === "accumulator") payload.growth_rate = Number(byId("growth-rate")?.value || 0.03);
         return payload;
+    }
+
+    function tradeBarrierValue() {
+        if (["match_diff", "over_under"].includes(activeTradeType)) return String(activeDigit);
+        const barrierField = byId("barrier-field");
+        if (barrierField && !barrierField.hidden && byId("trade-barrier")?.value) return byId("trade-barrier").value;
+        return undefined;
     }
 
     function refreshProposal() {
@@ -496,7 +515,7 @@
                 duration: byId("trade-duration").value,
                 duration_unit: byId("trade-duration-unit").value,
                 contract_type: proposalContractType(),
-                barrier: (byId("trade-barrier") || {}).value || undefined,
+                barrier: tradeBarrierValue(),
                 growth_rate: (byId("growth-rate") || {}).value || undefined,
                 take_profit: (byId("take-profit") || {}).value || undefined,
             };

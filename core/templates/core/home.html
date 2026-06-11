@@ -17,19 +17,20 @@
             <a href="/trade/">Trade</a>
             <a href="/analytics/">Analytics</a>
             <a href="/account/">Account</a>
+            <a href="/login/">Login</a>
             {% if request.user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
         </div>
-        <a class="nav-cta" href="/trade/">Launch Terminal</a>
+        <a class="nav-cta" href="/login/">Login with Deriv</a>
     </nav>
 
     <header class="landing-hero">
         <div class="hero-copy">
-            <span class="hero-kicker">Real-time Deriv powered terminal</span>
-            <h1>Trade markets, build bots, and analyze every tick from one premium workspace.</h1>
-            <p>Profitera combines live charts, digit analytics, portfolio tracking, and visual automation in a focused Deriv-powered interface.</p>
+            <span class="hero-kicker">Deriv markets through Profitera</span>
+            <h1>Trade Deriv markets from a Profitera terminal.</h1>
+            <p>Login with Deriv, return to Profitera, stream your Deriv balance, and place contracts on Deriv markets from this workspace.</p>
             <div class="hero-actions">
-                <a class="primary-cta" href="/trade/">Start trading</a>
-                <a class="secondary-cta" href="/bot-builder/">Build a bot</a>
+                <a class="primary-cta" href="/login/">Login with Deriv</a>
+                <a class="secondary-cta" href="/register/">Register with Deriv</a>
             </div>
         </div>
         <div class="hero-terminal glass-panel" aria-label="Trading terminal preview">
@@ -50,10 +51,10 @@
     </header>
 
     <section class="landing-section feature-grid">
-        <article><h2>Canvas charts</h2><p>Candles, ticks, line mode, crosshair, overlays, and drawing tools without heavy frontend frameworks.</p></article>
-        <article><h2>Digit intelligence</h2><p>Live 0-9 probability bars highlight strongest and weakest digits as ticks arrive.</p></article>
-        <article><h2>Bot builder</h2><p>Start, stop, monitor, and iterate strategies with live logs and performance panels.</p></article>
-        <article><h2>Broker workflow</h2><p>Separate demo and real balances, contract status, portfolio rows, and admin controls.</p></article>
+        <article><h2>Deriv OAuth</h2><p>Users authenticate at Deriv and return with secure account tokens for trading.</p></article>
+        <article><h2>Live markets</h2><p>Ticks, history, symbols, proposals, and balances stream through Deriv WebSocket APIs.</p></article>
+        <article><h2>Contract tickets</h2><p>Rise/Fall, Accumulators, Multipliers, Turbos, Vanillas, barriers, digits, and payouts.</p></article>
+        <article><h2>Markup ready</h2><p>Designed for Deriv app markup so your commission is handled by the official platform flow.</p></article>
     </section>
 
     <section class="stats-band">

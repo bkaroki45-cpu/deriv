@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework import status
 
 from decimal import Decimal
@@ -12,7 +12,7 @@ from .services.deriv_trade import DerivTradeEngine
 
 
 class TradeView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
 
@@ -30,6 +30,12 @@ class TradeView(APIView):
             growth_rate = request.data.get("growth_rate")
             deriv_token = request.session.get("deriv_token")
             currency = request.session.get("deriv_currency", "USD")
+
+            if not deriv_token:
+                return Response(
+                    {"error": "Login with Deriv before placing a trade."},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
 
             if not symbol or not direction or not stake:
                 return Response(
@@ -50,25 +56,27 @@ class TradeView(APIView):
             # =========================
             # 2. SAVE TRADE (OPEN)
             # =========================
-            trade = create_trade(
-                user=request.user,
-                symbol=symbol,
-                direction=direction.lower(),
-                stake=stake,
-            )
+            trade = None
+            if request.user.is_authenticated:
+                trade = create_trade(
+                    user=request.user,
+                    symbol=symbol,
+                    direction=direction.lower(),
+                    stake=stake,
+                )
 
             # 🔥 LIVE UPDATE: NEW TRADE CREATED
-            broadcast_portfolio_update({
-                "type": "new_trade",
-                "trade": {
-                    "id": trade.id,
-                    "symbol": trade.symbol,
-                    "direction": trade.direction,
-                    "stake": str(trade.stake),
-                    "profit": str(trade.profit),
-                    "status": trade.status,
-                }
-            })
+                broadcast_portfolio_update({
+                    "type": "new_trade",
+                    "trade": {
+                        "id": trade.id,
+                        "symbol": trade.symbol,
+                        "direction": trade.direction,
+                        "stake": str(trade.stake),
+                        "profit": str(trade.profit),
+                        "status": trade.status,
+                    }
+                })
 
             # =========================
             # 3. EXECUTE DERIV TRADE
@@ -97,7 +105,7 @@ class TradeView(APIView):
             # =========================
             # 4. STORE CONTRACT ID
             # =========================
-            if isinstance(result, dict) and "buy" in result:
+            if trade and isinstance(result, dict) and "buy" in result:
                 contract_id = result["buy"].get("contract_id")
 
                 trade.contract_id = contract_id
@@ -108,8 +116,8 @@ class TradeView(APIView):
             # =========================
             return Response({
                 "success": True,
-                "trade_id": trade.id,
-                "contract_id": trade.contract_id,
+                "trade_id": trade.id if trade else None,
+                "contract_id": result.get("buy", {}).get("contract_id") if isinstance(result, dict) else None,
                 "deriv_response": result
             })
 

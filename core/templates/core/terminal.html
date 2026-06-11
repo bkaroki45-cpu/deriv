@@ -8,7 +8,7 @@
         <button class="rail-item" type="button" title="Help" aria-label="Help">?</button>
         <button class="rail-item" type="button" title="Language" aria-label="Language">EN</button>
         <button class="rail-item" type="button" data-theme-toggle title="Theme" aria-label="Theme">T<span>Theme</span></button>
-        <a class="rail-item" href="{% if deriv_session.is_connected %}{% url 'deriv_logout' %}{% else %}{% url 'deriv_login' %}{% endif %}" title="Account" aria-label="Account">A<span>Account</span></a>
+        <a class="rail-item" href="{% if deriv_session.is_connected %}{% url 'deriv_logout' %}{% else %}{% url 'login' %}{% endif %}" title="Account" aria-label="Account">A<span>Account</span></a>
     </aside>
 
     <section class="positions-drawer" id="positions-drawer" aria-label="Open positions">
@@ -24,7 +24,7 @@
             <div class="mobile-account-strip">
                 <span class="deriv-logo">DT</span>
                 <span><small id="mobile-account-label">{% if deriv_session.is_connected %}{{ deriv_session.account_id }}{% else %}Real account{% endif %}</small><strong id="mobile-account-balance">{{ real_balance|default:'0.00' }} {{ deriv_session.currency|default:'USD' }}</strong></span>
-                <a class="deposit-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'deriv_login' %}{% endif %}">{% if deriv_session.is_connected %}Deposit{% else %}Login{% endif %}</a>
+                <a class="deposit-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}">{% if deriv_session.is_connected %}Deposit{% else %}Login{% endif %}</a>
             </div>
             <button class="app-grid" type="button" aria-label="Apps">Apps</button>
             <nav class="trade-type-tabs" aria-label="Trade type">
@@ -76,14 +76,14 @@
                 <span><small id="account-label">{% if deriv_session.is_connected %}{{ deriv_session.account_id }}{% else %}Real account{% endif %}</small><strong id="account-balance">{{ real_balance|default:'0.00' }} {{ deriv_session.currency|default:'USD' }}</strong></span>
                 <span>v</span>
             </button>
-            <a class="deposit-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'deriv_login' %}{% endif %}">{% if deriv_session.is_connected %}Deposit{% else %}Login{% endif %}</a>
+            <a class="deposit-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}">{% if deriv_session.is_connected %}Deposit{% else %}Login{% endif %}</a>
             <div class="account-menu" id="account-menu" role="menu">
                 {% if deriv_session.is_connected %}
                 <button type="button" data-account-type="{{ deriv_session.account_type }}" data-label="{{ deriv_session.account_id }}" data-balance="{{ real_balance|default:'0.00' }} {{ deriv_session.currency|default:'USD' }}"><span><small>Deriv Account</small><strong>{{ deriv_session.account_id }}</strong></span></button>
                 <a href="{% url 'deriv_logout' %}">Logout</a>
                 {% else %}
-                <a href="{% url 'deriv_login' %}">Login with Deriv</a>
-                <a href="{% url 'deriv_register' %}">Register with Deriv</a>
+                <a href="{% url 'login' %}">Login with Deriv</a>
+                <a href="{% url 'register' %}">Register with Deriv</a>
                 {% endif %}
                 <button type="button" data-account-type="real" data-label="Real account" data-balance="{{ real_balance|default:'0.00' }} USD"><span><small>Real Account</small><strong>REAL</strong></span></button>
                 <button type="button" data-account-type="demo" data-label="Demo account" data-balance="{{ demo_balance|default:'10000.00' }}"><span><small>Demo Account</small><strong>DEMO</strong></span></button>

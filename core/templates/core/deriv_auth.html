@@ -1,0 +1,32 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if mode == "register" %}Register{% else %}Login{% endif %} | Profitera</title>
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+</head>
+<body class="auth-body">
+    <main class="auth-shell">
+        <a class="auth-logo" href="/">Profitera</a>
+        <section class="auth-panel">
+            <span class="auth-kicker">Deriv powered trading</span>
+            {% if mode == "register" %}
+            <h1>Create your Deriv account</h1>
+            <p>Profitera sends you to Deriv to create and authorize your account. After approval, Deriv redirects you back here with your secure trading session.</p>
+            {% if error %}<strong class="auth-error">{{ error }}</strong>{% endif %}
+            <a class="auth-primary" href="{% url 'deriv_register' %}">Register with Deriv</a>
+            <a class="auth-secondary" href="{% url 'login' %}">I already have a Deriv account</a>
+            {% else %}
+            <h1>Login with Deriv</h1>
+            <p>Authenticate on Deriv, then return to Profitera with your account token so this terminal can stream your balance and place Deriv market trades.</p>
+            {% if error %}<strong class="auth-error">{{ error }}</strong>{% endif %}
+            <a class="auth-primary" href="{% url 'deriv_login' %}">Continue to Deriv</a>
+            <a class="auth-secondary" href="{% url 'register' %}">Create a Deriv account</a>
+            {% endif %}
+            <small>App ID {{ deriv_app_id }}. Your password is never entered on Profitera.</small>
+        </section>
+    </main>
+</body>
+</html>

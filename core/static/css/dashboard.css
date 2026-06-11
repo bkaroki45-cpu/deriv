@@ -1176,15 +1176,104 @@ body:has(.deriv-terminal) {
     --dt-line: #313637;
     --dt-text: #f2f3f3;
     --dt-muted: #a2a8aa;
-    --dt-chart: #fbfbfb;
-    --dt-chart-line: #111;
-    --dt-accent: #00a884;
+    --dt-chart: #171c24;
+    --dt-chart-line: #e7edf3;
+    --dt-accent: #00c390;
     --dt-red: #ff444f;
     display: grid;
-    grid-template-columns: 72px minmax(0, 1fr) minmax(300px, 340px);
+    grid-template-columns: 88px minmax(0, 1fr) minmax(300px, 340px);
+    width: 100vw;
     height: 100vh;
+    overflow: hidden;
     background: var(--dt-bg);
     color: var(--dt-text);
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.auth-body {
+    min-height: 100vh;
+    background:
+        linear-gradient(120deg, rgba(0, 195, 144, 0.12), transparent 36rem),
+        #111820;
+}
+
+.auth-shell {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    padding: 24px;
+}
+
+.auth-logo {
+    position: fixed;
+    top: 24px;
+    left: 24px;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.auth-panel {
+    display: grid;
+    gap: 16px;
+    width: min(440px, 100%);
+    border: 1px solid #2e3744;
+    border-radius: 8px;
+    background: #171c24;
+    color: #f2f3f3;
+    padding: 28px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.36);
+}
+
+.auth-kicker {
+    color: #00d8a5;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.auth-panel h1 {
+    margin: 0;
+    font-size: 32px;
+    line-height: 1.05;
+}
+
+.auth-panel p,
+.auth-panel small {
+    margin: 0;
+    color: #a2a8aa;
+    line-height: 1.55;
+}
+
+.auth-error {
+    border: 1px solid rgba(255, 68, 79, 0.4);
+    border-radius: 8px;
+    background: rgba(255, 68, 79, 0.1);
+    color: #ff9aa1;
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.auth-primary,
+.auth-secondary {
+    display: grid;
+    place-items: center;
+    min-height: 48px;
+    border-radius: 999px;
+    font-weight: 900;
+    text-decoration: none;
+}
+
+.auth-primary {
+    background: #ff444f;
+    color: #fff;
+}
+
+.auth-secondary {
+    border: 1px solid #333c47;
+    color: #f2f3f3;
 }
 
 .deriv-terminal.theme-light,
@@ -1206,6 +1295,11 @@ body.theme-light .deriv-terminal {
     font: inherit;
 }
 
+.deriv-terminal button,
+.deriv-terminal a {
+    min-width: 0;
+}
+
 .deriv-terminal [hidden] {
     display: none !important;
 }
@@ -1215,7 +1309,9 @@ body.theme-light .deriv-terminal {
     flex-direction: column;
     gap: 10px;
     align-items: center;
-    padding: 16px 8px;
+    padding: 16px 6px;
+    min-height: 0;
+    overflow: visible auto;
     border-right: 1px solid var(--dt-line);
     background: var(--dt-panel);
 }
@@ -1237,17 +1333,24 @@ body.theme-light .deriv-terminal {
     display: grid;
     place-items: center;
     gap: 4px;
-    width: 52px;
-    min-height: 48px;
+    width: 74px;
+    min-height: 54px;
     border: 0;
     border-radius: 8px;
     background: transparent;
     color: var(--dt-text);
-    font-size: 15px;
+    font-size: 14px;
+    text-decoration: none;
 }
 
 .rail-item span {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
     font-size: 11px;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .rail-item.is-active,
@@ -1263,6 +1366,7 @@ body.theme-light .deriv-terminal {
     display: grid;
     grid-template-rows: 68px minmax(0, 1fr);
     min-width: 0;
+    min-height: 0;
 }
 
 .trade-topbar {
@@ -1271,18 +1375,21 @@ body.theme-light .deriv-terminal {
     gap: 14px;
     min-width: 0;
     padding: 0 14px;
+    overflow: hidden;
     border-bottom: 1px solid var(--dt-line);
     background: var(--dt-panel);
 }
 
 .app-grid {
-    width: 42px;
-    height: 42px;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
     border: 0;
     border-right: 1px solid var(--dt-line);
     background: transparent;
     color: var(--dt-muted);
-    font-size: 26px;
+    font-size: 12px;
+    font-weight: 800;
 }
 
 .trade-type-tabs {
@@ -1290,7 +1397,12 @@ body.theme-light .deriv-terminal {
     gap: 8px;
     min-width: 0;
     overflow-x: auto;
+    overflow-y: hidden;
     scrollbar-width: none;
+}
+
+.trade-type-tabs::-webkit-scrollbar {
+    display: none;
 }
 
 .trade-type-tabs button,
@@ -1300,27 +1412,28 @@ body.theme-light .deriv-terminal {
     border-radius: 999px;
     background: transparent;
     color: var(--dt-text);
-    padding: 8px 13px;
+    max-width: 168px;
+    overflow: hidden;
+    padding: 8px 12px;
     font-size: 13px;
+    line-height: 1.15;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .trade-type-tabs button.is-active,
 .choice-pill button.is-active {
-    border-color: #050606;
-    background: #050606;
-    color: #fff;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    border-color: #fff;
+    background: #fff;
+    color: #11171c;
+    box-shadow: none;
 }
 
 .chart-stage {
     position: relative;
     min-width: 0;
     min-height: 0;
-    background:
-        linear-gradient(rgba(20, 24, 25, 0.055) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(20, 24, 25, 0.055) 1px, transparent 1px),
-        var(--dt-chart);
+    background: var(--dt-chart);
     background-size: 100px 80px;
     overflow: hidden;
 }
@@ -1340,13 +1453,17 @@ body.theme-light .deriv-terminal {
     grid-template-columns: 34px minmax(0, 1fr) 18px;
     gap: 10px;
     align-items: center;
-    width: min(294px, calc(100% - 24px));
+    width: min(330px, calc(100% - 24px));
     border: 1px solid #3b4041;
     border-radius: 4px;
-    background: #191d1e;
+    background: #1d232d;
     color: #fff;
-    padding: 10px 12px;
+    padding: 9px 11px;
     text-align: left;
+}
+
+.symbol-card > span {
+    min-width: 0;
 }
 
 .symbol-card strong,
@@ -1377,7 +1494,7 @@ body.theme-light .deriv-terminal {
     width: 56px;
     padding: 8px;
     border-radius: 4px;
-    background: #24292a;
+    background: #202630;
 }
 
 .floating-tools button,
@@ -1386,7 +1503,7 @@ body.theme-light .deriv-terminal {
     height: 34px;
     border: 0;
     border-radius: 3px;
-    background: #171b1c;
+    background: #111820;
     color: #fff;
     font-size: 13px;
     font-weight: 800;
@@ -1417,8 +1534,10 @@ body.theme-light .deriv-terminal {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
     border-left: 1px solid var(--dt-line);
-    background: var(--dt-panel);
+    background: #171c24;
     min-width: 0;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .account-strip {
@@ -1427,7 +1546,7 @@ body.theme-light .deriv-terminal {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
     align-items: center;
-    padding: 14px 16px;
+    padding: 12px 14px;
     border-bottom: 1px solid var(--dt-line);
 }
 
@@ -1448,6 +1567,7 @@ body.theme-light .deriv-terminal {
 .account-current {
     display: flex;
     justify-content: space-between;
+    gap: 8px;
     min-width: 0;
     border: 0;
     background: transparent;
@@ -1462,33 +1582,52 @@ body.theme-light .deriv-terminal {
 
 .account-current strong {
     display: block;
-    font-size: 16px;
+    overflow: hidden;
+    max-width: 168px;
+    font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-current > span:first-child {
+    min-width: 0;
 }
 
 .deposit-btn {
+    display: inline-grid;
+    place-items: center;
+    min-height: 36px;
+    max-width: 116px;
     border-radius: 999px;
     background: #d80716;
     color: #fff;
-    padding: 11px 18px;
+    padding: 9px 14px;
+    font-size: 13px;
     font-weight: 900;
+    overflow: hidden;
+    text-overflow: ellipsis;
     text-decoration: none;
+    white-space: nowrap;
 }
 
 .trade-ticket {
-    padding: 18px 16px;
+    padding: 14px;
     overflow: auto;
+    min-width: 0;
 }
 
 .how-to {
     display: block;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     color: var(--dt-text);
+    font-size: 13px;
     text-decoration: none;
 }
 
 .trade-ticket form {
     display: grid;
     gap: 10px;
+    min-width: 0;
 }
 
 .choice-pill {
@@ -1496,27 +1635,35 @@ body.theme-light .deriv-terminal {
     grid-template-columns: 1fr 1fr;
     border: 1px solid var(--dt-line);
     border-radius: 999px;
-    padding: 2px;
+    background: #222832;
+    padding: 3px;
+    min-width: 0;
 }
 
 .choice-pill button {
     border: 0;
-    padding: 9px;
+    min-width: 0;
+    overflow: hidden;
+    padding: 9px 7px;
+    text-overflow: ellipsis;
 }
 
 .choice-pill button.is-active {
-    color: #00ffc2;
+    background: #505762;
+    color: #00d8a5;
 }
 
 .ticket-field {
     position: relative;
     display: grid;
     gap: 5px;
+    min-width: 0;
     border: 1px solid var(--dt-line);
     border-radius: 6px;
-    background: rgba(255, 255, 255, 0.02);
+    background: #202630;
     padding: 10px 14px;
     color: var(--dt-muted);
+    overflow: hidden;
 }
 
 .ticket-field input,
@@ -1524,8 +1671,9 @@ body.theme-light .deriv-terminal {
     border: 0;
     background: transparent;
     color: var(--dt-text);
+    min-width: 0;
     padding: 0;
-    font-size: 16px;
+    font-size: 14px;
 }
 
 .ticket-field b {
@@ -1538,13 +1686,24 @@ body.theme-light .deriv-terminal {
 
 .terms-list {
     display: grid;
-    gap: 12px;
+    gap: 8px;
     color: var(--dt-muted);
+    font-size: 12px;
 }
 
 .terms-list div {
     display: flex;
+    gap: 10px;
     justify-content: space-between;
+    min-width: 0;
+    padding: 0 8px;
+}
+
+.terms-list span,
+.terms-list strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .digit-picker {
@@ -1553,21 +1712,26 @@ body.theme-light .deriv-terminal {
     gap: 7px;
     border: 1px solid var(--dt-line);
     border-radius: 6px;
+    background: #202630;
     padding: 12px;
+    min-width: 0;
 }
 
 .digit-picker button {
     border: 1px solid var(--dt-line);
     border-radius: 6px;
-    background: #171b1c;
+    background: #050708;
     color: var(--dt-text);
     min-width: 0;
-    padding: 9px 0;
+    min-height: 38px;
+    padding: 8px 0;
     font-size: 16px;
+    line-height: 1;
 }
 
 .digit-picker button.is-active {
-    background: #000;
+    background: #fff;
+    color: #050708;
 }
 
 .digit-picker button.is-live {
@@ -1599,15 +1763,20 @@ body.theme-light .deriv-terminal {
     padding: 13px;
     font-size: 16px;
     font-weight: 900;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .buy-btn span {
     font-size: 11px;
+    line-height: 1.25;
 }
 
 .risk-copy {
     min-height: 18px;
     color: var(--dt-muted);
+    font-size: 12px;
+    line-height: 1.4;
     text-align: center;
 }
 
@@ -1849,7 +2018,7 @@ body.theme-light .deriv-terminal {
     position: fixed;
     top: 0;
     bottom: 0;
-    left: 72px;
+    left: 88px;
     z-index: 25;
     width: 304px;
     border-right: 1px solid var(--dt-line);
@@ -1888,6 +2057,34 @@ body.theme-light .deriv-terminal {
     display: none;
 }
 
+@media (max-width: 1180px) {
+    .deriv-terminal {
+        grid-template-columns: 78px minmax(0, 1fr) minmax(280px, 318px);
+    }
+
+    .deriv-rail {
+        padding-inline: 6px;
+    }
+
+    .rail-item {
+        width: 66px;
+        min-height: 50px;
+        font-size: 13px;
+    }
+
+    .rail-item span {
+        font-size: 10px;
+    }
+
+    .trade-topbar {
+        padding-inline: 10px;
+    }
+
+    .ticket-panel {
+        font-size: 13px;
+    }
+}
+
 @media (max-width: 900px) {
     body:has(.deriv-terminal) {
         background: #553238;
@@ -1896,8 +2093,9 @@ body.theme-light .deriv-terminal {
     .deriv-terminal {
         grid-template-columns: minmax(0, 100vw);
         justify-content: center;
-        height: 100vh;
+        height: 100dvh;
         overflow: hidden;
+        font-size: 13px;
     }
 
     .deriv-rail,
@@ -1908,7 +2106,7 @@ body.theme-light .deriv-terminal {
     .trade-workspace {
         grid-row: 1;
         grid-template-rows: auto minmax(0, 1fr);
-        height: calc(100vh - 58px);
+        height: calc(100dvh - 58px);
         background: var(--dt-panel);
     }
 
@@ -1927,6 +2125,7 @@ body.theme-light .deriv-terminal {
         gap: 10px;
         align-items: center;
         padding: 4px 8px 10px;
+        min-width: 0;
     }
 
     .mobile-account-strip small {
@@ -1936,7 +2135,10 @@ body.theme-light .deriv-terminal {
 
     .mobile-account-strip strong {
         display: block;
+        overflow: hidden;
         font-size: 14px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .app-grid {
@@ -1944,10 +2146,10 @@ body.theme-light .deriv-terminal {
     }
 
     .chart-stage {
-        min-height: 360px;
-        margin: 0 8px 252px;
+        min-height: 0;
+        margin: 0 8px 170px;
         border-radius: 6px;
-        overflow: visible;
+        overflow: hidden;
     }
 
     .symbol-card {
@@ -1960,7 +2162,7 @@ body.theme-light .deriv-terminal {
     }
 
     .symbol-card strong {
-        font-size: 16px;
+        font-size: 14px;
     }
 
     .floating-tools,
@@ -1979,10 +2181,10 @@ body.theme-light .deriv-terminal {
         bottom: 58px;
         z-index: 18;
         width: min(390px, 100vw);
-        max-height: 62vh;
+        max-height: min(62dvh, 430px);
         border: 0;
         border-radius: 16px 16px 0 0;
-        transform: translate(-50%, calc(100% - 236px));
+        transform: translate(-50%, calc(100% - 190px));
         transition: transform 180ms ease;
     }
 
@@ -1998,7 +2200,7 @@ body.theme-light .deriv-terminal {
     }
 
     .trade-ticket {
-        padding: 28px 10px 10px;
+        padding: 26px 10px 10px;
     }
 
     .trade-ticket::before {
@@ -2016,7 +2218,7 @@ body.theme-light .deriv-terminal {
     .mobile-sheet-handle {
         position: fixed;
         left: 50%;
-        bottom: 300px;
+        bottom: 238px;
         z-index: 22;
         display: grid;
         place-items: center;
@@ -2079,13 +2281,43 @@ body.theme-light .deriv-terminal {
     }
 
     .digit-picker {
-        grid-template-columns: repeat(5, minmax(38px, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 6px;
         padding: 8px;
     }
 
+    .digit-picker button {
+        min-height: 34px;
+        font-size: 14px;
+    }
+
+    .digit-picker small {
+        font-size: 10px;
+    }
+
     .markets-popover aside {
         display: none;
+    }
+}
+
+@media (max-width: 420px) {
+    .trade-type-tabs button {
+        max-width: 132px;
+        padding-inline: 10px;
+        font-size: 12px;
+    }
+
+    .ticket-panel {
+        max-height: 58dvh;
+        transform: translate(-50%, calc(100% - 176px));
+    }
+
+    .mobile-sheet-handle {
+        bottom: 224px;
+    }
+
+    .trade-ticket form {
+        gap: 8px;
     }
 }
 

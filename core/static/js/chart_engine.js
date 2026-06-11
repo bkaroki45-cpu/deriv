@@ -5,7 +5,7 @@
             if (!this.canvas) return;
             this.ctx = this.canvas.getContext("2d");
             this.mode = "line";
-            this.interval = 60;
+            this.interval = 1;
             this.candles = [];
             this.ticks = [];
             this.zoom = 1;
@@ -217,8 +217,12 @@
             const scale = this.scale(series);
             this.drawPriceScale(ctx, scale, width, height);
             if (this.mode === "digits") this.drawDigitChart(ctx, width, height);
-            else if (this.mode === "candles") this.drawCandles(ctx, series, scale, width);
-            else this.drawLine(ctx, series, scale, width, chartLine || "#5ab8ff");
+            else if (this.mode === "candles") {
+                this.drawCandles(ctx, series, scale, width);
+                this.drawLatestPriceLine(ctx, series, scale, width);
+            } else {
+                this.drawLine(ctx, series, scale, width, chartLine || "#5ab8ff");
+            }
             this.drawContractOverlay(ctx, series, scale, width, height);
             this.drawStudies(ctx, series, scale, width);
             this.drawDrawings(ctx, width, height);
@@ -261,12 +265,50 @@
             ctx.stroke();
         }
 
+        plotMetrics(width) {
+            const axisWidth = 92 * devicePixelRatio;
+            const futureWidth = Math.min(Math.max(width * 0.16, 90 * devicePixelRatio), 190 * devicePixelRatio);
+            return {
+                axisWidth,
+                futureWidth,
+                plotRight: width - axisWidth,
+                activeRight: width - axisWidth - futureWidth,
+                plotWidth: width - axisWidth - futureWidth,
+            };
+        }
+
+        seriesX(index, count, width) {
+            const metrics = this.plotMetrics(width);
+            if (count <= 1) return metrics.activeRight + this.pan;
+            return (index * (metrics.plotWidth / (count - 1))) + this.pan;
+        }
+
+        drawLatestPriceLine(ctx, series, scale, width) {
+            const latest = series[series.length - 1];
+            if (!latest) return;
+            const metrics = this.plotMetrics(width);
+            const x = this.seriesX(series.length - 1, series.length, width);
+            const y = scale.y(latest.close);
+            ctx.save();
+            ctx.strokeStyle = "rgba(237, 244, 255, 0.64)";
+            ctx.lineWidth = 1.2 * devicePixelRatio;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(metrics.plotRight, y);
+            ctx.stroke();
+            ctx.fillStyle = "#f5f6f6";
+            ctx.beginPath();
+            ctx.arc(x, y, 4 * devicePixelRatio, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
         drawCandles(ctx, series, scale, width) {
-            const plotWidth = width - 92;
-            const step = plotWidth / Math.max(series.length, 1);
+            const metrics = this.plotMetrics(width);
+            const step = metrics.plotWidth / Math.max(series.length, 1);
             const bodyWidth = Math.max(4 * devicePixelRatio, step * 0.58);
             series.forEach((candle, index) => {
-                const x = index * step + step / 2 + this.pan;
+                const x = this.seriesX(index, series.length, width);
                 const openY = scale.y(candle.open);
                 const closeY = scale.y(candle.close);
                 const highY = scale.y(candle.high);
@@ -283,20 +325,19 @@
         }
 
         drawLine(ctx, series, scale, width, color) {
-            const plotWidth = width - 92;
-            const step = plotWidth / Math.max(series.length - 1, 1);
             ctx.strokeStyle = this.mode === "ticks" ? "#f5b942" : color;
             ctx.lineWidth = 2 * devicePixelRatio;
             ctx.beginPath();
             series.forEach((item, index) => {
-                const x = index * step + this.pan;
+                const x = this.seriesX(index, series.length, width);
                 const y = scale.y(item.close);
                 if (index === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
             });
             ctx.stroke();
+            this.drawLatestPriceLine(ctx, series, scale, width);
             if (this.mode !== "ticks") {
-                ctx.lineTo((series.length - 1) * step + this.pan, this.canvas.height);
+                ctx.lineTo(this.seriesX(series.length - 1, series.length, width), this.canvas.height);
                 ctx.lineTo(this.pan, this.canvas.height);
                 ctx.closePath();
                 const gradient = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
