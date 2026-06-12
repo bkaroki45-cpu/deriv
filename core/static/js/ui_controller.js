@@ -298,6 +298,10 @@
         return directionMap[activeDirection] || config.contract;
     }
 
+    function selectedDerivSymbol() {
+        return window.profiteraMarkets?.activeSymbol || byId("trade-symbol")?.value || "1HZ100V";
+    }
+
     function proposalPayload() {
         const payload = {
             proposal: 1,
@@ -305,7 +309,7 @@
             basis: "stake",
             contract_type: proposalContractType(),
             currency: window.PROFITERA_DERIV_SESSION?.currency || "USD",
-            symbol: byId("trade-symbol")?.value || "1HZ100V",
+            symbol: selectedDerivSymbol(),
             duration: Number(byId("trade-duration")?.value || 5),
             duration_unit: byId("trade-duration-unit")?.value || "m",
         };
@@ -509,7 +513,7 @@
         form.addEventListener("submit", async (event) => {
             event.preventDefault();
             const payload = {
-                symbol: byId("trade-symbol").value,
+                symbol: selectedDerivSymbol(),
                 direction: activeDirection,
                 stake: byId("trade-stake").value,
                 duration: byId("trade-duration").value,

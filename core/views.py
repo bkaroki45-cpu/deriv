@@ -13,6 +13,11 @@ def _deriv_app_id():
     return os.getenv("DERIV_APP_ID", "1089")
 
 
+def _deriv_ws_app_id():
+    """Numeric app ID used for Deriv WebSocket connections (not OAuth)."""
+    return os.getenv("DERIV_WS_APP_ID", "1089")
+
+
 def _env_params(mapping):
     return {key: os.getenv(env) for key, env in mapping.items() if os.getenv(env)}
 
@@ -36,6 +41,14 @@ def _store_oauth_state(request):
     return state, challenge
 
 
+DERIV_SESSION_KEYS = ("deriv_token", "deriv_account_id", "deriv_currency", "deriv_account_type")
+
+
+def _clear_deriv_session(request):
+    for key in DERIV_SESSION_KEYS:
+        request.session.pop(key, None)
+
+
 def _oauth_authorize_url(request, *, signup=False):
     state, challenge = _store_oauth_state(request)
     params = {
@@ -55,6 +68,8 @@ def _oauth_authorize_url(request, *, signup=False):
             "utm_campaign": "DERIV_UTM_CAMPAIGN",
             "utm_medium": "DERIV_UTM_MEDIUM",
         }))
+    else:
+        params["prompt"] = "login"
     return f"https://auth.deriv.com/oauth2/auth?{urlencode(params)}"
 
 
@@ -63,6 +78,10 @@ def _store_deriv_session(request, token, account_id="", currency="USD"):
     request.session["deriv_account_id"] = account_id or ""
     request.session["deriv_currency"] = currency or "USD"
     request.session["deriv_account_type"] = "demo" if (account_id or "").upper().startswith("VRTC") else "real"
+    # Sync with Django User model if authenticated
+    if request.user.is_authenticated and not request.user.deriv_connected:
+        request.user.deriv_connected = True
+        request.user.save(update_fields=["deriv_connected"])
 
 
 def _exchange_oauth_code(request, code):
@@ -132,6 +151,7 @@ def dashboard(request):
         "demo_balance": "10000.00",
         "real_balance": getattr(wallet, "balance", "0.00") if wallet else "0.00",
         "deriv_app_id": _deriv_app_id(),
+        "deriv_ws_app_id": _deriv_ws_app_id(),
         "deriv_session": deriv_session,
     })
 
@@ -159,18 +179,21 @@ def deriv_register_page(request):
 
 
 def deriv_login(request):
+    _clear_deriv_session(request)
     if os.getenv("DERIV_OAUTH_LEGACY") == "1":
         params = {
             "app_id": _deriv_app_id(),
             "l": "EN",
             "brand": "deriv",
             "redirect_uri": _absolute_redirect_uri(request),
+            "prompt": "login",
         }
         return redirect(f"https://oauth.deriv.com/oauth2/authorize?{urlencode(params)}")
     return redirect(_oauth_authorize_url(request))
 
 
 def deriv_register(request):
+    _clear_deriv_session(request)
     if os.getenv("DERIV_OAUTH_LEGACY") == "1":
         params = {
             "app_id": _deriv_app_id(),
@@ -218,6 +241,5 @@ def deriv_oauth_callback(request):
 
 
 def deriv_logout(request):
-    for key in ("deriv_token", "deriv_account_id", "deriv_currency", "deriv_account_type"):
-        request.session.pop(key, None)
+    _clear_deriv_session(request)
     return redirect("trade")

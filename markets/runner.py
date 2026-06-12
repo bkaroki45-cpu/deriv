@@ -1,6 +1,6 @@
 import asyncio
-from .services.deriv_ws import DerivWebSocketClient
+from .services.deriv_ws import DerivMarketStream
 
 def start():
-    client = DerivWebSocketClient()
+    client = DerivMarketStream()
     asyncio.run(client.connect())

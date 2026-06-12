@@ -33,7 +33,12 @@ def withdraw(wallet, amount, description="Withdraw"):
     )
 
 
-def apply_trade_profit(wallet, trade):
+def apply_trade_profit(user_or_wallet, trade):
+    """Apply trade profit/loss to wallet. Accepts User or Wallet instance."""
+    if hasattr(user_or_wallet, "wallet"):
+        wallet = user_or_wallet.wallet
+    else:
+        wallet = user_or_wallet
     wallet.balance += trade.profit
     wallet.save()
 

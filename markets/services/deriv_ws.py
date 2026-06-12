@@ -4,7 +4,6 @@ import asyncio
 import websockets
 
 from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
 
 from portfolio.tasks import process_risk_batch
 
@@ -12,7 +11,7 @@ from portfolio.tasks import process_risk_batch
 class DerivMarketStream:
 
     def __init__(self):
-        self.app_id = os.getenv("DERIV_APP_ID")
+        self.app_id = os.getenv("DERIV_WS_APP_ID", "1089")
         self.url = f"wss://ws.derivws.com/websockets/v3?app_id={self.app_id}"
 
         # candle storage (1-second aggregation)
@@ -57,13 +56,21 @@ class DerivMarketStream:
             candle = self.build_candle(symbol, price, epoch)
 
             # =========================
-            # 2. SEND TO FRONTEND (CHARTS)
+            # 2. SEND TO FRONTEND (CHARTS + MARKET FEED)
             # =========================
-            async_to_sync(channel_layer.group_send)(
+            await channel_layer.group_send(
                 "chart_data",
                 {
                     "type": "send.candle",
                     "candle": candle
+                }
+            )
+
+            await channel_layer.group_send(
+                "market_data",
+                {
+                    "type": "send.tick",
+                    "tick": tick
                 }
             )
 

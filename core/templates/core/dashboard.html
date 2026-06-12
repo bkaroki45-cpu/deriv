@@ -9,7 +9,7 @@
 </head>
 <body>
     <script>
-        window.PROFITERA_DERIV_APP_ID = "{{ deriv_app_id|default:'1089'|escapejs }}";
+        window.PROFITERA_DERIV_APP_ID = "{{ deriv_ws_app_id|default:'1089'|escapejs }}";
         window.PROFITERA_DERIV_SESSION = {
             token: "{{ deriv_session.token|default:''|escapejs }}",
             accountId: "{{ deriv_session.account_id|default:''|escapejs }}",

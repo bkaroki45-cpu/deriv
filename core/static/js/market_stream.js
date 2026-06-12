@@ -78,16 +78,42 @@
 
         async loadSymbols() {
             try {
-                const response = await this.derivRequest({ active_symbols: "brief", req_id: 10 });
+                const response = await this.derivRequest({ active_symbols: "full", req_id: 10 });
                 const remote = Array.isArray(response.active_symbols) ? response.active_symbols : [];
-                this.markets = this.syntheticFirst(remote.length ? remote : DEFAULT_MARKETS);
+                this.markets = this.syntheticFirst((remote.length ? remote : DEFAULT_MARKETS).map((item) => this.normalizeMarket(item)));
             } catch (error) {
-                this.markets = this.syntheticFirst(DEFAULT_MARKETS);
+                this.markets = this.syntheticFirst(DEFAULT_MARKETS.map((item) => this.normalizeMarket(item)));
                 this.note(`Using local symbol list: ${error.message}`);
             }
+            this.activeSymbol = this.exactSymbol(this.activeSymbol)
+                || this.exactSymbol("1HZ100V")
+                || (this.markets[0] && this.markets[0].symbol)
+                || this.activeSymbol;
             this.syncActiveSymbolUi();
             this.render();
             this.subscribeVisibleRows();
+        }
+
+        normalizeMarket(item) {
+            const symbol = String(item.symbol || "").trim();
+            return {
+                ...item,
+                symbol,
+                display_name: item.display_name || item.symbol || symbol,
+                market: item.market || "",
+                market_display_name: item.market_display_name || item.market || "Market",
+            };
+        }
+
+        exactSymbol(symbol) {
+            const requested = String(symbol || "").trim().toLowerCase();
+            if (!requested) return "";
+            const market = this.markets.find((item) => String(item.symbol).toLowerCase() === requested);
+            return market ? market.symbol : "";
+        }
+
+        activeMarket() {
+            return this.markets.find((item) => item.symbol === this.activeSymbol);
         }
 
         syntheticFirst(markets) {
@@ -236,7 +262,8 @@
             const symbols = new Set([this.activeSymbol]);
             if (this.list) {
                 this.list.querySelectorAll("[data-symbol]").forEach((row) => {
-                    if (symbols.size < 24) symbols.add(row.dataset.symbol);
+                    const symbol = this.exactSymbol(row.dataset.symbol);
+                    if (symbol && symbols.size < 24) symbols.add(symbol);
                 });
             }
             this.visibleSubscriptions = symbols;
@@ -246,7 +273,7 @@
         }
 
         syncActiveSymbolUi() {
-            const market = this.markets.find((item) => item.symbol === this.activeSymbol);
+            const market = this.activeMarket();
             if (this.activeName) this.activeName.textContent = market ? (market.display_name || this.activeSymbol) : this.activeSymbol;
             if (this.activeCode) this.activeCode.textContent = this.activeSymbol;
             if (this.tradeSymbol) this.tradeSymbol.value = this.activeSymbol;
@@ -261,15 +288,20 @@
         }
 
         setActive(symbol) {
-            this.activeSymbol = symbol;
-            const market = this.markets.find((item) => item.symbol === symbol);
+            const exact = this.exactSymbol(symbol);
+            if (!exact) {
+                this.note(`Unknown Deriv market ignored: ${symbol}`);
+                return;
+            }
+            this.activeSymbol = exact;
+            const market = this.activeMarket();
             this.syncActiveSymbolUi();
-            this.rememberSymbol(symbol);
+            this.rememberSymbol(exact);
             const popover = document.getElementById("markets-popover");
             if (popover) popover.hidden = true;
             if (window.profiteraChart) window.profiteraChart.clear();
-            const synthetic = market ? this.isSynthetic(market) : !String(symbol).startsWith("frx");
-            window.dispatchEvent(new CustomEvent("profitera:market", { detail: { symbol, market, synthetic } }));
+            const synthetic = market ? this.isSynthetic(market) : !String(exact).startsWith("frx");
+            window.dispatchEvent(new CustomEvent("profitera:market", { detail: { symbol: exact, market, synthetic } }));
             this.subscribeActive();
             this.render();
             this.subscribeVisibleRows();

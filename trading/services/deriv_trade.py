@@ -4,7 +4,7 @@ import os
 
 class DerivTradeEngine:
     def __init__(self, token=None):
-        app_id = os.getenv("DERIV_APP_ID", "1089")
+        app_id = os.getenv("DERIV_WS_APP_ID", "1089")
         self.token = token or os.getenv("DERIV_API_TOKEN")
         self.url = f"wss://ws.derivws.com/websockets/v3?app_id={app_id}"
 

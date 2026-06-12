@@ -3,7 +3,6 @@ from celery import shared_task
 from .models import Trade
 from .profit_engine import calculate_profit
 from .engine import broadcast_portfolio_update
-from .risk_engine import close_trade  # ✅ FIXED IMPORT
 from wallet.services import apply_trade_profit
 
 
@@ -18,6 +17,7 @@ def process_risk_batch(symbol, price):
         symbol=symbol
     ).only(
         "id",
+        "user",
         "entry_price",
         "stake",
         "direction",
@@ -40,8 +40,8 @@ def process_risk_batch(symbol, price):
         # 2. STOP LOSS CHECK
         # =========================
         if trade.stop_loss is not None and profit <= trade.stop_loss:
-
-            close_trade(trade, "stop_loss")
+            trade.status = "closed"
+            trade.save(update_fields=["status", "profit"])
 
             broadcast_portfolio_update({
                 "type": "trade_closed",
@@ -51,7 +51,7 @@ def process_risk_batch(symbol, price):
                 "status": "closed"
             })
 
-            apply_trade_profit(trade.user, profit)
+            apply_trade_profit(trade.user, trade)
 
             continue
 
@@ -59,8 +59,8 @@ def process_risk_batch(symbol, price):
         # 3. TAKE PROFIT CHECK
         # =========================
         if trade.take_profit is not None and profit >= trade.take_profit:
-
-            close_trade(trade, "take_profit")
+            trade.status = "closed"
+            trade.save(update_fields=["status", "profit"])
 
             broadcast_portfolio_update({
                 "type": "trade_closed",
@@ -70,7 +70,7 @@ def process_risk_batch(symbol, price):
                 "status": "closed"
             })
 
-            apply_trade_profit(trade.user, profit)
+            apply_trade_profit(trade.user, trade)
 
             continue
 
