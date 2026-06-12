@@ -13,6 +13,10 @@ def _deriv_app_id():
     return os.getenv("DERIV_APP_ID", "1089")
 
 
+def _deriv_legacy_app_id():
+    return os.getenv("DERIV_LEGACY_APP_ID") or os.getenv("DERIV_WS_APP_ID") or "1089"
+
+
 def _deriv_ws_app_id():
     """Numeric app ID used for Deriv WebSocket connections (not OAuth)."""
     return os.getenv("DERIV_WS_APP_ID", "1089")
@@ -24,6 +28,10 @@ def _env_params(mapping):
 
 def _deriv_oauth_scope():
     return os.getenv("DERIV_OAUTH_SCOPE", "trade account_manage")
+
+
+def _use_pkce_oauth():
+    return os.getenv("DERIV_OAUTH_PKCE") == "1"
 
 
 def _pkce_pair():
@@ -71,6 +79,26 @@ def _oauth_authorize_url(request, *, signup=False):
     else:
         params["prompt"] = "login"
     return f"https://auth.deriv.com/oauth2/auth?{urlencode(params)}"
+
+
+def _legacy_authorize_url(request, *, signup=False):
+    params = {
+        "app_id": _deriv_legacy_app_id(),
+        "l": "EN",
+        "brand": "deriv",
+        "redirect_uri": _absolute_redirect_uri(request),
+    }
+    if signup:
+        params["signup_device"] = "desktop"
+        params.update(_env_params({
+            "t": "DERIV_AFFILIATE_TOKEN",
+            "utm_source": "DERIV_AFFILIATE_ID",
+            "utm_campaign": "DERIV_UTM_CAMPAIGN",
+            "utm_medium": "DERIV_UTM_MEDIUM",
+        }))
+    else:
+        params["prompt"] = "login"
+    return f"https://oauth.deriv.com/oauth2/authorize?{urlencode(params)}"
 
 
 def _store_deriv_session(request, token, account_id="", currency="USD"):
@@ -162,9 +190,18 @@ def bot_builder(request):
 
 def deriv_login_page(request):
     error = request.session.pop("deriv_oauth_error", "")
+    if request.method == "POST":
+        token = (request.POST.get("deriv_token") or "").strip()
+        account_id = (request.POST.get("deriv_account_id") or "").strip()
+        currency = (request.POST.get("deriv_currency") or "USD").strip().upper()
+        if token:
+            _clear_deriv_session(request)
+            _store_deriv_session(request, token, account_id, currency)
+            return redirect("trade")
+        error = "Paste a Deriv API token or continue with Deriv."
     return render(request, "core/deriv_auth.html", {
         "mode": "login",
-        "deriv_app_id": _deriv_app_id(),
+        "deriv_app_id": _deriv_legacy_app_id(),
         "error": error,
     })
 
@@ -173,43 +210,23 @@ def deriv_register_page(request):
     error = request.session.pop("deriv_oauth_error", "")
     return render(request, "core/deriv_auth.html", {
         "mode": "register",
-        "deriv_app_id": _deriv_app_id(),
+        "deriv_app_id": _deriv_legacy_app_id(),
         "error": error,
     })
 
 
 def deriv_login(request):
     _clear_deriv_session(request)
-    if os.getenv("DERIV_OAUTH_LEGACY") == "1":
-        params = {
-            "app_id": _deriv_app_id(),
-            "l": "EN",
-            "brand": "deriv",
-            "redirect_uri": _absolute_redirect_uri(request),
-            "prompt": "login",
-        }
-        return redirect(f"https://oauth.deriv.com/oauth2/authorize?{urlencode(params)}")
-    return redirect(_oauth_authorize_url(request))
+    if _use_pkce_oauth():
+        return redirect(_oauth_authorize_url(request))
+    return redirect(_legacy_authorize_url(request))
 
 
 def deriv_register(request):
     _clear_deriv_session(request)
-    if os.getenv("DERIV_OAUTH_LEGACY") == "1":
-        params = {
-            "app_id": _deriv_app_id(),
-            "l": "EN",
-            "brand": "deriv",
-            "signup_device": "desktop",
-            "redirect_uri": _absolute_redirect_uri(request),
-        }
-        params.update(_env_params({
-            "t": "DERIV_AFFILIATE_TOKEN",
-            "utm_source": "DERIV_AFFILIATE_ID",
-            "utm_campaign": "DERIV_UTM_CAMPAIGN",
-            "utm_medium": "DERIV_UTM_MEDIUM",
-        }))
-        return redirect(f"https://oauth.deriv.com/oauth2/authorize?{urlencode(params)}")
-    return redirect(_oauth_authorize_url(request, signup=True))
+    if _use_pkce_oauth():
+        return redirect(_oauth_authorize_url(request, signup=True))
+    return redirect(_legacy_authorize_url(request, signup=True))
 
 
 def deriv_oauth_callback(request):

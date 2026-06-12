@@ -23,6 +23,13 @@
             <p>Authenticate on Deriv, then return to Profitera with your account token so this terminal can stream your balance and place Deriv market trades.</p>
             {% if error %}<strong class="auth-error">{{ error }}</strong>{% endif %}
             <a class="auth-primary" href="{% url 'deriv_login' %}">Continue to Deriv</a>
+            <form class="auth-token-form" method="post">
+                {% csrf_token %}
+                <input name="deriv_token" type="password" autocomplete="off" placeholder="Deriv API token">
+                <input name="deriv_account_id" type="text" autocomplete="off" placeholder="Account ID, optional">
+                <input name="deriv_currency" type="text" autocomplete="off" maxlength="8" value="USD" aria-label="Currency">
+                <button class="auth-secondary" type="submit">Connect with token</button>
+            </form>
             <a class="auth-secondary" href="{% url 'register' %}">Create a Deriv account</a>
             {% endif %}
             <small>App ID {{ deriv_app_id }}. Your password is never entered on Profitera.</small>
