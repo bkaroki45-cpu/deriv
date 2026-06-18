@@ -24,6 +24,7 @@ urlpatterns = [
     path('register/', deriv_register_page, name="register"),
     path('auth/deriv/login/', deriv_login, name="deriv_login"),
     path('auth/deriv/register/', deriv_register, name="deriv_register"),
+    path('auth/deriv/callback', deriv_oauth_callback, name="deriv_oauth_callback_no_slash"),
     path('auth/deriv/callback/', deriv_oauth_callback, name="deriv_oauth_callback"),
     path('auth/deriv/logout/', deriv_logout, name="deriv_logout"),
 ]

@@ -24,7 +24,7 @@ def _deriv_app_id():
 
 
 def _deriv_legacy_app_id():
-    return os.getenv("DERIV_LEGACY_APP_ID") or os.getenv("DERIV_APP_ID") or settings.DERIV_APP_ID
+    return os.getenv("DERIV_LEGACY_APP_ID") or os.getenv("DERIV_WS_APP_ID") or settings.DERIV_WS_APP_ID
 
 
 def _deriv_ws_app_id():
