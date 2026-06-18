@@ -152,11 +152,20 @@ AUTH_USER_MODEL = 'accounts.User'
 # =========================
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.SessionAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": os.getenv("DRF_ANON_RATE", "60/min"),
+        "user": os.getenv("DRF_USER_RATE", "600/min"),
+    },
 }
 
 
@@ -165,6 +174,22 @@ REST_FRAMEWORK = {
 # =========================
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1")
+
+
+# =========================
+# DERIV / PROFITERA
+# =========================
+DERIV_APP_ID = os.getenv("DERIV_APP_ID", "33vTuukEOhrcxeWfZvhAy")
+DERIV_WS_APP_ID = os.getenv("DERIV_WS_APP_ID", "1089")
+DERIV_REST_BASE_URL = os.getenv("DERIV_REST_BASE_URL", "https://api.derivws.com")
+DERIV_OPTIONS_BASE_URL = os.getenv("DERIV_OPTIONS_BASE_URL", f"{DERIV_REST_BASE_URL}/trading/v1/options")
+DERIV_AUTH_BASE_URL = os.getenv("DERIV_AUTH_BASE_URL", "https://auth.deriv.com")
+DERIV_OAUTH_SCOPE = os.getenv("DERIV_OAUTH_SCOPE", "trade account_manage payments admin")
+DERIV_AFFILIATE_TOKEN = os.getenv("DERIV_AFFILIATE_TOKEN", "")
+DERIV_UTM_SOURCE = os.getenv("DERIV_UTM_SOURCE", "profiteraa")
+DERIV_UTM_CAMPAIGN = os.getenv("DERIV_UTM_CAMPAIGN", "profiteraa_partner")
+DERIV_UTM_MEDIUM = os.getenv("DERIV_UTM_MEDIUM", "affiliate")
+PROFITERA_MARKUP_PERCENT = os.getenv("PROFITERA_MARKUP_PERCENT", "3")
 
 
 # ---- CACHE (disabled for now but ready) ----

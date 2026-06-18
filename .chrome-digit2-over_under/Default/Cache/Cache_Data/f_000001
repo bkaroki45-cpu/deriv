@@ -1,0 +1,327 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Profitera Terminal</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <script>
+        window.PROFITERA_DERIV_APP_ID = "1089";
+        window.PROFITERA_DERIV_SESSION = {
+            token: "",
+            accountId: "",
+            currency: "USD",
+            accountType: "real",
+            connected: false
+        };
+    </script>
+    <main class="deriv-terminal is-loading" data-theme="dark">
+    <div class="terminal-loader" id="terminal-loader" aria-label="Loading trading terminal">
+        <div class="loader-mark">D</div>
+        <strong>Trade</strong>
+        <span>Preparing live workspace</span>
+        <i></i>
+    </div>
+    <aside class="deriv-rail" aria-label="Main navigation">
+        <a class="deriv-logo" href="/trade/" aria-label="Profitera trade">P</a>
+        <div class="rail-status" aria-label="Connection status">
+            <span data-connection="markets">offline</span>
+            <small>Markets</small>
+        </div>
+        <button class="rail-item is-active" type="button" data-page="trade" title="Trade" aria-label="Trade"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Trade</span></button>
+        <button class="rail-item" type="button" data-page="dashboard" title="Dashboard" aria-label="Dashboard"><span class="rail-icon icon-report" aria-hidden="true"></span><span>Dashboard</span></button>
+        <button class="rail-item" type="button" data-toggle-markets title="Markets" aria-label="Markets"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Markets</span></button>
+        <button class="rail-item" type="button" data-toggle-positions title="Portfolio" aria-label="Portfolio"><span class="rail-icon icon-briefcase" aria-hidden="true"></span><span>Portfolio</span></button>
+        <button class="rail-item" type="button" data-page="reports" title="Reports" aria-label="Reports"><span class="rail-icon icon-report" aria-hidden="true"></span><span>Reports</span></button>
+        <button class="rail-item" type="button" data-page="settings" title="Settings" aria-label="Settings"><span class="rail-icon icon-theme" aria-hidden="true"></span><span>Settings</span></button>
+        <span class="rail-spacer"></span>
+        <button class="rail-item" type="button" title="Help" aria-label="Help"><span class="rail-icon icon-help" aria-hidden="true"></span></button>
+        <button class="rail-item" type="button" title="Language" aria-label="Language"><span class="rail-icon icon-language" aria-hidden="true"></span></button>
+        <button class="rail-item" type="button" data-theme-toggle title="Theme" aria-label="Theme"><span class="rail-icon icon-theme" aria-hidden="true"></span><span>Theme</span></button>
+        <button class="rail-item rail-collapse" type="button" data-collapse-rail title="Collapse sidebar" aria-label="Collapse sidebar"><span class="chevron" aria-hidden="true"></span><span>Collapse</span></button>
+        <a class="rail-item" href="/login/" title="Account" aria-label="Account"><span class="rail-icon icon-user" aria-hidden="true"></span><span>Account</span></a>
+    </aside>
+
+    <section class="positions-drawer" id="positions-drawer" aria-label="Open positions">
+        <header>
+            <strong>Open positions</strong>
+            <button type="button" data-close-positions aria-label="Close positions">x</button>
+        </header>
+        <div class="portfolio-metrics">
+            <div><span>Trades</span><strong id="portfolio-count">0</strong></div>
+            <div><span>P/L</span><strong id="portfolio-profit">0.00</strong></div>
+            <div><span>Win rate</span><strong id="portfolio-winrate">0%</strong></div>
+        </div>
+        <div class="position-table-wrap">
+            <table class="position-table">
+                <thead><tr><th>Symbol</th><th>Type</th><th>Stake</th><th>P/L</th><th>Status</th></tr></thead>
+                <tbody id="trade-table-body"><tr class="empty-row"><td colspan="5">No portfolio data loaded.</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="trade-workspace">
+        <header class="trade-topbar">
+            <div class="mobile-account-strip">
+                <span class="deriv-logo">DT</span>
+                <span><small id="mobile-account-label">Real account</small><strong id="mobile-account-balance">0.00 USD</strong></span>
+                <a class="deposit-btn" href="/login/">Login</a>
+            </div>
+            <button class="app-grid" type="button" aria-label="Apps"><span class="grid-icon" aria-hidden="true"></span></button>
+            <button class="contract-trigger" id="contract-trigger" type="button" aria-haspopup="dialog" aria-expanded="false"><span id="contract-trigger-label">Rise/Fall</span><small>Contract</small></button>
+            <nav class="trade-type-tabs" aria-label="Trade type">
+                <button class="is-active" data-trade-type="rise_fall" type="button">Rise/Fall</button>
+                <button data-trade-type="accumulator" type="button">Accumulators</button>
+                <button data-trade-type="multiplier" type="button">Multipliers</button>
+                <button data-trade-type="turbos" type="button">Turbos</button>
+                <button data-trade-type="vanillas" type="button">Vanillas</button>
+                <button data-trade-type="high_low" type="button">Higher/Lower</button>
+                <button data-trade-type="touch" type="button">Touch/No Touch</button>
+                <button data-trade-type="match_diff" type="button">Matches/Differs</button>
+                <button data-trade-type="over_under" type="button">Over/Under</button>
+                <button data-trade-type="even_odd" type="button">Even/Odd</button>
+            </nav>
+            <div class="terminal-search">
+                <span aria-hidden="true"></span>
+                <input id="terminal-search" type="search" placeholder="Search market">
+            </div>
+            <button class="header-icon" type="button" title="Notifications" aria-label="Notifications"><span class="notification-dot"></span></button>
+            <button class="header-icon" type="button" data-theme-toggle title="Settings" aria-label="Settings"><span class="rail-icon icon-theme" aria-hidden="true"></span></button>
+            <div class="topbar-health" aria-label="Platform status">
+                <span><i></i><b data-connection="portfolio">offline</b> portfolio</span>
+                <span><i></i><b id="sync-status">live</b> sync</span>
+            </div>
+        </header>
+
+        <section class="chart-stage">
+            <button class="symbol-card" type="button" id="symbol-card" aria-haspopup="dialog">
+                <span class="mini-candles" aria-hidden="true"></span>
+                <span>
+                    <strong id="active-symbol-name">Volatility 100 (1s) Index</strong>
+                    <small><span id="active-symbol-code">1HZ100V</span> / <span id="active-price">Waiting</span> / <span id="active-change" class="neutral">0.00%</span></small>
+                </span>
+                <span class="chevron" aria-hidden="true"></span>
+            </button>
+
+            <div class="floating-tools" aria-label="Chart controls">
+                <button class="tool-icon icon-candles" type="button" data-modal="chart-types" title="Chart type" aria-label="Chart type"></button>
+                <button class="tool-icon icon-indicators" type="button" data-modal="indicators" title="Indicators" aria-label="Indicators"></button>
+                <button class="tool-icon icon-template" type="button" data-modal="templates" title="Templates" aria-label="Templates"></button>
+                <button class="tool-icon icon-draw" type="button" data-modal="drawings" title="Drawing tools" aria-label="Drawing tools"></button>
+                <button class="tool-icon icon-download" type="button" data-chart-download title="Download" aria-label="Download"></button>
+                <button class="tool-icon" type="button" data-chart-action="fullscreen" title="Fullscreen" aria-label="Fullscreen">[]</button>
+            </div>
+
+            <canvas id="price-chart" aria-label="Live price chart"></canvas>
+            <div class="price-badge" id="chart-price-badge">--</div>
+            <div class="zoom-stack">
+                <button data-chart-action="zoom-in" type="button" aria-label="Zoom in">+</button>
+                <button data-chart-action="reset" type="button" aria-label="Reset chart">1:1</button>
+                <button data-chart-action="zoom-out" type="button" aria-label="Zoom out">-</button>
+            </div>
+            <div class="crosshair-readout" id="crosshair-readout">Live Deriv feed</div>
+            <aside class="market-insights" aria-label="Market intelligence">
+                <div><span>Market</span><strong id="market-family">Loading</strong></div>
+                <div><span>Last tick</span><strong id="last-tick-time">Waiting</strong></div>
+                <div><span>Tick velocity</span><strong id="tick-velocity">0/min</strong></div>
+            </aside>
+        </section>
+        <section class="bottom-dock" id="bottom-dock" aria-label="Trading activity">
+            <nav>
+                <button class="is-active" type="button" data-bottom-tab="open">Open trades</button>
+                <button type="button" data-bottom-tab="history">History</button>
+                <button type="button" data-bottom-tab="transactions">Transactions</button>
+            </nav>
+            <div class="bottom-panel is-active" data-bottom-panel="open">
+                <div class="activity-feed" id="open-trades-feed"><span class="empty-state-inline">No open trades yet.</span></div>
+            </div>
+            <div class="bottom-panel" data-bottom-panel="history">
+                <div class="activity-feed" id="history-feed"><span class="empty-state-inline">Completed trades will appear here.</span></div>
+            </div>
+            <div class="bottom-panel" data-bottom-panel="transactions">
+                <div class="activity-feed" id="transactions-feed"><span class="empty-state-inline">Deposits, stakes, and payouts will appear here.</span></div>
+            </div>
+        </section>
+        <section class="workspace-page dashboard-page" data-workspace-page="dashboard" hidden>
+            <div class="dashboard-grid">
+                <article><span>Balance</span><strong id="dashboard-balance">0.00 USD</strong><small>Live account equity</small></article>
+                <article><span>Open P/L</span><strong id="dashboard-profit">0.00</strong><small>Across active contracts</small></article>
+                <article><span>Win rate</span><strong id="dashboard-winrate">0%</strong><small>Closed trades</small></article>
+                <article><span>Active market</span><strong id="dashboard-symbol">1HZ100V</strong><small>Selected Deriv symbol</small></article>
+            </div>
+            <div class="quick-actions">
+                <button type="button" data-page="trade">Return to trade</button>
+                <button type="button" data-toggle-markets>Change market</button>
+                <button type="button" data-toggle-positions>View portfolio</button>
+            </div>
+        </section>
+    </section>
+
+    <aside class="ticket-panel" id="ticket-panel">
+        <div class="account-strip">
+            <button class="account-current" id="account-current" type="button" aria-haspopup="true" aria-expanded="false">
+                <span><small id="account-label">Real account</small><strong id="account-balance">0.00 USD</strong></span>
+                <span class="chevron" aria-hidden="true"></span>
+            </button>
+            <a class="deposit-btn" href="/login/">Login</a>
+            <div class="account-menu" id="account-menu" role="menu">
+                
+                <a href="/login/">Login with Deriv</a>
+                <a href="/register/">Register with Deriv</a>
+                
+                <button type="button" data-account-type="real" data-label="Real account" data-balance="0.00 USD"><span><small>Real Account</small><strong>REAL</strong></span></button>
+                <button type="button" data-account-type="demo" data-label="Demo account" data-balance="10000.00"><span><small>Demo Account</small><strong>DEMO</strong></span></button>
+                <button type="button" id="reset-demo-balance">Reset demo balance</button>
+            </div>
+            <span id="demo-balance" hidden>10000.00</span>
+            <span id="real-balance" hidden>0.00</span>
+        </div>
+
+        <section class="trade-ticket">
+            <a class="how-to" href="#" id="how-to-title">How to trade Rise/Fall?</a>
+            <div class="execution-summary" aria-label="Execution summary" hidden>
+                <div><span>Connection</span><strong id="execution-connection">Login required</strong></div>
+                <div><span>Currency</span><strong id="execution-currency">USD</strong></div>
+                <div><span>Mode</span><strong id="execution-mode">Real</strong></div>
+            </div>
+            <form id="trade-form">
+                <input name="symbol" id="trade-symbol" value="1HZ100V" type="hidden">
+                <input name="contract_type" id="trade-contract" value="CALL" type="hidden">
+                <div class="choice-pill" id="direction-choice"></div>
+                <div class="digit-picker" id="digit-picker" hidden></div>
+                <label class="ticket-field" data-field="duration"><span>Duration</span><input name="duration" id="trade-duration" value="5"><input name="duration_unit" id="trade-duration-unit" value="m" type="hidden"></label>
+                <label class="ticket-field" data-field="stake"><span>Stake</span><input name="stake" id="trade-stake" value="10"><b>USD</b></label>
+                <label class="ticket-field" id="barrier-field" hidden><span>Barrier</span><input name="barrier" id="trade-barrier" value="+0.42"></label>
+                <label class="ticket-field" id="growth-field" hidden><span>Growth rate</span><select id="growth-rate" name="growth_rate"><option value="0.03">3%</option><option value="0.02">2%</option><option value="0.04">4%</option><option value="0.05">5%</option></select></label>
+                <label class="ticket-field" id="take-profit-field" hidden><span>Take profit</span><input id="take-profit" name="take_profit" placeholder="-"></label>
+                <label class="ticket-field" id="risk-field" hidden><span>Risk management</span><input id="stop-out" name="stop_out" placeholder="-"></label>
+                <div class="terms-list" id="terms-list"></div>
+                <div class="risk-grid" aria-label="Risk preview" hidden>
+                    <div><span>Stake risk</span><strong id="stake-risk">10.00</strong></div>
+                    <div><span>Duration</span><strong id="duration-preview">5 m</strong></div>
+                    <div><span>Symbol</span><strong id="symbol-preview">1HZ100V</strong></div>
+                </div>
+                <button class="buy-btn" type="submit" id="primary-action" data-direction="rise">Buy<span id="proposal-payout">Payout 19.25 USD</span></button>
+                <p class="risk-copy" id="risk-warning">Login with Deriv to stream account balance and trade with your account.</p>
+                <strong id="contract-status" hidden>Idle</strong>
+            </form>
+        </section>
+
+        <footer class="terminal-clock"><span>Live</span><time id="terminal-time">--</time></footer>
+    </aside>
+
+    <button class="mobile-sheet-handle" type="button" data-toggle-ticket aria-label="Open trade ticket">Trade</button>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+        <button type="button"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Home</span></button>
+        <button class="is-active" type="button"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Trade</span></button>
+        <button type="button" data-toggle-positions><span class="rail-icon icon-briefcase" aria-hidden="true"></span><span>Positions</span></button>
+        <a href="/bot-builder/"><span class="rail-icon icon-strategy" aria-hidden="true"></span><span>Menu</span></a>
+    </nav>
+
+    <div class="markets-popover" id="markets-popover" role="dialog" aria-label="Markets" hidden>
+        <aside>
+            <strong>Markets</strong>
+            <button class="is-active" data-market-category="all" type="button">All markets</button>
+            <button data-market-category="favorite" type="button">Favorites</button>
+            <button data-market-category="recent" type="button">Recently viewed</button>
+            <button data-market-category="synthetic" type="button">Synthetic Indices</button>
+            <button data-market-category="forex" type="button">Forex</button>
+            <button data-market-category="commodities" type="button">Commodities</button>
+            <button data-market-category="stock" type="button">Stocks</button>
+            <button data-market-category="derived" type="button">Derived Indices</button>
+            <button data-market-category="basket" type="button">Basket Indices</button>
+            <button data-market-category="crypto" type="button">Crypto</button>
+        </aside>
+        <section>
+            <input id="market-search" type="search" placeholder="Search..." autocomplete="off">
+            <div class="market-list" id="market-list" aria-live="polite"></div>
+        </section>
+    </div>
+
+    <div class="contract-popover" id="contract-popover" role="dialog" aria-label="Contracts" hidden>
+        <header><strong>Select contract</strong><button type="button" data-close-contract aria-label="Close contract selector">x</button></header>
+        <div class="contract-card-grid">
+            <button type="button" data-contract-card="rise_fall"><strong>Rise/Fall</strong><span>Predict whether the exit tick is higher or lower.</span></button>
+            <button type="button" data-contract-card="high_low"><strong>Higher/Lower</strong><span>Set a barrier and forecast the close.</span></button>
+            <button type="button" data-contract-card="touch"><strong>Touch/No Touch</strong><span>Trade whether price reaches a level.</span></button>
+            <button type="button" data-contract-card="over_under"><strong>Over/Under</strong><span>Predict the final digit relative to a barrier.</span></button>
+            <button type="button" data-contract-card="match_diff"><strong>Matches/Differs</strong><span>Choose a digit outcome.</span></button>
+            <button type="button" data-contract-card="multiplier"><strong>Multipliers</strong><span>Amplify movement with risk controls.</span></button>
+            <button type="button" data-contract-card="accumulator"><strong>Accumulators</strong><span>Grow payout while price stays in range.</span></button>
+            <button type="button" data-contract-card="even_odd"><strong>Even/Odd</strong><span>Trade the parity of the last digit.</span></button>
+        </div>
+    </div>
+
+    <div class="modal-layer" id="modal-layer" hidden>
+        <section class="trade-modal" data-modal-panel="chart-types" hidden>
+            <header><strong>Chart types</strong><button data-close-modal type="button">x</button></header>
+            <div class="chart-type-grid">
+                <button class="is-active" data-chart-mode="line" type="button">A<span>Area</span></button>
+                <button data-chart-mode="candles" type="button">C<span>Candle</span></button>
+                <button data-chart-mode="ticks" type="button">T<span>Ticks</span></button>
+                <button data-chart-mode="digits" type="button">D<span>Digits</span></button>
+            </div>
+            <h3>Time interval</h3>
+            <div class="interval-grid">
+                <button class="is-active" data-chart-interval="1" type="button">1 tick</button>
+                <button data-chart-interval="60" type="button">1 minute</button>
+                <button data-chart-interval="120" type="button">2 minutes</button>
+                <button data-chart-interval="180" type="button">3 minutes</button>
+                <button data-chart-interval="300" type="button">5 minutes</button>
+                <button data-chart-interval="600" type="button">10 minutes</button>
+                <button data-chart-interval="900" type="button">15 minutes</button>
+                <button data-chart-interval="1800" type="button">30 minutes</button>
+                <button data-chart-interval="3600" type="button">1 hour</button>
+                <button data-chart-interval="14400" type="button">4 hours</button>
+                <button data-chart-interval="86400" type="button">1 day</button>
+            </div>
+            <label class="modal-toggle"><span>Smooth chart movement<small>Performance may vary by device.</small></span><input type="checkbox" checked></label>
+        </section>
+
+        <section class="trade-modal wide" data-modal-panel="indicators" hidden>
+            <header><strong>Indicators</strong><input type="search" placeholder="Search"><button data-close-modal type="button">x</button></header>
+            <aside class="modal-sidebar"><button class="is-active">Popular</button><button>Momentum</button><button>Trend</button><button>Volatility</button><button>Moving averages</button><button>Others</button></aside>
+            <div class="modal-tool-grid">
+                <button data-chart-tool="ma" type="button">Moving Average<span>Trend direction</span></button>
+                <button data-chart-tool="ema" type="button">Exponential MA<span>Fast trend</span></button>
+                <button data-chart-tool="bb" type="button">Bollinger Bands<span>Volatility range</span></button>
+                <button data-chart-tool="sr" type="button">Support / Resistance<span>Key levels</span></button>
+                <button data-chart-tool="projection" type="button">Projection<span>Forward guide</span></button>
+                <button data-chart-tool="rsi" type="button">RSI<span>Momentum badge</span></button>
+                <button data-chart-tool="macd" type="button">MACD<span>Momentum badge</span></button>
+            </div>
+        </section>
+
+        <section class="trade-modal small" data-modal-panel="templates" hidden>
+            <header><strong>Templates</strong><button data-close-modal type="button">x</button></header>
+            <div class="modal-empty">You have no saved templates yet.</div>
+            <button class="danger-link" type="button">+ Add new template</button>
+        </section>
+
+        <section class="trade-modal wide" data-modal-panel="drawings" hidden>
+            <header><strong>Drawing tools</strong><button data-close-modal type="button">x</button></header>
+            <aside class="modal-sidebar"><button class="is-active">Drawing tools</button><button>Annotations</button><button>Patterns</button><button>Measure</button></aside>
+            <div class="modal-tool-grid">
+                <button data-chart-tool="trend" type="button">Trend line<span>Click two points</span></button>
+                <button data-chart-tool="horizontal" type="button">Horizontal line<span>Price level</span></button>
+                <button data-chart-tool="vertical" type="button">Vertical line<span>Time marker</span></button>
+                <button data-chart-tool="fib" type="button">Fibonacci<span>Click two points</span></button>
+                <button data-chart-tool="rectangle" type="button">Rectangle<span>Area highlight</span></button>
+                <button data-chart-tool="brush" type="button">Brush<span>Free marker</span></button>
+                <button data-chart-tool="text" type="button">Text marker<span>Single click note</span></button>
+            </div>
+        </section>
+    </div>
+</main>
+
+    <script src="/static/js/chart_engine.js"></script>
+    <script src="/static/js/digits_widget.js"></script>
+    <script src="/static/js/market_stream.js"></script>
+    <script src="/static/js/portfolio_stream.js"></script>
+    <script src="/static/js/bot_engine.js"></script>
+    <script src="/static/js/ui_controller.js"></script>
+</body>
+</html>

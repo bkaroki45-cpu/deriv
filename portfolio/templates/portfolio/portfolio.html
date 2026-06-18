@@ -1,211 +1,283 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profitera Portfolio</title>
-
     <style>
+        * { box-sizing: border-box; }
         body {
             margin: 0;
-            font-family: Arial;
-            background: #0f172a;
-            color: white;
+            background: #15191a;
+            color: #f2f3f3;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
-
-        .container {
-            padding: 20px;
+        .portfolio-shell {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            min-height: 100vh;
         }
-
+        .portfolio-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            border-bottom: 1px solid #313637;
+            background: #191d1e;
+            padding: 14px 18px;
+        }
         h1 {
-            margin-bottom: 20px;
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: 0;
         }
-
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-            background: #111827;
-            border-radius: 10px;
+        .status-pill {
+            border: 1px solid #313637;
+            border-radius: 999px;
+            background: #202425;
+            color: #ff9aa1;
+            padding: 8px 11px;
+            font-size: 12px;
+            text-transform: capitalize;
+            white-space: nowrap;
+        }
+        .status-pill.online {
+            color: #5ff1c7;
+        }
+        .portfolio-content {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 12px;
+            min-width: 0;
+            padding: 12px;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .summary-card {
+            display: grid;
+            gap: 5px;
+            min-width: 0;
+            border: 1px solid #313637;
+            border-radius: 8px;
+            background: #191d1e;
+            padding: 14px;
+        }
+        .summary-card span,
+        .empty-state {
+            color: #a2a8aa;
+            font-size: 12px;
+        }
+        .summary-card strong {
+            overflow: hidden;
+            font-size: 22px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .table-panel {
+            min-width: 0;
+            min-height: 0;
+            border: 1px solid #313637;
+            border-radius: 8px;
+            background: #191d1e;
             overflow: hidden;
         }
-
-        .table th, .table td {
+        .table-wrap {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+        }
+        table {
+            width: 100%;
+            min-width: 780px;
+            border-collapse: collapse;
+        }
+        th,
+        td {
+            border-bottom: 1px solid #313637;
             padding: 12px;
             text-align: left;
+            font-size: 13px;
         }
-
-        .table th {
-            background: #1f2937;
+        th {
+            color: #a2a8aa;
+            background: #202425;
+            font-size: 11px;
+            text-transform: uppercase;
+            white-space: nowrap;
         }
-
-        .table tr {
-            border-bottom: 1px solid #1f2937;
+        td {
+            color: #f2f3f3;
         }
-
-        .profit {
-            color: #22c55e;
-            font-weight: bold;
-        }
-
-        .loss {
-            color: #ef4444;
-            font-weight: bold;
-        }
-
-        .status-open {
-            color: #facc15;
-        }
-
-        .status-closed {
-            color: #60a5fa;
-        }
-
-        .grid {
+        .positive { color: #5ff1c7; font-weight: 800; }
+        .negative { color: #ff9aa1; font-weight: 800; }
+        .status-open { color: #f5c45e; }
+        .status-closed { color: #70d9dd; }
+        .empty-state {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            place-items: center;
+            min-height: 280px;
+            text-align: center;
         }
-
-        .card {
-            background: #111827;
-            padding: 15px;
-            border-radius: 10px;
+        @media (max-width: 860px) {
+            .portfolio-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+            .summary-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
-
+        @media (max-width: 520px) {
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
-
 <body>
+    <main class="portfolio-shell">
+        <header class="portfolio-header">
+            <h1>Profitera Portfolio</h1>
+            <span class="status-pill" id="portfolio-status">loading</span>
+        </header>
+        <section class="portfolio-content">
+            <div class="summary-grid" aria-label="Portfolio summary">
+                <div class="summary-card"><span>Total trades</span><strong id="totalTrades">0</strong></div>
+                <div class="summary-card"><span>Total P/L</span><strong id="totalProfit">0.00</strong></div>
+                <div class="summary-card"><span>Open trades</span><strong id="openTrades">0</strong></div>
+                <div class="summary-card"><span>Win rate</span><strong id="winRate">0%</strong></div>
+            </div>
+            <section class="table-panel">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Direction</th>
+                                <th>Stake</th>
+                                <th>Entry</th>
+                                <th>Exit</th>
+                                <th>Profit</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tradeTable">
+                            <tr><td colspan="7"><div class="empty-state">Loading portfolio...</div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </section>
+    </main>
 
-<div class="container">
-
-    <h1>Profitera Portfolio</h1>
-
-    <!-- SUMMARY CARDS -->
-    <div class="grid">
-
-        <div class="card">
-            <h3>Total Trades</h3>
-            <p id="totalTrades">0</p>
-        </div>
-
-        <div class="card">
-            <h3>Total Profit</h3>
-            <p id="totalProfit">0</p>
-        </div>
-
-    </div>
-
-    <br>
-
-    <!-- TABLE -->
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Symbol</th>
-                <th>Direction</th>
-                <th>Stake</th>
-                <th>Entry</th>
-                <th>Exit</th>
-                <th>Profit</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-
-        <tbody id="tradeTable">
-        </tbody>
-    </table>
-
-</div>
-
-<script>
-async function loadPortfolio() {
-
-    const response = await fetch("/api/portfolio/portfolio/", {
-        headers: {
-            "Authorization": "Bearer YOUR_ACCESS_TOKEN"
-        }
-    });
-
-    const data = await response.json();
-
-    let table = document.getElementById("tradeTable");
-
-    let totalProfit = 0;
-
-    table.innerHTML = "";
-
-    data.forEach(trade => {
-
-        totalProfit += parseFloat(trade.profit || 0);
-
-        let row = `
-            <tr>
-                <td>${trade.symbol}</td>
-                <td>${trade.direction}</td>
-                <td>${trade.stake}</td>
-                <td>${trade.entry_price || "-"}</td>
-                <td>${trade.exit_price || "-"}</td>
-                <td class="${trade.profit >= 0 ? 'profit' : 'loss'}">
-                    ${trade.profit}
-                </td>
-                <td class="status-${trade.status}">
-                    ${trade.status}
-                </td>
-            </tr>
-        `;
-
-        table.innerHTML += row;
-    });
-
-    document.getElementById("totalTrades").innerText = data.length;
-    document.getElementById("totalProfit").innerText = totalProfit.toFixed(2);
-}
-
-loadPortfolio();
-</script>
-<script>
-const socket = new WebSocket("ws://127.0.0.1:8000/ws/portfolio/");
-
-socket.onmessage = function(event) {
-    const data = JSON.parse(event.data);
-
-    console.log("LIVE UPDATE:", data);
-
-    if (data.type === "new_trade") {
-        addTradeToTable(data.trade);
-    }
-
-    if (data.type === "trade_update") {
-        updateTrade(data.trade_id, data);
-    }
-};
-
-function addTradeToTable(trade) {
+    <script>
+    const trades = new Map();
     const table = document.getElementById("tradeTable");
+    const statusEl = document.getElementById("portfolio-status");
 
-    const row = `
-        <tr id="trade-${trade.id}">
-            <td>${trade.symbol}</td>
-            <td>${trade.direction}</td>
-            <td>${trade.stake}</td>
-            <td>-</td>
-            <td>-</td>
-            <td class="profit">${trade.profit}</td>
-            <td class="status-open">${trade.status}</td>
-        </tr>
-    `;
-
-    table.innerHTML += row;
-}
-
-function updateTrade(id, data) {
-    const row = document.getElementById(`trade-${id}`);
-
-    if (row) {
-        row.querySelector(".profit").innerText = data.profit;
-        row.querySelector("td:last-child").innerText = data.status;
+    function text(value, fallback = "-") {
+        return value === undefined || value === null || value === "" ? fallback : String(value);
     }
-}
-</script>
-</body>
 
+    function escapeHtml(value) {
+        return text(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function money(value) {
+        const amount = Number(value || 0);
+        return Number.isFinite(amount) ? amount.toFixed(2) : "0.00";
+    }
+
+    function setStatus(label, online) {
+        statusEl.textContent = label;
+        statusEl.classList.toggle("online", Boolean(online));
+    }
+
+    function normalizePayload(data) {
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data.trades)) return data.trades;
+        if (Array.isArray(data.results)) return data.results;
+        return [];
+    }
+
+    function render() {
+        const rows = [...trades.values()];
+        if (!rows.length) {
+            table.innerHTML = '<tr><td colspan="7"><div class="empty-state">No trades yet.</div></td></tr>';
+        } else {
+            table.innerHTML = rows.map((trade) => {
+                const profit = Number(trade.profit || 0);
+                const status = text(trade.status, "open").toLowerCase();
+                return `
+                    <tr id="trade-${text(trade.id, Date.now())}">
+                        <td>${escapeHtml(trade.symbol)}</td>
+                        <td>${escapeHtml(trade.direction || trade.contract_type)}</td>
+                        <td>${escapeHtml(trade.stake)}</td>
+                        <td>${escapeHtml(trade.entry_price)}</td>
+                        <td>${escapeHtml(trade.exit_price)}</td>
+                        <td class="${profit >= 0 ? "positive" : "negative"}">${money(profit)}</td>
+                        <td class="status-${status}">${escapeHtml(status)}</td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        const totalProfit = rows.reduce((sum, trade) => sum + Number(trade.profit || 0), 0);
+        const closed = rows.filter((trade) => String(trade.status || "").toLowerCase() === "closed");
+        const winners = closed.filter((trade) => Number(trade.profit || 0) > 0);
+        document.getElementById("totalTrades").textContent = String(rows.length);
+        document.getElementById("totalProfit").textContent = money(totalProfit);
+        document.getElementById("totalProfit").className = totalProfit >= 0 ? "positive" : "negative";
+        document.getElementById("openTrades").textContent = String(rows.filter((trade) => String(trade.status || "open").toLowerCase() === "open").length);
+        document.getElementById("winRate").textContent = closed.length ? `${Math.round((winners.length / closed.length) * 100)}%` : "0%";
+    }
+
+    async function loadPortfolio() {
+        try {
+            const response = await fetch("/api/portfolio/");
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Unable to load portfolio");
+            normalizePayload(data).forEach((trade, index) => trades.set(String(trade.id || index), trade));
+            setStatus("loaded", true);
+            render();
+        } catch (error) {
+            setStatus("error", false);
+            table.innerHTML = `<tr><td colspan="7"><div class="empty-state">${escapeHtml(error.message)}</div></td></tr>`;
+        }
+    }
+
+    function connectPortfolioStream() {
+        const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+        const socket = new WebSocket(`${scheme}://${window.location.host}/ws/portfolio/`);
+        socket.onopen = () => setStatus("live", true);
+        socket.onerror = () => setStatus("stream error", false);
+        socket.onclose = () => {
+            setStatus("offline", false);
+            setTimeout(connectPortfolioStream, 3000);
+        };
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === "new_trade" && data.trade) {
+                trades.set(String(data.trade.id || Date.now()), data.trade);
+            }
+            if ((data.type === "trade_update" || data.type === "trade_closed") && data.trade_id) {
+                const key = String(data.trade_id);
+                trades.set(key, { ...(trades.get(key) || { id: key }), ...data });
+            }
+            render();
+        };
+    }
+
+    loadPortfolio();
+    connectPortfolioStream();
+    </script>
+</body>
 </html>

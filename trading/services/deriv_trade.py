@@ -8,6 +8,26 @@ class DerivTradeEngine:
         self.token = token or os.getenv("DERIV_API_TOKEN")
         self.url = f"wss://ws.derivws.com/websockets/v3?app_id={app_id}"
 
+    async def send_once(self, payload, authorize=False):
+        try:
+            import websockets
+        except ImportError as exc:
+            raise RuntimeError("Install the websockets package in the active Python environment") from exc
+
+        async with websockets.connect(self.url) as ws:
+            if authorize:
+                if not self.token:
+                    raise RuntimeError("A Deriv token is required for this request")
+                await ws.send(json.dumps({"authorize": self.token}))
+                auth = json.loads(await ws.recv())
+                if auth.get("error"):
+                    raise RuntimeError(auth["error"]["message"])
+            await ws.send(json.dumps(payload))
+            result = json.loads(await ws.recv())
+            if result.get("error"):
+                raise RuntimeError(result["error"]["message"])
+            return result
+
     async def buy_contract(
         self,
         symbol,

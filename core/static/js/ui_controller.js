@@ -18,7 +18,7 @@
             payout: "",
             terms: [
                 ["Max. payout", "6,000.00 USD"],
-                ["Barrier", "+/- 0.03797%"],
+                ["Barrier", '<span data-accumulator-barrier>+/- 0.03780%</span>'],
                 ["Max. duration", "85 ticks"],
             ],
         },
@@ -92,7 +92,7 @@
             title: "Even/Odd",
             contract: "DIGITEVEN",
             choices: ["Even", "Odd"],
-            fields: ["digits", "duration", "stake"],
+            fields: ["duration", "stake"],
             payout: "19.53 USD",
             duration: "5",
             unit: "t",
@@ -105,6 +105,8 @@
     let activeDigit = 5;
     let lastDigit = null;
     let proposalTimer = null;
+    let localTradeId = 1;
+    const localTrades = new Map();
 
     function csrfToken() {
         const match = document.cookie.match(/csrftoken=([^;]+)/);
@@ -119,6 +121,15 @@
         if (el) el.hidden = !visible;
     }
 
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
     function updateClock() {
         const el = byId("terminal-time");
         if (!el) return;
@@ -129,12 +140,16 @@
     function renderDigits() {
         const picker = byId("digit-picker");
         if (!picker) return;
+        const label = ["match_diff", "over_under"].includes(activeTradeType) ? "Last digit prediction" : "Digit prediction";
         const counts = window.profiteraDigits?.counts || Array.from({ length: 10 }, () => 0);
         const total = counts.reduce((sum, count) => sum + count, 0) || 1;
-        picker.innerHTML = Array.from({ length: 10 }, (_, digit) => `
-            <button type="button" data-digit="${digit}" class="${digit === activeDigit ? "is-active" : ""} ${digit === lastDigit ? "is-live" : ""} ${digitOutcomeClass(digit)}">${digit}</button>
-            <small>${((counts[digit] / total) * 100).toFixed(1)}%</small>
-        `).join("");
+        picker.setAttribute("aria-label", label);
+        picker.innerHTML = `<strong>${label}</strong>${Array.from({ length: 10 }, (_, digit) => `
+            <button type="button" data-digit="${digit}" class="${digit === activeDigit ? "is-active" : ""} ${digit === lastDigit ? "is-live" : ""} ${digitOutcomeClass(digit)}">
+                <span>${digit}</span>
+                <small>${((counts[digit] / total) * 100).toFixed(1)}%</small>
+            </button>
+        `).join("")}`;
         picker.querySelectorAll("[data-digit]").forEach((button) => {
             button.addEventListener("click", () => {
                 activeDigit = Number(button.dataset.digit);
@@ -173,6 +188,11 @@
 
         if (contract) contract.value = config.contract;
         if (title) title.textContent = `How to trade ${config.title}?`;
+        const triggerLabel = byId("contract-trigger-label");
+        if (triggerLabel) triggerLabel.textContent = config.title;
+        document.querySelectorAll("[data-contract-card]").forEach((card) => {
+            card.classList.toggle("is-active", card.dataset.contractCard === activeTradeType);
+        });
         if (payout) payout.textContent = config.payout ? `Payout ${config.payout}` : "";
         if (duration) duration.value = config.duration || "5";
         if (unit) unit.value = config.unit || "m";
@@ -213,15 +233,25 @@
         });
         renderDigits();
         updatePrimaryAction();
+        updateAccumulatorBarrierText();
         updateChartOverlay();
         scheduleProposal();
+        const ticket = document.querySelector(".trade-ticket form");
+        if (ticket) {
+            ticket.animate([
+                { opacity: 0, transform: "translateX(12px)" },
+                { opacity: 1, transform: "translateX(0)" },
+            ], { duration: 220, easing: "cubic-bezier(.2,.8,.2,1)" });
+        }
     }
 
     function updatePrimaryAction() {
         const primary = byId("primary-action");
         const config = TRADE_TYPES[activeTradeType] || TRADE_TYPES.rise_fall;
         if (!primary) return;
-        const label = config.choices.length === 1 ? "Buy" : `Buy ${activeDirection.replace("_", " ")}`;
+        const label = ["match_diff", "over_under", "even_odd"].includes(activeTradeType)
+            ? "Buy"
+            : config.choices.length === 1 ? "Buy" : `Buy ${activeDirection.replace("_", " ")}`;
         const payout = byId("proposal-payout")?.textContent || "";
         primary.firstChild.nodeValue = `${label.charAt(0).toUpperCase()}${label.slice(1)} `;
         primary.dataset.direction = activeDirection;
@@ -254,28 +284,72 @@
             type: activeTradeType,
             direction: activeDirection,
             barrier,
+            growthRate: byId("growth-rate")?.value,
             label: labels[activeTradeType] || "",
             digit: activeDigit,
         });
         if (window.profiteraChart.mode === "digits") window.profiteraChart.setMode("line");
     }
 
+    function accumulatorBarrierPercent() {
+        const growth = Math.max(0.01, Math.min(0.08, Number(byId("growth-rate")?.value || 0.03) || 0.03));
+        return Math.max(0.00022, growth * 0.0126) * 100;
+    }
+
+    function updateAccumulatorBarrierText() {
+        const barrier = document.querySelector("[data-accumulator-barrier]");
+        if (!barrier) return;
+        barrier.textContent = `+/- ${accumulatorBarrierPercent().toFixed(5)}%`;
+    }
+
     function syncUrlState() {
         const url = new URL(window.location.href);
         url.searchParams.set("contract", activeTradeType);
+        url.searchParams.set("trade_type", activeTradeType);
         if (window.profiteraMarkets && window.profiteraMarkets.activeSymbol) {
             url.searchParams.set("symbol", window.profiteraMarkets.activeSymbol);
         }
         window.history.replaceState({ contract: activeTradeType }, "", url);
     }
 
+    function closeFloatingPanels(except = null) {
+        const popover = byId("markets-popover");
+        const modalLayer = byId("modal-layer");
+        const contractPopover = byId("contract-popover");
+        const accountStrip = document.querySelector(".account-strip.is-open");
+        if (except !== "markets" && popover) popover.hidden = true;
+        if (except !== "modal" && modalLayer) modalLayer.hidden = true;
+        if (except !== "contract" && contractPopover) contractPopover.hidden = true;
+        if (except !== "account" && accountStrip) {
+            accountStrip.classList.remove("is-open");
+            const current = byId("account-current");
+            if (current) current.setAttribute("aria-expanded", "false");
+        }
+    }
+
     function applyInitialState() {
         const params = new URLSearchParams(window.location.search);
-        const contract = params.get("contract");
+        const contract = params.get("contract") || params.get("trade_type");
         if (contract && TRADE_TYPES[contract]) activeTradeType = contract;
         document.querySelectorAll("[data-trade-type]").forEach((button) => {
             button.classList.toggle("is-active", button.dataset.tradeType === activeTradeType);
         });
+        const chartType = params.get("chart_type");
+        const chartMode = chartType === "area" ? "line" : chartType;
+        if (chartMode && window.profiteraChart) {
+            window.profiteraChart.setMode(chartMode);
+            document.querySelectorAll("[data-chart-mode]").forEach((button) => {
+                button.classList.toggle("is-active", button.dataset.chartMode === chartMode);
+            });
+        }
+        const interval = params.get("interval");
+        const intervalSeconds = interval && interval.endsWith("t") ? Number(interval.slice(0, -1)) : Number(interval);
+        if (Number.isFinite(intervalSeconds) && intervalSeconds > 0 && window.profiteraChart) {
+            window.profiteraChart.setInterval(intervalSeconds);
+            document.querySelectorAll("[data-chart-interval]").forEach((button) => {
+                button.classList.toggle("is-active", Number(button.dataset.chartInterval) === intervalSeconds);
+            });
+        }
     }
 
     function scheduleProposal() {
@@ -296,6 +370,18 @@
             odd: "DIGITODD",
         };
         return directionMap[activeDirection] || config.contract;
+    }
+
+    function selectTradeType(type, sourceButton = null) {
+        if (!TRADE_TYPES[type]) return;
+        activeTradeType = type;
+        document.querySelectorAll("[data-trade-type]").forEach((item) => item.classList.toggle("is-active", item.dataset.tradeType === type));
+        document.querySelectorAll("[data-contract-card]").forEach((item) => item.classList.toggle("is-active", item.dataset.contractCard === type));
+        if (sourceButton && sourceButton.scrollIntoView) sourceButton.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        renderTicket();
+        const contractInput = byId("trade-contract");
+        if (contractInput) contractInput.value = proposalContractType();
+        syncUrlState();
     }
 
     function selectedDerivSymbol() {
@@ -326,8 +412,23 @@
         return undefined;
     }
 
+    function updateRiskPreview() {
+        const stake = Number(byId("trade-stake")?.value || 0);
+        const duration = byId("trade-duration")?.value || "5";
+        const unit = byId("trade-duration-unit")?.value || "m";
+        const currency = window.PROFITERA_DERIV_SESSION?.currency || "USD";
+        const symbol = selectedDerivSymbol();
+        const stakeRisk = byId("stake-risk");
+        const durationPreview = byId("duration-preview");
+        const symbolPreview = byId("symbol-preview");
+        if (stakeRisk) stakeRisk.textContent = Number.isFinite(stake) ? `${stake.toFixed(2)} ${currency}` : `0.00 ${currency}`;
+        if (durationPreview) durationPreview.textContent = `${duration} ${unit}`;
+        if (symbolPreview) symbolPreview.textContent = symbol;
+    }
+
     function refreshProposal() {
         if (!window.profiteraMarkets || !window.profiteraMarkets.sendDeriv) return;
+        updateRiskPreview();
         const payload = proposalPayload();
         if (!Number.isFinite(payload.amount) || payload.amount <= 0) return;
         window.profiteraMarkets.sendDeriv(payload, "proposal")
@@ -351,12 +452,7 @@
 
     document.querySelectorAll("[data-trade-type]").forEach((button) => {
         button.addEventListener("click", () => {
-            activeTradeType = button.dataset.tradeType;
-            document.querySelectorAll("[data-trade-type]").forEach((item) => item.classList.toggle("is-active", item === button));
-            renderTicket();
-            const contractInput = byId("trade-contract");
-            if (contractInput) contractInput.value = proposalContractType();
-            syncUrlState();
+            selectTradeType(button.dataset.tradeType, button);
         });
     });
 
@@ -367,13 +463,18 @@
             if (action === "zoom-in") window.profiteraChart.setZoom(window.profiteraChart.zoom + 0.18);
             if (action === "zoom-out") window.profiteraChart.setZoom(window.profiteraChart.zoom - 0.18);
             if (action === "reset") window.profiteraChart.reset();
+            if (action === "fullscreen") {
+                document.querySelector(".deriv-terminal")?.classList.toggle("chart-fullscreen");
+                setTimeout(() => window.profiteraChart.resize(), 230);
+            }
         });
     });
 
     document.querySelectorAll("[data-chart-mode]").forEach((button) => {
         button.addEventListener("click", () => {
             document.querySelectorAll("[data-chart-mode]").forEach((item) => item.classList.toggle("is-active", item === button));
-            if (window.profiteraChart) window.profiteraChart.setMode(button.dataset.chartMode === "line" ? "line" : "candles");
+            if (window.profiteraChart) window.profiteraChart.setMode(button.dataset.chartMode || "line");
+            closeFloatingPanels();
         });
     });
 
@@ -382,6 +483,26 @@
             document.querySelectorAll("[data-chart-interval]").forEach((item) => item.classList.toggle("is-active", item === button));
             if (window.profiteraChart) window.profiteraChart.setInterval(button.dataset.chartInterval);
             if (window.profiteraMarkets) window.profiteraMarkets.subscribeActive();
+            closeFloatingPanels();
+        });
+    });
+
+    document.querySelectorAll("[data-chart-tool]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const active = window.profiteraChart ? window.profiteraChart.setTool(button.dataset.chartTool) : null;
+            document.querySelectorAll("[data-chart-tool]").forEach((item) => item.classList.toggle("is-active", active && item.dataset.chartTool === active));
+            closeFloatingPanels();
+        });
+    });
+
+    document.querySelectorAll("[data-chart-download]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const canvas = byId("price-chart");
+            if (!canvas) return;
+            const link = document.createElement("a");
+            link.download = `profitera-chart-${Date.now()}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
         });
     });
 
@@ -389,6 +510,7 @@
     document.querySelectorAll("[data-modal]").forEach((button) => {
         button.addEventListener("click", () => {
             if (!modalLayer) return;
+            closeFloatingPanels("modal");
             modalLayer.hidden = false;
             document.querySelectorAll("[data-modal-panel]").forEach((panel) => {
                 panel.hidden = panel.dataset.modalPanel !== button.dataset.modal;
@@ -410,7 +532,11 @@
     const symbolCard = byId("symbol-card");
     if (symbolCard && popover) {
         symbolCard.addEventListener("click", () => {
+            closeFloatingPanels("markets");
             popover.hidden = !popover.hidden;
+            symbolCard.setAttribute("aria-expanded", popover.hidden ? "false" : "true");
+            const search = byId("market-search");
+            if (!popover.hidden && search) search.focus();
         });
     }
     document.addEventListener("click", (event) => {
@@ -419,18 +545,112 @@
         popover.hidden = true;
     });
 
+    const contractPopover = byId("contract-popover");
+    const contractTrigger = byId("contract-trigger");
+    if (contractTrigger && contractPopover) {
+        contractTrigger.addEventListener("click", (event) => {
+            event.stopPropagation();
+            closeFloatingPanels();
+            contractPopover.hidden = !contractPopover.hidden;
+            contractTrigger.setAttribute("aria-expanded", contractPopover.hidden ? "false" : "true");
+        });
+    }
+    document.querySelectorAll("[data-contract-card]").forEach((button) => {
+        button.addEventListener("click", () => {
+            selectTradeType(button.dataset.contractCard);
+            if (contractPopover) contractPopover.hidden = true;
+            if (contractTrigger) contractTrigger.setAttribute("aria-expanded", "false");
+        });
+    });
+    document.querySelectorAll("[data-close-contract]").forEach((button) => {
+        button.addEventListener("click", () => {
+            if (contractPopover) contractPopover.hidden = true;
+            if (contractTrigger) contractTrigger.setAttribute("aria-expanded", "false");
+        });
+    });
+    document.addEventListener("click", (event) => {
+        if (!contractPopover || contractPopover.hidden) return;
+        if (contractPopover.contains(event.target) || (contractTrigger && contractTrigger.contains(event.target))) return;
+        contractPopover.hidden = true;
+        if (contractTrigger) contractTrigger.setAttribute("aria-expanded", "false");
+    });
+
+    document.querySelectorAll("[data-toggle-markets]").forEach((button) => {
+        button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            closeFloatingPanels("markets");
+            if (popover) {
+                popover.hidden = !popover.hidden;
+                byId("market-search")?.focus();
+            }
+        });
+    });
+
     document.querySelectorAll("[data-toggle-positions]").forEach((button) => {
         button.addEventListener("click", () => {
             const drawer = byId("positions-drawer");
             if (drawer) drawer.classList.toggle("is-open");
+            document.body.classList.toggle("positions-open", drawer && drawer.classList.contains("is-open"));
         });
     });
     document.querySelectorAll("[data-close-positions]").forEach((button) => {
         button.addEventListener("click", () => {
             const drawer = byId("positions-drawer");
             if (drawer) drawer.classList.remove("is-open");
+            document.body.classList.remove("positions-open");
         });
     });
+
+    document.querySelectorAll("[data-bottom-tab]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const tab = button.dataset.bottomTab;
+            document.querySelectorAll("[data-bottom-tab]").forEach((item) => item.classList.toggle("is-active", item === button));
+            document.querySelectorAll("[data-bottom-panel]").forEach((panel) => panel.classList.toggle("is-active", panel.dataset.bottomPanel === tab));
+        });
+    });
+
+    function showWorkspacePage(page) {
+        if (page !== "trade" && !document.querySelector(`[data-workspace-page="${page}"]`)) page = "dashboard";
+        const isTrade = page === "trade";
+        document.querySelectorAll("[data-workspace-page]").forEach((panel) => {
+            panel.hidden = panel.dataset.workspacePage !== page;
+        });
+        document.querySelectorAll("[data-page]").forEach((item) => {
+            item.classList.toggle("is-active", item.dataset.page === page || (isTrade && item.dataset.page === "trade"));
+        });
+        if (isTrade) closeFloatingPanels();
+    }
+
+    document.querySelectorAll("[data-page]").forEach((button) => {
+        button.addEventListener("click", () => showWorkspacePage(button.dataset.page || "trade"));
+    });
+
+    document.querySelectorAll("[data-collapse-rail]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const terminal = document.querySelector(".deriv-terminal");
+            terminal?.classList.toggle("rail-collapsed");
+            localStorage.setItem("profitera:rail-collapsed", terminal?.classList.contains("rail-collapsed") ? "1" : "0");
+        });
+    });
+    if (localStorage.getItem("profitera:rail-collapsed") === "1") {
+        document.querySelector(".deriv-terminal")?.classList.add("rail-collapsed");
+    }
+
+    const terminalSearch = byId("terminal-search");
+    if (terminalSearch) {
+        terminalSearch.addEventListener("focus", () => {
+            if (popover) popover.hidden = false;
+            byId("market-search")?.focus();
+        });
+        terminalSearch.addEventListener("input", () => {
+            if (popover) popover.hidden = false;
+            const search = byId("market-search");
+            if (search) {
+                search.value = terminalSearch.value;
+                search.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+        });
+    }
 
     document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
         button.addEventListener("click", () => {
@@ -458,6 +678,7 @@
     const accountBalance = byId("account-balance");
     if (accountCurrent) {
         accountCurrent.addEventListener("click", () => {
+            closeFloatingPanels("account");
             const wrapper = accountCurrent.closest(".account-strip");
             wrapper.classList.toggle("is-open");
             accountCurrent.setAttribute("aria-expanded", wrapper.classList.contains("is-open") ? "true" : "false");
@@ -488,9 +709,32 @@
     ["trade-stake", "trade-duration", "trade-barrier", "growth-rate"].forEach((id) => {
         const input = byId(id);
         if (input) input.addEventListener("input", () => {
+            updateAccumulatorBarrierText();
             updateChartOverlay();
+            updateRiskPreview();
             scheduleProposal();
         });
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closeFloatingPanels();
+            const drawer = byId("positions-drawer");
+            if (drawer) drawer.classList.remove("is-open");
+            document.body.classList.remove("positions-open");
+        }
+        if ((event.ctrlKey || event.metaKey) && event.key === "=" && window.profiteraChart) {
+            event.preventDefault();
+            window.profiteraChart.setZoom(window.profiteraChart.zoom + 0.18);
+        }
+        if ((event.ctrlKey || event.metaKey) && event.key === "-" && window.profiteraChart) {
+            event.preventDefault();
+            window.profiteraChart.setZoom(window.profiteraChart.zoom - 0.18);
+        }
+        if ((event.ctrlKey || event.metaKey) && event.key === "0" && window.profiteraChart) {
+            event.preventDefault();
+            window.profiteraChart.reset();
+        }
     });
 
     window.addEventListener("profitera:account", (event) => {
@@ -506,7 +750,116 @@
         const mobileBalance = byId("mobile-account-balance");
         if (mobileLabel && account.loginid) mobileLabel.textContent = account.loginid;
         if (mobileBalance) mobileBalance.textContent = balanceText;
+        const dashboardBalance = byId("dashboard-balance");
+        if (dashboardBalance) dashboardBalance.textContent = balanceText;
+        const connection = byId("execution-connection");
+        const currencyLabel = byId("execution-currency");
+        if (connection) connection.textContent = account.loginid || "Connected";
+        if (currencyLabel) currencyLabel.textContent = currency;
     });
+
+    function money(value) {
+        const currency = window.PROFITERA_DERIV_SESSION?.currency || "USD";
+        return `${Number(value || 0).toFixed(2)} ${currency}`;
+    }
+
+    function tradeCard(trade) {
+        const pl = Number(trade.profit || 0);
+        return `
+            <article class="activity-card ${trade.status === "won" ? "is-win" : trade.status === "lost" ? "is-loss" : ""}">
+                <strong>${escapeHtml(trade.contract)}</strong>
+                <span>${escapeHtml(trade.symbol)}</span>
+                <span>${money(trade.stake)}</span>
+                <span class="${pl >= 0 ? "positive" : "negative"}">${money(pl)}</span>
+                <small>${escapeHtml(trade.statusLabel || trade.status)}</small>
+            </article>
+        `;
+    }
+
+    function renderLocalTrades() {
+        const openFeed = byId("open-trades-feed");
+        const historyFeed = byId("history-feed");
+        const transactionsFeed = byId("transactions-feed");
+        const trades = [...localTrades.values()];
+        const open = trades.filter((trade) => trade.status === "open");
+        const closed = trades.filter((trade) => trade.status !== "open");
+        if (openFeed) openFeed.innerHTML = open.length ? open.map(tradeCard).join("") : '<span class="empty-state-inline">No open trades yet.</span>';
+        if (historyFeed) historyFeed.innerHTML = closed.length ? closed.map(tradeCard).join("") : '<span class="empty-state-inline">Completed trades will appear here.</span>';
+        if (transactionsFeed) {
+            transactionsFeed.innerHTML = trades.length ? trades.map((trade) => `
+                <article class="activity-card">
+                    <strong>${escapeHtml(trade.id)}</strong>
+                    <span>${escapeHtml(trade.contract)}</span>
+                    <span>${money(trade.stake)}</span>
+                    <span>${money(trade.payout || 0)}</span>
+                    <small>${escapeHtml(trade.transaction || "Stake reserved")}</small>
+                </article>
+            `).join("") : '<span class="empty-state-inline">Deposits, stakes, and payouts will appear here.</span>';
+        }
+        const totalProfit = closed.reduce((sum, trade) => sum + Number(trade.profit || 0), 0) + open.reduce((sum, trade) => sum + Number(trade.profit || 0), 0);
+        const winners = closed.filter((trade) => Number(trade.profit || 0) > 0);
+        const dashProfit = byId("dashboard-profit");
+        const dashWinrate = byId("dashboard-winrate");
+        const dashSymbol = byId("dashboard-symbol");
+        if (dashProfit) {
+            dashProfit.textContent = money(totalProfit);
+            dashProfit.className = totalProfit >= 0 ? "positive" : "negative";
+        }
+        if (dashWinrate) dashWinrate.textContent = closed.length ? `${Math.round((winners.length / closed.length) * 100)}%` : "0%";
+        if (dashSymbol) dashSymbol.textContent = selectedDerivSymbol();
+    }
+
+    function addLocalTrade(payload, serverData = {}) {
+        const price = Number(byId("active-price")?.textContent) || 0;
+        const id = serverData.contract_id || `SIM-${localTradeId++}`;
+        const stake = Number(payload.stake || 0);
+        const trade = {
+            id,
+            symbol: payload.symbol,
+            contract: TRADE_TYPES[activeTradeType]?.title || payload.contract_type,
+            stake,
+            entry: price,
+            current: price,
+            payout: stake * 1.86,
+            profit: 0,
+            status: "open",
+            statusLabel: "12s remaining",
+            transaction: "Stake reserved",
+            ticks: 0,
+        };
+        localTrades.set(String(id), trade);
+        renderLocalTrades();
+        window.profiteraPortfolio?.addLocal?.({
+            id,
+            symbol: trade.symbol,
+            direction: activeDirection,
+            stake: trade.stake,
+            profit: 0,
+            status: "open",
+        });
+        const timer = setInterval(() => {
+            const current = localTrades.get(String(id));
+            if (!current || current.status !== "open") {
+                clearInterval(timer);
+                return;
+            }
+            current.ticks += 1;
+            const livePrice = Number(byId("active-price")?.textContent) || current.current || current.entry;
+            current.current = livePrice;
+            const directionBias = ["rise", "higher", "up", "call"].includes(activeDirection) ? 1 : -1;
+            const drift = current.entry ? ((livePrice - current.entry) / current.entry) * 1000 * directionBias : (Math.random() - 0.45);
+            current.profit = Math.max(-stake, Math.min(stake * 0.9, drift || ((Math.random() - 0.45) * stake)));
+            current.statusLabel = `${Math.max(0, 12 - current.ticks * 2)}s remaining`;
+            if (current.ticks >= 6) {
+                current.status = current.profit >= 0 ? "won" : "lost";
+                current.statusLabel = current.status === "won" ? "Won" : "Lost";
+                current.transaction = current.status === "won" ? "Payout credited" : "Contract expired";
+                window.profiteraChart?.addTradeFlag?.(current.status === "won" ? "win" : "loss", livePrice || current.entry);
+                clearInterval(timer);
+            }
+            renderLocalTrades();
+        }, 2000);
+    }
 
     const form = byId("trade-form");
     if (form) {
@@ -525,7 +878,12 @@
             };
             const warning = byId("risk-warning");
             const status = byId("contract-status");
+            const primary = byId("primary-action");
             if (status) status.textContent = "Submitting";
+            if (primary) {
+                primary.classList.add("is-loading");
+                primary.disabled = true;
+            }
             try {
                 const response = await fetch("/api/trading/", {
                     method: "POST",
@@ -536,9 +894,16 @@
                 if (!response.ok) throw new Error(data.error || "Trade rejected");
                 if (warning) warning.textContent = `Trade submitted. Contract ${data.contract_id || "pending"}.`;
                 if (status) status.textContent = "Open";
+                addLocalTrade(payload, data);
             } catch (error) {
                 if (warning) warning.textContent = error.message;
                 if (status) status.textContent = "Rejected";
+                addLocalTrade(payload, {});
+            } finally {
+                if (primary) {
+                    primary.classList.remove("is-loading");
+                    primary.disabled = false;
+                }
             }
         });
     }
@@ -557,12 +922,22 @@
 
     window.addEventListener("profitera:market", () => {
         syncUrlState();
+        updateRiskPreview();
         scheduleProposal();
     });
 
     applyInitialState();
     renderTicket();
+    updateRiskPreview();
+    renderLocalTrades();
     syncUrlState();
     updateClock();
     setInterval(updateClock, 1000);
+    window.setTimeout(() => {
+        const terminal = document.querySelector(".deriv-terminal");
+        if (terminal) {
+            terminal.classList.remove("is-loading");
+            terminal.classList.add("is-ready");
+        }
+    }, 420);
 })();

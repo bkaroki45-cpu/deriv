@@ -1,37 +1,151 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profitera Charts</title>
-
     <style>
+        * { box-sizing: border-box; }
         body {
             margin: 0;
-            background: #0f172a;
-            color: white;
-            font-family: Arial;
+            background: #15191a;
+            color: #f2f3f3;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
-
-        .header {
-            padding: 15px;
-            background: #111827;
+        .chart-shell {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            height: 100vh;
+            min-width: 0;
         }
-
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            border-bottom: 1px solid #313637;
+            background: #191d1e;
+            padding: 12px 16px;
+        }
+        .chart-title {
+            min-width: 0;
+        }
+        .chart-title h1 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 0;
+        }
+        .chart-title span {
+            color: #a2a8aa;
+            font-size: 12px;
+        }
+        .chart-actions,
+        .chart-stats {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            min-width: 0;
+        }
+        .chart-actions button,
+        .status-pill,
+        .chart-stats div {
+            border: 1px solid #313637;
+            border-radius: 6px;
+            background: #202425;
+            color: #f2f3f3;
+        }
+        .chart-actions button {
+            width: 38px;
+            height: 34px;
+            font-weight: 900;
+        }
+        .status-pill {
+            padding: 8px 10px;
+            color: #ff9aa1;
+            font-size: 12px;
+            text-transform: capitalize;
+        }
+        .status-pill.online {
+            color: #5ff1c7;
+        }
+        .chart-main {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 10px;
+            min-height: 0;
+            padding: 10px;
+        }
+        .chart-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .chart-stats div {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+            padding: 10px 12px;
+        }
+        .chart-stats span {
+            color: #a2a8aa;
+            font-size: 11px;
+        }
+        .chart-stats strong {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .chart-canvas-wrap {
+            min-width: 0;
+            min-height: 0;
+            border: 1px solid #313637;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #111820;
+        }
         #chart {
+            display: block;
             width: 100%;
-            height: 600px;
+            height: 100%;
+        }
+        @media (max-width: 720px) {
+            .chart-header {
+                align-items: stretch;
+                flex-direction: column;
+            }
+            .chart-actions {
+                justify-content: space-between;
+            }
+            .chart-stats {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
-
 <body>
-
-<div class="header">
-    <h2>Live Candlestick Chart - Profitera</h2>
-</div>
-
-<canvas id="chart"></canvas>
-
-<script src="/static/js/chart.js"></script>
-
+    <main class="chart-shell">
+        <header class="chart-header">
+            <div class="chart-title">
+                <h1>Profitera Live Chart</h1>
+                <span>Candlestick stream with pan and zoom controls</span>
+            </div>
+            <div class="chart-actions" aria-label="Chart controls">
+                <span class="status-pill" id="chart-status">offline</span>
+                <button data-chart-action="zoom-out" type="button" aria-label="Zoom out">-</button>
+                <button data-chart-action="reset" type="button" aria-label="Reset zoom">1:1</button>
+                <button data-chart-action="zoom-in" type="button" aria-label="Zoom in">+</button>
+            </div>
+        </header>
+        <section class="chart-main">
+            <div class="chart-stats" aria-label="Chart statistics">
+                <div><span>Last price</span><strong id="last-price">Waiting</strong></div>
+                <div><span>Candles</span><strong id="candle-count">0</strong></div>
+                <div><span>Visible range</span><strong id="price-range">-</strong></div>
+            </div>
+            <div class="chart-canvas-wrap">
+                <canvas id="chart" aria-label="Live candlestick chart"></canvas>
+            </div>
+        </section>
+    </main>
+    <script src="/static/js/chart.js"></script>
 </body>
 </html>

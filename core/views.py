@@ -1,25 +1,35 @@
 import os
-import base64
-import hashlib
 import secrets
 from urllib.parse import urlencode
 
-import requests
+from django.conf import settings
+from django.contrib.auth import get_user_model, login
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
+from .deriv_api import (
+    authorize_url,
+    capture_referral,
+    clear_deriv_session,
+    deriv_app_id,
+    exchange_code,
+    get_session,
+    set_deriv_session,
+    validate_and_store_token,
+)
+
 
 def _deriv_app_id():
-    return os.getenv("DERIV_APP_ID", "1089")
+    return deriv_app_id()
 
 
 def _deriv_legacy_app_id():
-    return os.getenv("DERIV_LEGACY_APP_ID") or os.getenv("DERIV_WS_APP_ID") or "1089"
+    return os.getenv("DERIV_LEGACY_APP_ID") or os.getenv("DERIV_APP_ID") or settings.DERIV_APP_ID
 
 
 def _deriv_ws_app_id():
     """Numeric app ID used for Deriv WebSocket connections (not OAuth)."""
-    return os.getenv("DERIV_WS_APP_ID", "1089")
+    return settings.DERIV_WS_APP_ID
 
 
 def _env_params(mapping):
@@ -27,58 +37,19 @@ def _env_params(mapping):
 
 
 def _deriv_oauth_scope():
-    return os.getenv("DERIV_OAUTH_SCOPE", "trade account_manage")
+    return settings.DERIV_OAUTH_SCOPE
 
 
 def _use_pkce_oauth():
-    return os.getenv("DERIV_OAUTH_PKCE") == "1"
-
-
-def _pkce_pair():
-    verifier = secrets.token_urlsafe(64)[:96]
-    digest = hashlib.sha256(verifier.encode("ascii")).digest()
-    challenge = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
-    return verifier, challenge
-
-
-def _store_oauth_state(request):
-    verifier, challenge = _pkce_pair()
-    state = secrets.token_urlsafe(24)
-    request.session["deriv_oauth_state"] = state
-    request.session["deriv_oauth_verifier"] = verifier
-    return state, challenge
-
-
-DERIV_SESSION_KEYS = ("deriv_token", "deriv_account_id", "deriv_currency", "deriv_account_type")
+    return os.getenv("DERIV_OAUTH_PKCE", "0") == "1"
 
 
 def _clear_deriv_session(request):
-    for key in DERIV_SESSION_KEYS:
-        request.session.pop(key, None)
+    clear_deriv_session(request)
 
 
 def _oauth_authorize_url(request, *, signup=False):
-    state, challenge = _store_oauth_state(request)
-    params = {
-        "response_type": "code",
-        "client_id": _deriv_app_id(),
-        "redirect_uri": _absolute_redirect_uri(request),
-        "scope": _deriv_oauth_scope(),
-        "state": state,
-        "code_challenge": challenge,
-        "code_challenge_method": "S256",
-    }
-    if signup:
-        params["prompt"] = "registration"
-        params.update(_env_params({
-            "t": "DERIV_AFFILIATE_TOKEN",
-            "utm_source": "DERIV_AFFILIATE_ID",
-            "utm_campaign": "DERIV_UTM_CAMPAIGN",
-            "utm_medium": "DERIV_UTM_MEDIUM",
-        }))
-    else:
-        params["prompt"] = "login"
-    return f"https://auth.deriv.com/oauth2/auth?{urlencode(params)}"
+    return authorize_url(request, _absolute_redirect_uri(request), signup=signup)
 
 
 def _legacy_authorize_url(request, *, signup=False):
@@ -102,10 +73,7 @@ def _legacy_authorize_url(request, *, signup=False):
 
 
 def _store_deriv_session(request, token, account_id="", currency="USD"):
-    request.session["deriv_token"] = token
-    request.session["deriv_account_id"] = account_id or ""
-    request.session["deriv_currency"] = currency or "USD"
-    request.session["deriv_account_type"] = "demo" if (account_id or "").upper().startswith("VRTC") else "real"
+    set_deriv_session(request, token, account_id, currency)
     # Sync with Django User model if authenticated
     if request.user.is_authenticated and not request.user.deriv_connected:
         request.user.deriv_connected = True
@@ -113,23 +81,7 @@ def _store_deriv_session(request, token, account_id="", currency="USD"):
 
 
 def _exchange_oauth_code(request, code):
-    verifier = request.session.pop("deriv_oauth_verifier", "")
-    if not verifier:
-        raise RuntimeError("Missing OAuth verifier. Please start Deriv login again.")
-    response = requests.post(
-        "https://auth.deriv.com/oauth2/token",
-        data={
-            "grant_type": "authorization_code",
-            "client_id": _deriv_app_id(),
-            "code": code,
-            "code_verifier": verifier,
-            "redirect_uri": _absolute_redirect_uri(request),
-        },
-        timeout=12,
-    )
-    if response.status_code >= 400:
-        raise RuntimeError(response.text[:240] or "Deriv token exchange failed")
-    data = response.json()
+    data = exchange_code(request, code, _absolute_redirect_uri(request))
     token = data.get("access_token")
     if not token:
         raise RuntimeError("Deriv token exchange did not return an access token")
@@ -157,15 +109,10 @@ def _absolute_redirect_uri(request):
 
 
 def _deriv_session(request):
-    return {
-        "token": request.session.get("deriv_token", ""),
-        "account_id": request.session.get("deriv_account_id", ""),
-        "currency": request.session.get("deriv_currency", "USD"),
-        "account_type": request.session.get("deriv_account_type", "real"),
-        "is_connected": bool(request.session.get("deriv_token")),
-    }
+    return get_session(request)
 
 def home(request):
+    capture_referral(request, request.user)
     if any(key in request.GET for key in ("code", "token1", "token", "error")):
         return deriv_oauth_callback(request)
     return render(request, "core/home.html")
@@ -174,6 +121,7 @@ def home(request):
 def dashboard(request):
     wallet = getattr(request.user, "wallet", None) if request.user.is_authenticated else None
     deriv_session = _deriv_session(request)
+    deriv_accounts = request.user.deriv_accounts.all() if request.user.is_authenticated else []
     return render(request, "core/dashboard.html", {
         "wallet": wallet,
         "demo_balance": "10000.00",
@@ -181,6 +129,8 @@ def dashboard(request):
         "deriv_app_id": _deriv_app_id(),
         "deriv_ws_app_id": _deriv_ws_app_id(),
         "deriv_session": deriv_session,
+        "deriv_accounts": deriv_accounts,
+        "profitera_markup_percent": settings.PROFITERA_MARKUP_PERCENT,
     })
 
 
@@ -190,27 +140,19 @@ def bot_builder(request):
 
 def deriv_login_page(request):
     error = request.session.pop("deriv_oauth_error", "")
-    if request.method == "POST":
-        token = (request.POST.get("deriv_token") or "").strip()
-        account_id = (request.POST.get("deriv_account_id") or "").strip()
-        currency = (request.POST.get("deriv_currency") or "USD").strip().upper()
-        if token:
-            _clear_deriv_session(request)
-            _store_deriv_session(request, token, account_id, currency)
-            return redirect("trade")
-        error = "Paste a Deriv API token or continue with Deriv."
     return render(request, "core/deriv_auth.html", {
         "mode": "login",
-        "deriv_app_id": _deriv_legacy_app_id(),
+        "deriv_app_id": _deriv_app_id(),
         "error": error,
     })
 
 
 def deriv_register_page(request):
+    capture_referral(request, request.user)
     error = request.session.pop("deriv_oauth_error", "")
     return render(request, "core/deriv_auth.html", {
         "mode": "register",
-        "deriv_app_id": _deriv_legacy_app_id(),
+        "deriv_app_id": _deriv_app_id(),
         "error": error,
     })
 
@@ -223,6 +165,7 @@ def deriv_login(request):
 
 
 def deriv_register(request):
+    capture_referral(request, request.user)
     _clear_deriv_session(request)
     if _use_pkce_oauth():
         return redirect(_oauth_authorize_url(request, signup=True))
@@ -243,7 +186,15 @@ def deriv_oauth_callback(request):
             return redirect("login")
         try:
             data = _exchange_oauth_code(request, code)
-            _store_deriv_session(request, data["access_token"])
+            if not request.user.is_authenticated:
+                user_model = get_user_model()
+                suffix = secrets.token_urlsafe(5).replace("-", "").replace("_", "")
+                user = user_model.objects.create_user(
+                    username=f"deriv_user_{suffix}",
+                    email=f"deriv_user_{suffix}@profiteraa.local",
+                )
+                login(request, user)
+            validate_and_store_token(request, request.user, data["access_token"], token_type="oauth", token_payload=data)
         except Exception as exc:
             request.session["deriv_oauth_error"] = str(exc)
             return redirect("login")
@@ -253,7 +204,14 @@ def deriv_oauth_callback(request):
     account_id = request.GET.get("acct1") or request.GET.get("account")
     currency = request.GET.get("cur1") or request.GET.get("currency") or "USD"
     if token:
-        _store_deriv_session(request, token, account_id, currency)
+        if request.user.is_authenticated:
+            try:
+                request.session["deriv_account_id"] = account_id
+                validate_and_store_token(request, request.user, token, token_type="oauth")
+            except Exception:
+                _store_deriv_session(request, token, account_id, currency)
+        else:
+            _store_deriv_session(request, token, account_id, currency)
     return redirect("trade")
 
 

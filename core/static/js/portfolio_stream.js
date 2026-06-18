@@ -45,23 +45,30 @@
             this.render();
         }
 
+        escape(value) {
+            return String(value ?? "-")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
         render() {
             if (!this.body) return;
             const rows = [...this.trades.values()];
             if (!rows.length) {
-                this.body.innerHTML = '<tr class="empty-row"><td colspan="7">No portfolio data loaded.</td></tr>';
+                this.body.innerHTML = '<tr class="empty-row"><td colspan="5">No portfolio data loaded.</td></tr>';
             } else {
                 this.body.innerHTML = rows.map((trade) => {
                     const pl = Number(trade.profit || 0);
                     return `
-                        <tr id="trade-${trade.id}">
-                            <td>${trade.symbol || "-"}</td>
-                            <td>${trade.direction || trade.contract_type || "-"}</td>
-                            <td>${trade.stake || "-"}</td>
-                            <td>${trade.entry_price || "-"}</td>
-                            <td>${trade.exit_price || "-"}</td>
+                        <tr id="trade-${this.escape(trade.id)}">
+                            <td>${this.escape(trade.symbol)}</td>
+                            <td>${this.escape(trade.direction || trade.contract_type)}</td>
+                            <td>${this.escape(trade.stake)}</td>
                             <td class="${pl >= 0 ? "positive" : "negative"}">${pl.toFixed(2)}</td>
-                            <td>${trade.status || "open"}</td>
+                            <td>${this.escape(trade.status || "open")}</td>
                         </tr>
                     `;
                 }).join("");

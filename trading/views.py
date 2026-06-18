@@ -1,14 +1,18 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework import status
 
 from decimal import Decimal
 import asyncio
 
+from accounts.models import ActivityLog, DerivAccount, Referral
+from core.deriv_api import DerivAPIClient, active_token_for_request, set_deriv_session, sync_accounts
 from portfolio.services import create_trade
 from portfolio.engine import broadcast_portfolio_update
+from portfolio.models import Trade
 from .services.deriv_trade import DerivTradeEngine
+from .models import Commission, Portfolio, TradingLog, Transaction
 
 
 class TradeView(APIView):
@@ -31,6 +35,8 @@ class TradeView(APIView):
             deriv_token = request.session.get("deriv_token")
             currency = request.session.get("deriv_currency", "USD")
 
+            if not deriv_token:
+                deriv_token = active_token_for_request(request)
             if not deriv_token:
                 return Response(
                     {"error": "Login with Deriv before placing a trade."},
@@ -110,6 +116,15 @@ class TradeView(APIView):
 
                 trade.contract_id = contract_id
                 trade.save()
+                TradingLog.objects.create(
+                    user=request.user if request.user.is_authenticated else None,
+                    action="buy_contract",
+                    account_id=request.session.get("deriv_account_id", ""),
+                    symbol=symbol,
+                    contract_id=str(contract_id or ""),
+                    status="executed",
+                    payload=result,
+                )
 
             # =========================
             # 5. RETURN RESPONSE
@@ -126,3 +141,203 @@ class TradeView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class DerivBaseAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def client(self, request):
+        token = active_token_for_request(request)
+        if not token:
+            raise RuntimeError("Connect a Deriv account first.")
+        return DerivAPIClient(token)
+
+
+class AccountOverviewView(DerivBaseAPIView):
+    def get(self, request):
+        client = self.client(request)
+        payload = client.accounts()
+        accounts = sync_accounts(request.user, payload, request.session.get("deriv_account_id", ""))
+        return Response({
+            "accounts": [
+                {
+                    "account_id": account.account_id,
+                    "account_type": account.account_type,
+                    "currency": account.currency,
+                    "balance": str(account.balance),
+                    "is_active": account.is_active,
+                }
+                for account in accounts
+            ],
+            "raw": payload,
+        })
+
+    def post(self, request):
+        account_type = request.data.get("account_type", "demo")
+        if account_type not in {"demo", "real"}:
+            return Response({"error": "account_type must be demo or real"}, status=status.HTTP_400_BAD_REQUEST)
+        payload = self.client(request).create_account(account_type=account_type, payload=request.data.copy())
+        sync_accounts(request.user, payload, request.session.get("deriv_account_id", ""))
+        ActivityLog.objects.create(user=request.user, action=f"create_{account_type}_account", metadata=payload)
+        return Response(payload, status=status.HTTP_201_CREATED)
+
+
+class SwitchAccountView(DerivBaseAPIView):
+    def post(self, request):
+        account_id = request.data.get("account_id")
+        account = DerivAccount.objects.filter(user=request.user, account_id=account_id).first()
+        if not account:
+            return Response({"error": "Unknown Deriv account"}, status=status.HTTP_404_NOT_FOUND)
+        DerivAccount.objects.filter(user=request.user).update(is_active=False)
+        account.is_active = True
+        account.save(update_fields=["is_active"])
+        set_deriv_session(
+            request,
+            active_token_for_request(request),
+            account.account_id,
+            account.currency,
+            account.account_type,
+            request.session.get("deriv_token_id"),
+        )
+        return Response({"success": True, "account_id": account.account_id, "account_type": account.account_type})
+
+
+class ResetDemoBalanceView(DerivBaseAPIView):
+    def post(self, request, account_id):
+        payload = self.client(request).reset_demo_balance(account_id)
+        ActivityLog.objects.create(user=request.user, action="reset_demo_balance", metadata={"account_id": account_id})
+        return Response(payload)
+
+
+class DerivOTPView(DerivBaseAPIView):
+    def post(self, request, account_id=None):
+        account_id = account_id or request.data.get("account_id") or request.session.get("deriv_account_id")
+        if not account_id:
+            return Response({"error": "account_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        payload = self.client(request).otp(account_id)
+        otp = payload.get("otp") or payload.get("token") or payload.get("data", {}).get("otp")
+        return Response({
+            "otp": otp,
+            "account_id": account_id,
+            "account_type": "demo" if str(account_id).upper().startswith("VRTC") else "real",
+            "raw": payload,
+        })
+
+
+class MarketDataView(DerivBaseAPIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, resource):
+        token = active_token_for_request(request)
+        engine = DerivTradeEngine(token=token)
+        symbol = request.GET.get("symbol", "1HZ100V")
+        if resource == "active-symbols":
+            payload = asyncio.run(engine.send_once({"active_symbols": "brief", "product_type": "basic"}))
+        elif resource == "contracts-for":
+            payload = asyncio.run(engine.send_once({"contracts_for": symbol, "currency": request.GET.get("currency", "USD")}))
+        elif resource == "contract-list":
+            payload = asyncio.run(engine.send_once({"contracts_for": symbol, "currency": request.GET.get("currency", "USD")}))
+        elif resource == "tick-history":
+            payload = asyncio.run(engine.send_once({
+                "ticks_history": symbol,
+                "adjust_start_time": 1,
+                "count": int(request.GET.get("count", 100)),
+                "end": "latest",
+                "style": request.GET.get("style", "ticks"),
+            }))
+        else:
+            return Response({"error": "Unknown market resource"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(payload)
+
+
+class ProposalView(DerivBaseAPIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token = active_token_for_request(request)
+        engine = DerivTradeEngine(token=token)
+        payload = dict(request.data)
+        payload.setdefault("proposal", 1)
+        payload.setdefault("basis", "stake")
+        return Response(asyncio.run(engine.send_once(payload, authorize=bool(token))))
+
+
+class SellContractView(DerivBaseAPIView):
+    def post(self, request, contract_id):
+        price = request.data.get("price", 0)
+        engine = DerivTradeEngine(token=active_token_for_request(request))
+        payload = asyncio.run(engine.send_once({"sell": contract_id, "price": float(price)}, authorize=True))
+        TradingLog.objects.create(user=request.user, action="sell_contract", contract_id=str(contract_id), payload=payload)
+        return Response(payload)
+
+
+class CancelContractView(DerivBaseAPIView):
+    def post(self, request, contract_id):
+        engine = DerivTradeEngine(token=active_token_for_request(request))
+        payload = asyncio.run(engine.send_once({"cancel": contract_id}, authorize=True))
+        TradingLog.objects.create(user=request.user, action="cancel_contract", contract_id=str(contract_id), payload=payload)
+        return Response(payload)
+
+
+class AccountStreamSnapshotView(DerivBaseAPIView):
+    def get(self, request, resource):
+        engine = DerivTradeEngine(token=active_token_for_request(request))
+        mapping = {
+            "balance": {"balance": 1},
+            "portfolio": {"portfolio": 1},
+            "statement": {"statement": 1, "limit": int(request.GET.get("limit", 50))},
+            "profit-table": {"profit_table": 1, "limit": int(request.GET.get("limit", 50))},
+            "transaction": {"transaction": 1},
+        }
+        if resource not in mapping:
+            return Response({"error": "Unknown account resource"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(asyncio.run(engine.send_once(mapping[resource], authorize=True)))
+
+
+class MarkupStatisticsView(DerivBaseAPIView):
+    def get(self, request):
+        payload = self.client(request).markup_statistics()
+        stats = payload.get("markup_statistics") or payload.get("data") or payload
+        Commission.objects.create(user=request.user, raw=payload)
+        return Response({
+            "commission_earned": stats.get("commission_earned", 0) if isinstance(stats, dict) else 0,
+            "daily_commission": stats.get("daily_commission", 0) if isinstance(stats, dict) else 0,
+            "monthly_commission": stats.get("monthly_commission", 0) if isinstance(stats, dict) else 0,
+            "trade_volume": stats.get("trade_volume", 0) if isinstance(stats, dict) else 0,
+            "active_traders": stats.get("active_traders", 0) if isinstance(stats, dict) else 0,
+            "raw": payload,
+        })
+
+
+class DashboardAnalyticsView(DerivBaseAPIView):
+    def get(self, request):
+        trades = Trade.objects.filter(user=request.user)
+        closed = trades.filter(status="closed")
+        wins = closed.filter(profit__gt=0).count()
+        stake = sum((trade.stake for trade in trades), Decimal("0"))
+        profit = sum((trade.profit for trade in trades), Decimal("0"))
+        active = request.user.deriv_accounts.filter(is_active=True).first()
+        return Response({
+            "current_balance": str(active.balance if active else 0),
+            "daily_profit_loss": str(profit),
+            "total_trades": trades.count(),
+            "win_rate": round((wins / closed.count()) * 100, 2) if closed.exists() else 0,
+            "roi_percent": round((profit / stake) * 100, 2) if stake else 0,
+            "active_positions": trades.filter(status="open").count(),
+            "account_type": active.account_type if active else request.session.get("deriv_account_type", "real"),
+        })
+
+
+class AdminDashboardDataView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        return Response({
+            "users": DerivAccount.objects.values("user").distinct().count(),
+            "referrals": Referral.objects.count(),
+            "revenue_records": Commission.objects.count(),
+            "transactions": Transaction.objects.count(),
+            "portfolio_items": Portfolio.objects.count(),
+            "system_logs": ActivityLog.objects.count(),
+            "trading_logs": TradingLog.objects.count(),
+        })

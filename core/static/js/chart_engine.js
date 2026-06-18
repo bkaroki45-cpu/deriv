@@ -15,11 +15,18 @@
             this.drawings = [];
             this.tradeFlags = [];
             this.contractOverlay = { type: "rise_fall" };
+            this.accumulatorRange = null;
+            this.priceAnimation = null;
+            this.animationFrame = null;
             this.readout = document.getElementById("crosshair-readout");
+            this.dragging = false;
+            this.lastPointerX = 0;
+            this.pinchDistance = 0;
             this.resizeObserver = new ResizeObserver(() => this.resize());
             this.resizeObserver.observe(this.canvas.parentElement);
             this.bind();
             this.resize();
+            window.addEventListener("resize", () => this.resize());
         }
 
         bind() {
@@ -43,23 +50,57 @@
                 this.setZoom(this.zoom + (event.deltaY > 0 ? -0.12 : 0.12));
             }, { passive: false });
 
-            let dragging = false;
-            let lastX = 0;
             this.canvas.addEventListener("mousedown", (event) => {
                 if (this.activeTool) {
                     this.addDrawingPoint(event);
                     return;
                 }
-                dragging = true;
-                lastX = event.clientX;
+                this.dragging = true;
+                this.lastPointerX = event.clientX;
             });
-            window.addEventListener("mouseup", () => { dragging = false; });
+            window.addEventListener("mouseup", () => { this.dragging = false; });
             window.addEventListener("mousemove", (event) => {
-                if (!dragging) return;
-                this.pan += event.clientX - lastX;
-                lastX = event.clientX;
+                if (!this.dragging) return;
+                this.pan += event.clientX - this.lastPointerX;
+                this.lastPointerX = event.clientX;
                 this.draw();
             });
+
+            this.canvas.addEventListener("touchstart", (event) => {
+                if (event.touches.length === 1) {
+                    this.dragging = true;
+                    this.lastPointerX = event.touches[0].clientX;
+                }
+                if (event.touches.length === 2) {
+                    this.dragging = false;
+                    this.pinchDistance = this.touchDistance(event);
+                }
+            }, { passive: true });
+
+            this.canvas.addEventListener("touchmove", (event) => {
+                if (event.touches.length === 1 && this.dragging) {
+                    event.preventDefault();
+                    this.pan += event.touches[0].clientX - this.lastPointerX;
+                    this.lastPointerX = event.touches[0].clientX;
+                    this.draw();
+                }
+                if (event.touches.length === 2) {
+                    event.preventDefault();
+                    const distance = this.touchDistance(event);
+                    if (this.pinchDistance) this.setZoom(this.zoom + (distance - this.pinchDistance) / 180);
+                    this.pinchDistance = distance;
+                }
+            }, { passive: false });
+
+            this.canvas.addEventListener("touchend", () => {
+                this.dragging = false;
+                this.pinchDistance = 0;
+            });
+        }
+
+        touchDistance(event) {
+            const [a, b] = event.touches;
+            return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
         }
 
         resize() {
@@ -86,12 +127,18 @@
         }
 
         setZoom(zoom) {
-            this.zoom = Math.min(3.5, Math.max(0.55, zoom));
+            this.zoom = Math.min(6, Math.max(0.25, zoom));
             this.draw();
         }
 
         setContractOverlay(overlay) {
+            const previousType = this.contractOverlay && this.contractOverlay.type;
             this.contractOverlay = { type: "rise_fall", ...(overlay || {}) };
+            if (this.contractOverlay.type !== "accumulator") {
+                this.accumulatorRange = null;
+            } else if (previousType !== "accumulator" || this.contractOverlay.lockToEntry) {
+                this.accumulatorRange = null;
+            }
             this.draw();
         }
 
@@ -122,15 +169,35 @@
             const bucket = Math.floor(candle.time / this.interval) * this.interval;
             const last = this.candles[this.candles.length - 1];
             if (last && last.bucket === bucket) {
+                this.animatePrice(last.close, candle.close);
                 last.high = Math.max(last.high, candle.high);
                 last.low = Math.min(last.low, candle.low);
                 last.close = candle.close;
                 last.time = candle.time;
             } else {
+                if (last) this.animatePrice(last.close, candle.close);
                 this.candles.push({ ...candle, bucket });
             }
             if (this.candles.length > 500) this.candles.shift();
-            requestAnimationFrame(() => this.draw());
+            this.requestDraw();
+        }
+
+        animatePrice(from, to) {
+            if (!Number.isFinite(Number(from)) || !Number.isFinite(Number(to)) || Number(from) === Number(to)) return;
+            this.priceAnimation = {
+                from: Number(from),
+                to: Number(to),
+                start: performance.now(),
+                duration: 260,
+            };
+        }
+
+        requestDraw() {
+            if (this.animationFrame) return;
+            this.animationFrame = requestAnimationFrame(() => {
+                this.animationFrame = null;
+                this.draw();
+            });
         }
 
         clear() {
@@ -174,13 +241,33 @@
             const source = this.mode === "ticks"
                 ? this.ticks.map((tick) => ({ open: tick.price, high: tick.price, low: tick.price, close: tick.price, time: tick.time }))
                 : this.candles;
-            const target = Math.floor(90 / this.zoom);
+            const target = Math.floor(140 / this.zoom);
             return source.slice(Math.max(0, source.length - target));
+        }
+
+        renderedSeries(series) {
+            if (!this.priceAnimation || !series.length) return series;
+            const elapsed = performance.now() - this.priceAnimation.start;
+            const progress = Math.min(1, Math.max(0, elapsed / this.priceAnimation.duration));
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const close = this.priceAnimation.from + (this.priceAnimation.to - this.priceAnimation.from) * eased;
+            const copy = series.map((item) => ({ ...item }));
+            const latest = copy[copy.length - 1];
+            latest.close = close;
+            latest.high = Math.max(latest.high, close);
+            latest.low = Math.min(latest.low, close);
+            if (progress >= 1) this.priceAnimation = null;
+            return copy;
         }
 
         scale(series) {
             const highs = series.map((item) => item.high);
             const lows = series.map((item) => item.low);
+            const accumulator = this.accumulatorBounds(series);
+            if (accumulator) {
+                highs.push(accumulator.upper);
+                lows.push(accumulator.lower);
+            }
             const max = Math.max(...highs);
             const min = Math.min(...lows);
             const pad = Math.max((max - min) * 0.12, max * 0.0001);
@@ -208,7 +295,7 @@
             ctx.fillRect(0, 0, width, height);
             this.drawGrid(ctx, width, height);
 
-            const series = this.visibleSeries();
+            const series = this.renderedSeries(this.visibleSeries());
             if (!series.length) {
                 ctx.fillStyle = "#8ea0b8";
                 ctx.fillText("Waiting for live market data", 22, 34);
@@ -228,6 +315,7 @@
             this.drawDrawings(ctx, width, height);
             this.drawTradeFlags(ctx, series, scale, width);
             this.drawCrosshair(ctx, series, scale, width, height);
+            if (this.priceAnimation) this.requestDraw();
         }
 
         drawGrid(ctx, width, height) {
@@ -325,8 +413,28 @@
         }
 
         drawLine(ctx, series, scale, width, color) {
-            ctx.strokeStyle = this.mode === "ticks" ? "#f5b942" : color;
-            ctx.lineWidth = 2 * devicePixelRatio;
+            const accumulator = this.accumulatorBounds(series);
+            const lineColor = accumulator && accumulator.breached ? "#ff444f" : this.mode === "ticks" ? "#f5b942" : color;
+            if (this.mode !== "ticks") {
+                ctx.beginPath();
+                series.forEach((item, index) => {
+                    const x = this.seriesX(index, series.length, width);
+                    const y = scale.y(item.close);
+                    if (index === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.lineTo(this.seriesX(series.length - 1, series.length, width), this.canvas.height);
+                ctx.lineTo(this.pan, this.canvas.height);
+                ctx.closePath();
+                const gradient = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+                gradient.addColorStop(0, "rgba(163, 170, 178, 0.26)");
+                gradient.addColorStop(0.58, "rgba(121, 128, 138, 0.12)");
+                gradient.addColorStop(1, "rgba(76, 82, 92, 0.03)");
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
+            ctx.strokeStyle = lineColor;
+            ctx.lineWidth = 1.7 * devicePixelRatio;
             ctx.beginPath();
             series.forEach((item, index) => {
                 const x = this.seriesX(index, series.length, width);
@@ -336,16 +444,6 @@
             });
             ctx.stroke();
             this.drawLatestPriceLine(ctx, series, scale, width);
-            if (this.mode !== "ticks") {
-                ctx.lineTo(this.seriesX(series.length - 1, series.length, width), this.canvas.height);
-                ctx.lineTo(this.pan, this.canvas.height);
-                ctx.closePath();
-                const gradient = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-                gradient.addColorStop(0, "rgba(0, 0, 0, 0.12)");
-                gradient.addColorStop(1, "rgba(0, 0, 0, 0.02)");
-                ctx.fillStyle = gradient;
-                ctx.fill();
-            }
         }
 
         drawDigitChart(ctx, width, height) {
@@ -381,29 +479,90 @@
             return latest.close + (this.contractOverlay.direction === "lower" ? -offset : offset);
         }
 
+        accumulatorBounds(series) {
+            const overlay = this.contractOverlay || {};
+            if (overlay.type !== "accumulator" || !series.length) return null;
+            const latest = series[series.length - 1].close;
+            if (overlay.lockToEntry) {
+                if (!this.accumulatorRange || !Number.isFinite(this.accumulatorRange.center)) {
+                    this.accumulatorRange = { center: latest };
+                }
+            } else {
+                this.accumulatorRange = { center: latest };
+            }
+            const growth = Math.max(0.01, Math.min(0.08, Number(overlay.growthRate || overlay.growth_rate || 0.03) || 0.03));
+            const percentWidth = Math.max(0.00022, growth * 0.0126);
+            const halfRange = Math.max(Math.abs(this.accumulatorRange.center) * percentWidth, 0.16);
+            const upper = this.accumulatorRange.center + halfRange;
+            const lower = this.accumulatorRange.center - halfRange;
+            const previous = series.length > 1 ? series[series.length - 2].close : latest;
+            return {
+                center: this.accumulatorRange.center,
+                halfRange,
+                upper,
+                lower,
+                breached: overlay.lockToEntry && (latest > upper || latest < lower),
+                direction: latest >= previous ? "up" : "down",
+            };
+        }
+
         drawContractOverlay(ctx, series, scale, width, height) {
             const overlay = this.contractOverlay || {};
             if (!series.length || ["rise_fall", "multiplier"].includes(overlay.type)) return;
-            const plotRight = width - 92;
+            const metrics = this.plotMetrics(width);
+            const plotRight = metrics.plotRight;
             const price = this.overlayPrice(series);
             const y = Number.isFinite(price) ? scale.y(price) : null;
             ctx.save();
             if (overlay.type === "accumulator") {
+                const bounds = this.accumulatorBounds(series);
+                if (!bounds) {
+                    ctx.restore();
+                    return;
+                }
+                const top = scale.y(bounds.upper);
+                const bottom = scale.y(bounds.lower);
                 const latest = series[series.length - 1].close;
-                const range = Math.max(Math.abs(latest) * 0.00045, 0.18);
-                const top = scale.y(latest + range);
-                const bottom = scale.y(latest - range);
-                ctx.fillStyle = "rgba(58, 168, 255, 0.16)";
-                ctx.fillRect(0, Math.min(top, bottom), plotRight, Math.max(8, Math.abs(bottom - top)));
-                ctx.strokeStyle = "rgba(58, 168, 255, 0.78)";
-                ctx.setLineDash([10, 7]);
+                const latestY = scale.y(latest);
+                const latestX = this.seriesX(series.length - 1, series.length, width);
+                const boxLeft = Math.max(latestX, metrics.activeRight - 4 * devicePixelRatio);
+                const boxRight = metrics.plotRight - 8 * devicePixelRatio;
+                const boxWidth = Math.max(96 * devicePixelRatio, boxRight - boxLeft);
+                const boxHeight = Math.max(34 * devicePixelRatio, Math.abs(bottom - top));
+                const boxTop = ((top + bottom) / 2) - boxHeight / 2;
+                const isBreached = bounds.breached;
+                const accent = isBreached ? "#ff444f" : "#70d9dd";
+                ctx.fillStyle = isBreached ? "rgba(255, 68, 79, 0.18)" : "rgba(42, 99, 150, 0.22)";
+                ctx.fillRect(boxLeft, boxTop, boxWidth, boxHeight);
+                ctx.strokeStyle = isBreached ? "rgba(255, 68, 79, 0.92)" : "rgba(67, 158, 233, 0.76)";
+                ctx.lineWidth = (isBreached ? 1.8 : 1.25) * devicePixelRatio;
+                ctx.setLineDash([]);
                 [top, bottom].forEach((lineY) => {
                     ctx.beginPath();
-                    ctx.moveTo(0, lineY);
-                    ctx.lineTo(plotRight, lineY);
+                    ctx.moveTo(boxLeft, lineY);
+                    ctx.lineTo(boxLeft + boxWidth, lineY);
                     ctx.stroke();
                 });
-                this.drawOverlayLabel(ctx, "Accumulator range", 16, Math.max(28, Math.min(top, bottom) - 8), "#3aa8ff");
+                ctx.strokeStyle = isBreached ? "rgba(255, 68, 79, 0.52)" : "rgba(67, 158, 233, 0.34)";
+                ctx.beginPath();
+                ctx.moveTo(boxLeft, boxTop);
+                ctx.lineTo(boxLeft, boxTop + boxHeight);
+                ctx.moveTo(boxLeft + boxWidth, boxTop);
+                ctx.lineTo(boxLeft + boxWidth, boxTop + boxHeight);
+                ctx.stroke();
+                if (isBreached) {
+                    ctx.strokeStyle = "rgba(255, 68, 79, 0.86)";
+                    ctx.beginPath();
+                    ctx.moveTo(latestX, latestY);
+                    ctx.lineTo(boxLeft + boxWidth, latestY);
+                    ctx.stroke();
+                }
+                const percent = ((bounds.halfRange / Math.abs(bounds.center || 1)) * 100).toFixed(5);
+                ctx.font = `${10 * devicePixelRatio}px Inter, sans-serif`;
+                ctx.textAlign = "right";
+                ctx.fillStyle = accent;
+                ctx.fillText(`+${percent}%`, boxLeft + boxWidth - 8 * devicePixelRatio, top - 4 * devicePixelRatio);
+                ctx.fillText(`-${percent}%`, boxLeft + boxWidth - 8 * devicePixelRatio, bottom + 12 * devicePixelRatio);
             } else if (y !== null) {
                 ctx.strokeStyle = overlay.type === "touch" ? "#f5b942" : "#00d4aa";
                 ctx.lineWidth = 1.6 * devicePixelRatio;
@@ -591,7 +750,12 @@
             ctx.setLineDash([]);
 
             const price = scale.top - ((this.crosshair.y - 18) / (height - 44)) * (scale.top - scale.bottom);
-            if (this.readout) this.readout.textContent = `Price ${price.toFixed(4)}`;
+            if (this.readout) {
+                const nearest = Math.max(0, Math.min(series.length - 1, Math.round((this.crosshair.x - this.pan) / Math.max(1, this.plotMetrics(width).plotWidth / Math.max(series.length - 1, 1)))));
+                const item = series[nearest] || series[series.length - 1];
+                const time = item && item.time ? new Date(item.time * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "--";
+                this.readout.textContent = `Price ${price.toFixed(4)} / ${time}`;
+            }
         }
     }
 
