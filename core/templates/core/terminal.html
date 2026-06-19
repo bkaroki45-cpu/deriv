@@ -164,7 +164,7 @@
         </section>
     </section>
 
-    <aside class="ticket-panel" id="ticket-panel">
+    <aside class="ticket-panel is-open" id="ticket-panel">
         <div class="account-strip">
             <button class="account-current" id="account-current" type="button" aria-haspopup="true" aria-expanded="false">
                 <span><small id="account-label">{% if deriv_session.is_connected %}{{ deriv_session.account_id }}{% else %}Real account{% endif %}</small><strong id="account-balance">{{ real_balance|default:'0.00' }} {{ deriv_session.currency|default:'USD' }}</strong></span>
@@ -222,9 +222,10 @@
 
     <button class="mobile-sheet-handle" type="button" data-toggle-ticket aria-label="Open trade ticket">Trade</button>
     <nav class="mobile-nav" aria-label="Mobile navigation">
-        <button type="button"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Home</span></button>
-        <button class="is-active" type="button"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Trade</span></button>
-        <button type="button" data-toggle-positions><span class="rail-icon icon-briefcase" aria-hidden="true"></span><span>Positions</span></button>
+        <button type="button" data-page="dashboard"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Home</span></button>
+        <button class="is-active" type="button" data-page="trade"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Trade</span></button>
+        <button type="button" data-toggle-markets><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Markets</span></button>
+        <button type="button" data-toggle-positions><span class="rail-icon icon-briefcase" aria-hidden="true"></span><span>Portfolio</span></button>
         <a href="{% url 'bot_builder' %}"><span class="rail-icon icon-strategy" aria-hidden="true"></span><span>Menu</span></a>
     </nav>
 

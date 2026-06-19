@@ -3166,10 +3166,18 @@ body.theme-light .deriv-terminal {
 
 @media (max-width: 900px) {
     body:has(.deriv-terminal) {
-        background: #553238;
+        background: #fff;
     }
 
     .deriv-terminal {
+        --dt-bg: #fff;
+        --dt-panel: #fff;
+        --dt-panel-2: #f4f6f7;
+        --dt-line: #e5e8eb;
+        --dt-text: #171b1c;
+        --dt-muted: #6b7276;
+        --dt-chart: #fff;
+        --dt-chart-line: #111;
         grid-template-columns: minmax(0, 100vw);
         justify-content: center;
         height: 100dvh;
@@ -3178,32 +3186,79 @@ body.theme-light .deriv-terminal {
         font-size: 13px;
     }
 
-    .deriv-rail,
-    .positions-drawer {
+    .deriv-rail {
         display: none;
+    }
+
+    .positions-drawer {
+        top: 52px;
+        right: 0;
+        bottom: 58px;
+        left: 0;
+        z-index: 26;
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr);
+        width: 100vw;
+        border-right: 0;
+        border-bottom: 1px solid #e7eaec;
+        background: #fff;
+        color: #171b1c;
+        transform: translateY(calc(100% + 58px));
+        transition: transform 180ms ease;
+    }
+
+    .positions-drawer.is-open {
+        transform: translateY(0);
+    }
+
+    .positions-drawer header {
+        border-bottom: 1px solid #f0f1f2;
+        padding: 12px 14px;
+    }
+
+    .positions-drawer header button {
+        color: #171b1c;
+        font-size: 20px;
+    }
+
+    .positions-drawer .portfolio-metrics {
+        margin: 0;
+        padding: 10px 12px;
+    }
+
+    .positions-drawer .position-table-wrap {
+        height: auto;
+        padding: 0 12px 14px;
+    }
+
+    .positions-drawer .position-table {
+        min-width: 380px;
     }
 
     .trade-workspace {
         grid-row: 1;
-        grid-template-rows: auto minmax(0, 1fr);
+        grid-template-rows: 52px minmax(0, 1fr);
         height: calc(100dvh - 58px);
-        background: var(--dt-panel);
+        background: #fff;
     }
 
     .bottom-dock,
     .contract-trigger,
     .header-icon,
-    .terminal-search {
+    .terminal-search,
+    .trade-type-tabs {
         display: none;
     }
 
     .trade-topbar {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 8px;
-        height: auto;
-        padding: 8px;
+        gap: 0;
+        height: 52px;
+        padding: 0 8px;
         overflow: visible;
+        border-bottom: 1px solid #f0f1f2;
+        background: #fff;
     }
 
     .mobile-account-strip {
@@ -3211,21 +3266,41 @@ body.theme-light .deriv-terminal {
         grid-template-columns: auto minmax(0, 1fr) auto;
         gap: 10px;
         align-items: center;
-        padding: 4px 8px 10px;
+        padding: 6px 0;
         min-width: 0;
     }
 
     .mobile-account-strip small {
         display: block;
-        color: #4bded1;
+        color: #555f64;
+        font-size: 10px;
+        line-height: 1.1;
     }
 
     .mobile-account-strip strong {
         display: block;
         overflow: hidden;
-        font-size: 14px;
+        color: #101314;
+        font-size: 12px;
+        line-height: 1.2;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .mobile-account-strip .deriv-logo {
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+        font-size: 9px;
+    }
+
+    .mobile-account-strip .deposit-btn {
+        min-height: 24px;
+        max-width: 82px;
+        padding: 5px 9px;
+        border-radius: 4px;
+        background: #ff444f;
+        font-size: 10px;
     }
 
     .app-grid {
@@ -3234,32 +3309,75 @@ body.theme-light .deriv-terminal {
 
     .chart-stage {
         min-height: 0;
-        margin: 0 8px 170px;
-        border-radius: 6px;
+        margin: 0 0 205px;
+        border-radius: 0;
+        background: #fff;
         overflow: hidden;
     }
 
     .symbol-card {
-        top: 10px;
+        top: 8px;
         left: 8px;
-        width: calc(100% - 16px);
-        background: transparent;
-        border: 1px solid var(--dt-line);
-        padding: 8px 10px;
+        grid-template-columns: 14px minmax(0, 1fr);
+        gap: 6px;
+        width: auto;
+        max-width: calc(100% - 64px);
+        min-height: 24px;
+        border: 0;
+        border-radius: 999px;
+        background: #111;
+        color: #fff;
+        padding: 4px 9px;
     }
 
     .symbol-card strong {
-        font-size: 14px;
+        max-width: 172px;
+        font-size: 10px;
     }
 
-    .floating-tools,
     .zoom-stack,
     .crosshair-readout {
         display: none;
     }
 
+    .symbol-card small,
+    .symbol-card .chevron {
+        display: none;
+    }
+
+    .mini-candles {
+        color: #ff444f;
+        font-size: 14px;
+    }
+
+    .floating-tools {
+        top: 44px;
+        right: 7px;
+        left: auto;
+        display: grid;
+        gap: 5px;
+        width: auto;
+        padding: 0;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .floating-tools button {
+        width: 26px;
+        height: 26px;
+        border: 1px solid #dde2e5;
+        border-radius: 4px;
+        background: #fff;
+        color: #4a5357;
+        box-shadow: 0 2px 7px rgba(16, 24, 32, 0.08);
+        font-size: 10px;
+    }
+
     .price-badge {
         right: 4px;
+        padding: 3px 6px;
+        border-radius: 2px;
+        font-size: 10px;
     }
 
     .ticket-panel {
@@ -3270,16 +3388,19 @@ body.theme-light .deriv-terminal {
         z-index: 18;
         width: 100vw;
         max-width: 100vw;
-        max-height: min(62dvh, 430px);
+        max-height: min(48dvh, 330px);
         border: 0;
-        border-radius: 16px 16px 0 0;
+        border-top: 1px solid #e7eaec;
+        border-radius: 0;
+        background: #fff;
+        color: #171b1c;
         overflow-x: hidden;
-        transform: translateY(calc(100% - 190px));
-        transition: transform 180ms ease;
+        transform: none;
+        transition: none;
     }
 
     .ticket-panel.is-open {
-        transform: translateY(0);
+        transform: none;
     }
 
     .account-strip,
@@ -3290,7 +3411,7 @@ body.theme-light .deriv-terminal {
     }
 
     .trade-ticket {
-        padding: 26px 10px 10px;
+        padding: 8px 9px 9px;
         overflow-x: hidden;
     }
 
@@ -3305,32 +3426,8 @@ body.theme-light .deriv-terminal {
         padding-inline: 8px;
     }
 
-    .trade-ticket::before {
-        content: "";
-        position: absolute;
-        top: 10px;
-        left: 50%;
-        width: 34px;
-        height: 4px;
-        border-radius: 999px;
-        background: #6a7072;
-        transform: translateX(-50%);
-    }
-
     .mobile-sheet-handle {
-        position: fixed;
-        left: 50%;
-        bottom: 238px;
-        z-index: 22;
-        display: grid;
-        place-items: center;
-        width: 56px;
-        height: 28px;
-        border: 0;
-        border-radius: 999px;
-        background: #25292a;
-        color: #777;
-        transform: translateX(-50%);
+        display: none;
     }
 
     .mobile-nav {
@@ -3340,33 +3437,40 @@ body.theme-light .deriv-terminal {
         bottom: 0;
         z-index: 24;
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         width: 100vw;
         max-width: 100vw;
         height: 58px;
-        border-top: 1px solid var(--dt-line);
-        background: var(--dt-panel);
+        border-top: 1px solid #e7eaec;
+        background: #fff;
     }
 
     .mobile-nav button,
     .mobile-nav a {
         display: grid;
         place-items: center;
+        align-content: center;
+        gap: 3px;
         border: 0;
         background: transparent;
-        color: var(--dt-text);
-        font-size: 18px;
+        color: #454d51;
+        font-size: 16px;
         text-decoration: none;
         min-width: 0;
         overflow: hidden;
     }
 
     .mobile-nav a {
-        display: none;
+        display: grid;
     }
 
     .mobile-nav span {
-        font-size: 11px;
+        max-width: 100%;
+        overflow: hidden;
+        font-size: 9px;
+        line-height: 1.1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .mobile-nav .is-active {
@@ -3374,11 +3478,48 @@ body.theme-light .deriv-terminal {
     }
 
     .markets-popover {
-        top: 136px;
+        position: fixed;
+        top: 52px;
+        bottom: 58px;
         left: 50%;
+        z-index: 27;
         grid-template-columns: 1fr;
         width: min(390px, calc(100vw - 18px));
+        max-height: none;
+        border: 1px solid #e7eaec;
+        background: #fff;
+        color: #171b1c;
         transform: translateX(-50%);
+    }
+
+    .markets-popover section {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        min-height: 0;
+    }
+
+    .markets-popover input {
+        border-color: #e3e6e8;
+        background: #fff;
+        color: #171b1c;
+    }
+
+    .markets-popover .market-list,
+    .deriv-terminal .markets-popover .market-list {
+        max-height: none;
+        min-height: 0;
+    }
+
+    .markets-popover .market-row {
+        border-bottom-color: #edf0f2;
+    }
+
+    .markets-popover .market-main {
+        color: #171b1c;
+    }
+
+    .markets-popover .market-meta {
+        color: #6b7276;
     }
 
     .contract-popover {
@@ -3408,22 +3549,85 @@ body.theme-light .deriv-terminal {
 
     .choice-pill button,
     .buy-btn {
-        font-size: 14px;
+        font-size: 12px;
     }
 
     .digit-picker {
         grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 6px;
-        padding: 8px;
+        gap: 5px;
+        border: 0;
+        background: #fff;
+        padding: 4px 0;
     }
 
     .digit-picker button {
-        min-height: 34px;
-        font-size: 14px;
+        min-height: 33px;
+        border-color: #e3e6e8;
+        background: #fff;
+        color: #111;
+        font-size: 13px;
     }
 
     .digit-picker small {
+        font-size: 9px;
+    }
+
+    .choice-pill {
+        border: 1px solid #e3e6e8;
+        background: #f5f6f7;
+        padding: 2px;
+    }
+
+    .choice-pill button {
+        color: #31383c;
+        padding: 7px 5px;
+    }
+
+    .choice-pill button.is-active {
+        background: #fff;
+        color: #101314;
+        box-shadow: 0 1px 5px rgba(16, 24, 32, 0.08);
+    }
+
+    .ticket-field {
+        gap: 2px;
+        border-color: #e3e6e8;
+        background: #fff;
+        padding: 7px 10px;
+    }
+
+    .ticket-field span {
+        color: #6b7276;
         font-size: 10px;
+    }
+
+    .ticket-field input,
+    .ticket-field select {
+        color: #101314;
+        font-size: 12px;
+    }
+
+    .ticket-field b {
+        right: 10px;
+        bottom: 7px;
+        color: #6b7276;
+        font-size: 10px;
+    }
+
+    .trade-ticket form {
+        gap: 6px;
+    }
+
+    .buy-btn {
+        min-height: 44px;
+        padding: 8px 10px;
+        background: #00c390;
+        color: #fff;
+        box-shadow: none;
+    }
+
+    .buy-btn span {
+        font-size: 9px;
     }
 
     .markets-popover aside {
@@ -3439,12 +3643,12 @@ body.theme-light .deriv-terminal {
     }
 
     .ticket-panel {
-        max-height: 58dvh;
-        transform: translateY(calc(100% - 176px));
+        max-height: min(48dvh, 330px);
+        transform: none;
     }
 
     .mobile-sheet-handle {
-        bottom: 224px;
+        display: none;
     }
 
     .trade-ticket form {
@@ -3904,5 +4108,498 @@ body.bot-page {
 
     .bot-summary {
         display: none;
+    }
+}
+
+@media (max-width: 900px) {
+    body:has(.deriv-terminal) {
+        background: #191d1e;
+        overflow: hidden;
+    }
+
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --dt-bg: #191d1e;
+        --dt-panel: #191d1e;
+        --dt-panel-2: #202630;
+        --dt-line: #313637;
+        --dt-text: #f2f3f3;
+        --dt-muted: #a2a8aa;
+        --dt-chart: #171c24;
+        --dt-chart-line: #58d8cf;
+        background: #191d1e;
+        color: #f2f3f3;
+    }
+
+    .trade-workspace {
+        grid-template-rows: 54px minmax(0, 1fr);
+        background: #191d1e;
+    }
+
+    .trade-topbar {
+        height: 54px;
+        border-bottom: 1px solid #313637;
+        background: #191d1e;
+        padding: 0 10px;
+    }
+
+    .mobile-account-strip {
+        padding: 6px 0;
+    }
+
+    .mobile-account-strip small {
+        color: #4bded1;
+    }
+
+    .mobile-account-strip strong,
+    .positions-drawer,
+    .markets-popover,
+    .contract-popover {
+        color: #f2f3f3;
+    }
+
+    .mobile-account-strip .deposit-btn {
+        min-height: 28px;
+        border-radius: 4px;
+        background: #d80716;
+        color: #fff;
+    }
+
+    .contract-trigger {
+        position: fixed;
+        top: 60px;
+        left: 8px;
+        z-index: 12;
+        display: grid;
+        width: min(178px, calc(100vw - 68px));
+        min-height: 34px;
+        border: 1px solid #313637;
+        border-radius: 4px;
+        background: #202630;
+        color: #f2f3f3;
+        padding: 5px 9px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+    }
+
+    .contract-trigger small {
+        color: #a2a8aa;
+    }
+
+    .chart-stage {
+        margin: 0 0 300px;
+        border-radius: 0;
+        background:
+            linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+            #171c24;
+        background-size: 64px 54px;
+    }
+
+    .symbol-card {
+        top: 50px;
+        left: 8px;
+        min-height: 30px;
+        max-width: calc(100% - 66px);
+        border: 1px solid #313637;
+        border-radius: 4px;
+        background: #202630;
+        color: #fff;
+        padding: 5px 9px;
+    }
+
+    .symbol-card strong {
+        max-width: 206px;
+        color: #fff;
+        font-size: 11px;
+    }
+
+    .mini-candles {
+        color: #70d9dd;
+        font-size: 16px;
+    }
+
+    .floating-tools {
+        top: 98px;
+        right: 8px;
+        gap: 6px;
+    }
+
+    .floating-tools button {
+        width: 30px;
+        height: 30px;
+        border: 1px solid #313637;
+        border-radius: 4px;
+        background: #202630;
+        color: #f2f3f3;
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+    }
+
+    .price-badge {
+        right: 5px;
+        border: 1px solid #313637;
+        background: #050708;
+        color: #58d8cf;
+        padding: 4px 7px;
+    }
+
+    .ticket-panel {
+        max-height: min(46dvh, 300px);
+        border-top: 1px solid #313637;
+        background: #191d1e;
+        color: #f2f3f3;
+    }
+
+    .trade-ticket {
+        padding: 9px 10px 10px;
+    }
+
+    .trade-ticket form {
+        gap: 6px;
+    }
+
+    .how-to,
+    .risk-copy,
+    .terminal-clock,
+    .ticket-field span,
+    .ticket-field b {
+        color: #a2a8aa;
+    }
+
+    .choice-pill {
+        border: 1px solid #313637;
+        background: #202630;
+        padding: 2px;
+    }
+
+    .choice-pill button {
+        color: #f2f3f3;
+    }
+
+    .choice-pill button.is-active {
+        background: #505762;
+        color: #00d8a5;
+        box-shadow: none;
+    }
+
+    .ticket-field,
+    .digit-picker,
+    .digit-picker button {
+        border-color: #313637;
+        background: #202630;
+        color: #f2f3f3;
+    }
+
+    .ticket-field input,
+    .ticket-field select {
+        color: #f2f3f3;
+    }
+
+    .digit-picker button.is-active {
+        border-color: #00d8a5;
+        background: #05352e;
+    }
+
+    .buy-btn {
+        min-height: 44px;
+        background: #00c390;
+        color: #fff;
+        box-shadow: none;
+    }
+
+    .mobile-nav {
+        border-top: 1px solid #313637;
+        background: #191d1e;
+    }
+
+    .mobile-nav button,
+    .mobile-nav a {
+        color: #a2a8aa;
+    }
+
+    .mobile-nav .is-active {
+        color: #ff444f;
+    }
+
+    .positions-drawer,
+    .markets-popover,
+    .contract-popover {
+        border-color: #313637;
+        background: #191d1e;
+    }
+
+    .positions-drawer header,
+    .markets-popover .market-row,
+    .contract-popover header {
+        border-color: #313637;
+    }
+
+    .positions-drawer header button,
+    .markets-popover .market-main,
+    .contract-card-grid button,
+    .contract-popover header button {
+        color: #f2f3f3;
+    }
+
+    .markets-popover input,
+    .contract-card-grid button {
+        border-color: #313637;
+        background: #202630;
+    }
+}
+
+@media (max-width: 900px) {
+    .deriv-terminal.is-ready .ticket-panel {
+        animation: none;
+    }
+
+    .deriv-terminal .trade-topbar .contract-trigger,
+    .deriv-terminal.theme-light .trade-topbar .contract-trigger {
+        position: fixed;
+        top: 58px;
+        left: 8px;
+        z-index: 40;
+        display: grid !important;
+        visibility: visible;
+        opacity: 1;
+        pointer-events: auto;
+        width: min(174px, calc(100vw - 74px));
+        min-height: 36px;
+        border: 1px solid #343b45;
+        border-radius: 4px;
+        background: #202630;
+        color: #f2f3f3;
+        padding: 5px 9px;
+        box-shadow: 0 10px 22px rgba(0, 0, 0, .28);
+    }
+
+    .deriv-terminal .trade-topbar .contract-trigger span {
+        font-size: 12px;
+        line-height: 1.1;
+    }
+
+    .deriv-terminal .trade-topbar .contract-trigger small {
+        color: #9fa8b4;
+        font-size: 9px;
+    }
+
+    .symbol-card {
+        top: 102px;
+        z-index: 14;
+    }
+
+    .floating-tools {
+        top: 150px;
+        z-index: 14;
+    }
+
+    .chart-stage {
+        margin-bottom: 254px;
+    }
+
+    .ticket-panel {
+        height: 254px;
+        max-height: 254px;
+        overflow: hidden;
+        transform: translateY(calc(100% - 154px));
+        transition: transform 180ms ease;
+        will-change: transform;
+    }
+
+    .ticket-panel.is-open {
+        transform: translateY(0);
+    }
+
+    .trade-ticket {
+        max-height: 254px;
+        overflow-y: auto;
+        padding-top: 8px;
+    }
+
+    .trade-ticket form {
+        gap: 7px;
+    }
+
+    .choice-pill button {
+        min-height: 28px;
+        padding: 6px 5px;
+    }
+
+    .ticket-field {
+        min-height: 48px;
+        padding: 7px 10px;
+    }
+
+    .buy-btn {
+        min-height: 46px;
+    }
+
+    .mobile-sheet-handle {
+        position: fixed;
+        left: 50%;
+        bottom: 305px;
+        z-index: 44;
+        display: grid !important;
+        place-items: center;
+        width: 58px;
+        height: 26px;
+        border: 1px solid #343b45;
+        border-radius: 999px;
+        background: #202630;
+        color: #c8d0d6;
+        font-size: 10px;
+        font-weight: 800;
+        transform: translateX(-50%);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, .24);
+    }
+
+    .ticket-panel:not(.is-open) + .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) ~ .mobile-sheet-handle {
+        bottom: 205px;
+    }
+}
+
+@media (max-width: 420px) {
+    .chart-stage {
+        margin-bottom: 246px;
+    }
+
+    .ticket-panel {
+        height: 246px;
+        max-height: 246px;
+        transform: translateY(calc(100% - 148px));
+    }
+
+    .ticket-panel.is-open {
+        transform: translateY(0);
+    }
+
+    .mobile-sheet-handle {
+        bottom: 297px;
+    }
+
+    .ticket-panel:not(.is-open) + .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) ~ .mobile-sheet-handle {
+        bottom: 199px;
+    }
+}
+
+@media (max-width: 900px) {
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage {
+        margin-bottom: 154px;
+    }
+}
+
+@media (max-width: 420px) {
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage {
+        margin-bottom: 148px;
+    }
+}
+
+@media (max-width: 900px) {
+    .deriv-terminal.is-ready .trade-topbar,
+    .deriv-terminal.is-ready .chart-stage {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+
+    .trade-workspace {
+        grid-template-rows: 104px minmax(0, 1fr);
+    }
+
+    .trade-topbar {
+        position: relative;
+        z-index: 50;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 54px 42px;
+        height: 104px;
+        overflow: visible;
+        padding: 0 8px 8px;
+    }
+
+    .mobile-account-strip {
+        grid-row: 1;
+        width: 100%;
+    }
+
+    .deriv-terminal .trade-topbar .contract-trigger,
+    .deriv-terminal.theme-light .trade-topbar .contract-trigger {
+        position: static !important;
+        grid-row: 2;
+        align-self: stretch;
+        justify-self: start;
+        display: grid !important;
+        width: min(188px, calc(100vw - 18px));
+        min-height: 36px;
+        max-height: 38px;
+        margin: 0;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        z-index: 2;
+        border: 1px solid #343b45;
+        border-radius: 4px;
+        background: #202630;
+        color: #f2f3f3;
+        padding: 5px 9px;
+        box-shadow: none;
+    }
+
+    .deriv-terminal .trade-topbar .contract-trigger span {
+        font-size: 12px;
+        line-height: 1.1;
+    }
+
+    .deriv-terminal .trade-topbar .contract-trigger small {
+        display: block;
+        color: #9fa8b4;
+        font-size: 9px;
+        line-height: 1.1;
+    }
+
+    .chart-stage {
+        height: calc(100dvh - 104px - 246px - 58px);
+        min-height: 360px;
+        max-height: 440px;
+        margin: 0;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage {
+        height: calc(100dvh - 104px - 148px - 58px);
+        min-height: 430px;
+        max-height: 540px;
+        margin: 0;
+    }
+
+    #price-chart {
+        min-height: 0;
+        height: 100%;
+    }
+
+    .symbol-card {
+        top: 8px;
+        z-index: 15;
+    }
+
+    .floating-tools {
+        top: 56px;
+        z-index: 15;
+    }
+}
+
+@media (max-width: 420px) {
+    .chart-stage {
+        height: calc(100dvh - 104px - 246px - 58px);
+        min-height: 350px;
+        max-height: 430px;
+        margin: 0;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage {
+        height: calc(100dvh - 104px - 148px - 58px);
+        min-height: 430px;
+        max-height: 540px;
+        margin: 0;
     }
 }
