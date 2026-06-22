@@ -91,12 +91,14 @@
             </button>
 
             <div class="floating-tools" aria-label="Chart controls">
-                <button class="tool-icon icon-candles" type="button" data-modal="chart-types" title="Chart type" aria-label="Chart type"></button>
-                <button class="tool-icon icon-indicators" type="button" data-modal="indicators" title="Indicators" aria-label="Indicators"></button>
-                <button class="tool-icon icon-template" type="button" data-modal="templates" title="Templates" aria-label="Templates"></button>
-                <button class="tool-icon icon-draw" type="button" data-modal="drawings" title="Drawing tools" aria-label="Drawing tools"></button>
-                <button class="tool-icon icon-download" type="button" data-chart-download title="Download" aria-label="Download"></button>
-                <button class="tool-icon" type="button" data-chart-action="fullscreen" title="Fullscreen" aria-label="Fullscreen">[]</button>
+                <button class="tool-icon icon-chart-menu" type="button" data-chart-tools-toggle title="Chart tools" aria-label="Chart tools" aria-expanded="false"></button>
+                <div class="floating-tools-menu" role="menu">
+                    <button class="tool-icon icon-chart-type" type="button" data-modal="chart-types" title="Chart type" aria-label="Chart type"></button>
+                    <button class="tool-icon icon-indicators" type="button" data-modal="indicators" title="Indicators" aria-label="Indicators"></button>
+                    <button class="tool-icon icon-template" type="button" data-modal="templates" title="Templates" aria-label="Templates"></button>
+                    <button class="tool-icon icon-draw" type="button" data-modal="drawings" title="Drawing tools" aria-label="Drawing tools"></button>
+                    <button class="tool-icon icon-download" type="button" data-chart-download title="Download" aria-label="Download"></button>
+                </div>
             </div>
 
             <canvas id="price-chart" aria-label="Live price chart"></canvas>
@@ -120,12 +122,15 @@
                 <button type="button" data-bottom-tab="transactions">Transactions</button>
             </nav>
             <div class="bottom-panel is-active" data-bottom-panel="open">
+                <div class="activity-head" aria-hidden="true"><span>Contract</span><span>Market</span><span>Stake</span><span>P/L</span><span>Status</span></div>
                 <div class="activity-feed" id="open-trades-feed"><span class="empty-state-inline">No open trades yet.</span></div>
             </div>
             <div class="bottom-panel" data-bottom-panel="history">
+                <div class="activity-head" aria-hidden="true"><span>Contract</span><span>Market</span><span>Stake</span><span>P/L</span><span>Status</span></div>
                 <div class="activity-feed" id="history-feed"><span class="empty-state-inline">Completed trades will appear here.</span></div>
             </div>
             <div class="bottom-panel" data-bottom-panel="transactions">
+                <div class="activity-head" aria-hidden="true"><span>ID</span><span>Contract</span><span>Stake</span><span>Payout</span><span>Status</span></div>
                 <div class="activity-feed" id="transactions-feed"><span class="empty-state-inline">Deposits, stakes, and payouts will appear here.</span></div>
             </div>
         </section>
@@ -198,14 +203,17 @@
                 <input name="symbol" id="trade-symbol" value="1HZ100V" type="hidden">
                 <input name="contract_type" id="trade-contract" value="CALL" type="hidden">
                 <div class="choice-pill" id="direction-choice"></div>
-                <div class="digit-picker" id="digit-picker" hidden></div>
-                <label class="ticket-field" data-field="duration"><span>Duration</span><input name="duration" id="trade-duration" value="5"><input name="duration_unit" id="trade-duration-unit" value="m" type="hidden"></label>
-                <label class="ticket-field" data-field="stake"><span>Stake</span><input name="stake" id="trade-stake" value="10"><b>{{ deriv_session.currency|default:"USD" }}</b></label>
-                <label class="ticket-field" id="barrier-field" hidden><span>Barrier</span><input name="barrier" id="trade-barrier" value="+0.42"></label>
-                <label class="ticket-field" id="growth-field" hidden><span>Growth rate</span><select id="growth-rate" name="growth_rate"><option value="0.03">3%</option><option value="0.02">2%</option><option value="0.04">4%</option><option value="0.05">5%</option></select></label>
-                <label class="ticket-field" id="take-profit-field" hidden><span>Take profit</span><input id="take-profit" name="take_profit" placeholder="-"></label>
-                <label class="ticket-field" id="risk-field" hidden><span>Risk management</span><input id="stop-out" name="stop_out" placeholder="-"></label>
-                <div class="terms-list" id="terms-list"></div>
+                <div class="ticket-card-row" aria-label="Trade parameters">
+                    <div class="digit-picker" id="digit-picker" hidden></div>
+                    <div class="ticket-field ticket-field--split" data-field="duration"><span>Duration</span><div class="ticket-input-row"><input name="duration" id="trade-duration" value="5" inputmode="numeric" aria-label="Duration"><div class="ticket-segment" aria-label="Duration unit"><button class="is-active" data-duration-unit-choice="t" type="button">Ticks</button><button data-duration-unit-choice="m" type="button">Min</button></div></div><input name="duration_unit" id="trade-duration-unit" value="t" type="hidden"></div>
+                    <div class="ticket-field ticket-field--split" data-field="stake"><span>Stake</span><div class="ticket-input-row"><button class="field-stepper" data-stake-step="-1" type="button" aria-label="Decrease stake">-</button><input name="stake" id="trade-stake" value="10" inputmode="decimal" aria-label="Stake"><button class="field-stepper" data-stake-step="1" type="button" aria-label="Increase stake">+</button></div><b>{{ deriv_session.currency|default:"USD" }}</b></div>
+                    <label class="ticket-field" id="barrier-field" hidden><span>Barrier</span><input name="barrier" id="trade-barrier" value="+0.42"></label>
+                    <label class="ticket-field" id="multiplier-field" hidden><span>Multiplier</span><select id="trade-multiplier" name="multiplier"><option value="50">x50</option><option value="100">x100</option><option value="200">x200</option><option value="500">x500</option></select></label>
+                    <label class="ticket-field" id="growth-field" hidden><span>Growth rate</span><select id="growth-rate" name="growth_rate"><option value="0.03">3%</option><option value="0.02">2%</option><option value="0.04">4%</option><option value="0.05">5%</option></select></label>
+                    <label class="ticket-field" id="take-profit-field" hidden><span>Take profit</span><input id="take-profit" name="take_profit" placeholder="-"></label>
+                    <label class="ticket-field" id="risk-field" hidden><span>Risk management</span><input id="stop-out" name="stop_out" placeholder="-"></label>
+                    <div class="terms-list" id="terms-list"></div>
+                </div>
                 <div class="risk-grid" aria-label="Risk preview" hidden>
                     <div><span>Stake risk</span><strong id="stake-risk">10.00</strong></div>
                     <div><span>Duration</span><strong id="duration-preview">5 m</strong></div>
@@ -220,13 +228,13 @@
         <footer class="terminal-clock"><span>Live</span><time id="terminal-time">--</time></footer>
     </aside>
 
-    <button class="mobile-sheet-handle" type="button" data-toggle-ticket aria-label="Open trade ticket">Trade</button>
+    <button class="mobile-sheet-handle" type="button" data-toggle-ticket aria-label="Toggle trade ticket" aria-expanded="true"><span>Trade</span><i aria-hidden="true"></i></button>
     <nav class="mobile-nav" aria-label="Mobile navigation">
         <button type="button" data-page="dashboard"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Home</span></button>
         <button class="is-active" type="button" data-page="trade"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Trade</span></button>
-        <button type="button" data-toggle-markets><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Markets</span></button>
+        <button type="button" data-toggle-markets><span class="rail-icon icon-markets" aria-hidden="true"></span><span>Markets</span></button>
         <button type="button" data-toggle-positions><span class="rail-icon icon-briefcase" aria-hidden="true"></span><span>Portfolio</span></button>
-        <a href="{% url 'bot_builder' %}"><span class="rail-icon icon-strategy" aria-hidden="true"></span><span>Menu</span></a>
+        <a href="{% url 'bot_builder' %}"><span class="rail-icon icon-menu" aria-hidden="true"></span><span>Menu</span></a>
     </nav>
 
     <div class="markets-popover" id="markets-popover" role="dialog" aria-label="Markets" hidden>
@@ -258,6 +266,8 @@
             <button type="button" data-contract-card="over_under"><strong>Over/Under</strong><span>Predict the final digit relative to a barrier.</span></button>
             <button type="button" data-contract-card="match_diff"><strong>Matches/Differs</strong><span>Choose a digit outcome.</span></button>
             <button type="button" data-contract-card="multiplier"><strong>Multipliers</strong><span>Amplify movement with risk controls.</span></button>
+            <button type="button" data-contract-card="turbos"><strong>Turbos</strong><span>Set a knockout barrier and trade fast moves.</span></button>
+            <button type="button" data-contract-card="vanillas"><strong>Vanillas</strong><span>Use call or put contracts with a strike.</span></button>
             <button type="button" data-contract-card="accumulator"><strong>Accumulators</strong><span>Grow payout while price stays in range.</span></button>
             <button type="button" data-contract-card="even_odd"><strong>Even/Odd</strong><span>Trade the parity of the last digit.</span></button>
         </div>

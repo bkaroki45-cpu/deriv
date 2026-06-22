@@ -116,6 +116,13 @@
         activeMarket() {
             return this.markets.find((item) => item.symbol === this.activeSymbol);
         }
+        formatPrice(price, symbol = this.activeSymbol) {
+            const value = Number(price);
+            if (!Number.isFinite(value)) return "-";
+            const text = String(symbol || "").toLowerCase();
+            const decimals = text.startsWith("frx") || value < 10 ? 5 : text.startsWith("cry") ? 2 : 2;
+            return value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        }
 
         syntheticFirst(markets) {
             const synthetic = markets.filter((item) => this.isSynthetic(item));
@@ -166,11 +173,10 @@
         }
 
         sendDeriv(payload, type = "request") {
+            if (!this.derivSocket || this.derivSocket.readyState !== WebSocket.OPEN) {
+                return this.derivRequest(payload);
+            }
             return new Promise((resolve, reject) => {
-                if (!this.derivSocket || this.derivSocket.readyState !== WebSocket.OPEN) {
-                    reject(new Error("Deriv WebSocket is not connected"));
-                    return;
-                }
                 const reqId = this.requestId += 1;
                 this.pending.set(reqId, { resolve, reject, type });
                 this.derivSocket.send(JSON.stringify({ ...payload, req_id: reqId }));
@@ -217,6 +223,8 @@
             };
             this.derivSocket.onclose = () => {
                 this.setConnection(false);
+                this.pending.forEach(({ reject }) => reject(new Error("Deriv WebSocket disconnected")));
+                this.pending.clear();
                 clearTimeout(this.reconnectTimer);
                 this.reconnectTimer = setTimeout(() => this.connectDeriv(), 2500);
             };
@@ -250,7 +258,7 @@
             this.derivSocket.send(JSON.stringify({
                 ticks_history: this.activeSymbol,
                 end: "latest",
-                count: 120,
+                count: 500,
                 style: "candles",
                 granularity: window.profiteraChart ? window.profiteraChart.interval : 60,
                 req_id: 22,
@@ -320,14 +328,14 @@
             if (previous !== undefined) this.previousPrices.set(symbol, previous);
             this.prices.set(symbol, price);
             if (symbol === this.activeSymbol) {
-                if (this.activePrice) this.activePrice.textContent = price.toFixed(2);
+                if (this.activePrice) this.activePrice.textContent = this.formatPrice(price, symbol);
                 const lastTick = document.getElementById("last-tick-time");
                 const velocity = document.getElementById("tick-velocity");
                 if (lastTick) lastTick.textContent = new Date().toLocaleTimeString();
                 if (velocity) velocity.textContent = `${this.tickWindow.length}/min`;
                 if (this.activeChange && previous) {
                     const change = ((price - previous) / previous) * 100;
-                    this.activeChange.textContent = `${price.toFixed(2)} ${change >= 0 ? "+" : ""}${change.toFixed(2)}%`;
+                    this.activeChange.textContent = `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`;
                     this.activeChange.className = change > 0 ? "positive" : change < 0 ? "negative" : "neutral";
                 }
                 if (window.profiteraChart) window.profiteraChart.ingestTick(tick);
@@ -358,7 +366,7 @@
                             <span class="market-name">${item.display_name || item.symbol}</span>
                             <span class="market-meta">${item.symbol} / ${item.market_display_name || item.market || "Market"}</span>
                         </button>
-                        <strong class="market-price" data-price-symbol="${item.symbol}">${Number.isFinite(price) ? price.toFixed(2) : "-"}</strong>
+                        <strong class="market-price" data-price-symbol="${item.symbol}">${Number.isFinite(price) ? this.formatPrice(price, item.symbol) : "-"}</strong>
                         <span class="market-change ${change > 0 ? "up" : change < 0 ? "down" : ""}" data-change-symbol="${item.symbol}">${change === null ? "-" : `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`}</span>
                     </article>
                 `;
@@ -382,7 +390,7 @@
         updatePriceRow(symbol, price, previous) {
             const el = document.querySelector(`[data-price-symbol="${symbol}"]`);
             if (el) {
-                el.textContent = price.toFixed(2);
+                el.textContent = this.formatPrice(price, symbol);
                 el.classList.toggle("up", previous !== undefined && price > previous);
                 el.classList.toggle("down", previous !== undefined && price < previous);
             }

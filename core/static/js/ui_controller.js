@@ -26,9 +26,10 @@
             title: "Multipliers",
             contract: "MULTUP",
             choices: ["Up", "Down"],
-            fields: ["stake", "risk"],
+            actionLabels: ["Buy Up", "Buy Down"],
+            fields: ["stake", "multiplier", "risk"],
             payout: "",
-            terms: [["Stop out", "10.00 USD"], ["Commission", "0.15 USD"]],
+            terms: [["Multiplier", "x100"], ["Stop out", "10.00 USD"], ["Commission", "0.15 USD"]],
         },
         turbos: {
             title: "Turbos",
@@ -179,6 +180,17 @@
     function renderTicket() {
         const config = TRADE_TYPES[activeTradeType];
         if (!config) return;
+        const terminal = document.querySelector(".deriv-terminal");
+        if (terminal) {
+            terminal.classList.forEach((className) => {
+                if (className.startsWith("ticket-contract-") && className !== "ticket-contract-digits") {
+                    terminal.classList.remove(className);
+                }
+            });
+            terminal.dataset.tradeType = activeTradeType;
+            terminal.classList.toggle("ticket-contract-digits", ["match_diff", "over_under", "even_odd"].includes(activeTradeType));
+            terminal.classList.add(`ticket-contract-${activeTradeType}`);
+        }
         const contract = byId("trade-contract");
         const title = byId("how-to-title");
         const payout = byId("proposal-payout");
@@ -195,15 +207,22 @@
         });
         if (payout) payout.textContent = config.payout ? `Payout ${config.payout}` : "";
         if (duration) duration.value = config.duration || "5";
-        if (unit) unit.value = config.unit || "m";
+        if (unit) {
+            unit.value = config.unit || "m";
+            document.querySelectorAll("[data-duration-unit-choice]").forEach((button) => {
+                button.classList.toggle("is-active", button.dataset.durationUnitChoice === unit.value);
+            });
+        }
         if (terms) terms.innerHTML = config.terms.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
 
         const directionChoice = byId("direction-choice");
         if (directionChoice) {
             directionChoice.style.gridTemplateColumns = `repeat(${Math.max(1, config.choices.length)}, 1fr)`;
             directionChoice.innerHTML = config.choices.map((choice, index) => {
+                const label = (config.actionLabels && config.actionLabels[index]) || choice;
                 const value = choice.toLowerCase().replace(/\s+/g, "_");
-                return `<button type="button" class="${index === 0 ? "is-active" : ""}" data-direction-choice="${value}">${choice}</button>`;
+                const tone = directionTone(value);
+                return `<button type="button" class="${index === 0 ? "is-active" : ""}" data-direction-choice="${value}" data-tone="${tone}">${label}</button>`;
             }).join("");
             activeDirection = config.choices[0].toLowerCase().replace(/\s+/g, "_");
             directionChoice.querySelectorAll("[data-direction-choice]").forEach((button) => {
@@ -225,6 +244,7 @@
         const has = (field) => config.fields.includes(field);
         show(byId("digit-picker"), has("digits"));
         show(byId("barrier-field"), has("barrier"));
+        show(byId("multiplier-field"), has("multiplier"));
         show(byId("growth-field"), has("growth"));
         show(byId("take-profit-field"), has("takeProfit"));
         show(byId("risk-field"), has("risk"));
@@ -249,15 +269,24 @@
         const primary = byId("primary-action");
         const config = TRADE_TYPES[activeTradeType] || TRADE_TYPES.rise_fall;
         if (!primary) return;
+        const directionIndex = config.choices.findIndex((choice) => choice.toLowerCase().replace(/\s+/g, "_") === activeDirection);
+        const actionLabel = directionIndex >= 0 && config.actionLabels ? config.actionLabels[directionIndex] : "";
+        const directionLabel = activeDirection.replace("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
         const label = ["match_diff", "over_under", "even_odd"].includes(activeTradeType)
             ? "Buy"
-            : config.choices.length === 1 ? "Buy" : `Buy ${activeDirection.replace("_", " ")}`;
+            : actionLabel || (config.choices.length === 1 ? "Buy" : `Buy ${directionLabel}`);
         const payout = byId("proposal-payout")?.textContent || "";
-        primary.firstChild.nodeValue = `${label.charAt(0).toUpperCase()}${label.slice(1)} `;
+        primary.firstChild.nodeValue = `${label} `;
         primary.dataset.direction = activeDirection;
+        primary.dataset.tone = directionTone(activeDirection);
+        primary.classList.toggle("is-fall", directionTone(activeDirection) === "fall");
         const contractInput = byId("trade-contract");
         if (contractInput) contractInput.value = proposalContractType();
         if (!payout) byId("proposal-payout").textContent = "";
+    }
+
+    function directionTone(direction) {
+        return ["fall", "lower", "down", "put", "no_touch", "under", "odd"].includes(direction) ? "fall" : "rise";
     }
 
     function updateChartOverlay() {
@@ -456,6 +485,23 @@
         });
     });
 
+    document.querySelectorAll("[data-chart-tools-toggle]").forEach((button) => {
+        button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            const wrapper = button.closest(".floating-tools");
+            const open = !wrapper?.classList.contains("is-open");
+            document.querySelectorAll(".floating-tools.is-open").forEach((item) => item.classList.remove("is-open"));
+            if (wrapper) wrapper.classList.toggle("is-open", open);
+            button.setAttribute("aria-expanded", open ? "true" : "false");
+        });
+    });
+    document.addEventListener("click", (event) => {
+        document.querySelectorAll(".floating-tools.is-open").forEach((wrapper) => {
+            if (wrapper.contains(event.target)) return;
+            wrapper.classList.remove("is-open");
+            wrapper.querySelector("[data-chart-tools-toggle]")?.setAttribute("aria-expanded", "false");
+        });
+    });
     document.querySelectorAll("[data-chart-action]").forEach((button) => {
         button.addEventListener("click", () => {
             if (!window.profiteraChart) return;
@@ -509,6 +555,8 @@
     const modalLayer = byId("modal-layer");
     document.querySelectorAll("[data-modal]").forEach((button) => {
         button.addEventListener("click", () => {
+            button.closest(".floating-tools")?.classList.remove("is-open");
+            button.closest(".floating-tools")?.querySelector("[data-chart-tools-toggle]")?.setAttribute("aria-expanded", "false");
             if (!modalLayer) return;
             closeFloatingPanels("modal");
             modalLayer.hidden = false;
@@ -666,11 +714,68 @@
         if (root) root.classList.add("theme-light");
     }
 
-    document.querySelectorAll("[data-toggle-ticket]").forEach((button) => {
-        button.addEventListener("click", () => {
-            const panel = byId("ticket-panel");
-            if (panel) panel.classList.toggle("is-open");
+    function setTicketOpen(open) {
+        const panel = byId("ticket-panel");
+        const root = document.querySelector(".deriv-terminal");
+        if (!panel) return;
+        panel.classList.toggle("is-open", open);
+        if (root) root.classList.toggle("ticket-sheet-collapsed", !open);
+        document.querySelectorAll("[data-toggle-ticket]").forEach((button) => {
+            button.setAttribute("aria-expanded", open ? "true" : "false");
         });
+        window.setTimeout(() => window.profiteraChart?.resize?.(), 220);
+    }
+
+    document.querySelectorAll("[data-toggle-ticket]").forEach((button) => {
+        let startY = 0;
+        let currentY = 0;
+        let dragging = false;
+
+        button.addEventListener("click", () => {
+            if (dragging) return;
+            const panel = byId("ticket-panel");
+            setTicketOpen(!(panel && panel.classList.contains("is-open")));
+        });
+
+        button.addEventListener("pointerdown", (event) => {
+            const panel = byId("ticket-panel");
+            const root = document.querySelector(".deriv-terminal");
+            if (!panel || !window.matchMedia("(max-width: 900px)").matches) return;
+            startY = event.clientY;
+            currentY = startY;
+            dragging = false;
+            panel.classList.add("is-dragging");
+            root?.classList.add("ticket-sheet-dragging");
+            button.setPointerCapture?.(event.pointerId);
+        });
+
+        button.addEventListener("pointermove", (event) => {
+            const panel = byId("ticket-panel");
+            const root = document.querySelector(".deriv-terminal");
+            if (!panel || !panel.classList.contains("is-dragging")) return;
+            currentY = event.clientY;
+            const delta = Math.max(-170, Math.min(170, currentY - startY));
+            if (Math.abs(delta) > 8) dragging = true;
+            panel.style.setProperty("--sheet-drag", `${delta}px`);
+            root?.style.setProperty("--sheet-drag", `${delta}px`);
+        });
+
+        const finishDrag = (event) => {
+            const panel = byId("ticket-panel");
+            const root = document.querySelector(".deriv-terminal");
+            if (!panel || !panel.classList.contains("is-dragging")) return;
+            panel.classList.remove("is-dragging");
+            root?.classList.remove("ticket-sheet-dragging");
+            panel.style.removeProperty("--sheet-drag");
+            root?.style.removeProperty("--sheet-drag");
+            const delta = currentY - startY;
+            if (Math.abs(delta) > 28) setTicketOpen(delta < 0);
+            window.setTimeout(() => { dragging = false; }, 0);
+            if (event && event.pointerId !== undefined) button.releasePointerCapture?.(event.pointerId);
+        };
+
+        button.addEventListener("pointerup", finishDrag);
+        button.addEventListener("pointercancel", finishDrag);
     });
 
     const accountCurrent = byId("account-current");
@@ -711,6 +816,27 @@
         if (input) input.addEventListener("input", () => {
             updateAccumulatorBarrierText();
             updateChartOverlay();
+            updateRiskPreview();
+            scheduleProposal();
+        });
+    });
+    document.querySelectorAll("[data-duration-unit-choice]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const unit = byId("trade-duration-unit");
+            if (unit) unit.value = button.dataset.durationUnitChoice || "m";
+            document.querySelectorAll("[data-duration-unit-choice]").forEach((item) => item.classList.toggle("is-active", item === button));
+            updateRiskPreview();
+            scheduleProposal();
+        });
+    });
+
+    document.querySelectorAll("[data-stake-step]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const input = byId("trade-stake");
+            if (!input) return;
+            const step = Number(button.dataset.stakeStep || 0);
+            const next = Math.max(1, (Number(input.value) || 0) + step);
+            input.value = next.toFixed(next % 1 === 0 ? 0 : 2);
             updateRiskPreview();
             scheduleProposal();
         });
@@ -874,6 +1000,7 @@
                 contract_type: proposalContractType(),
                 barrier: tradeBarrierValue(),
                 growth_rate: (byId("growth-rate") || {}).value || undefined,
+                multiplier: (byId("trade-multiplier") || {}).value || undefined,
                 take_profit: (byId("take-profit") || {}).value || undefined,
             };
             const warning = byId("risk-warning");
@@ -926,6 +1053,22 @@
         scheduleProposal();
     });
 
+    function reportMobileLayout() {
+        const terminal = document.querySelector(".deriv-terminal");
+        const topbar = document.querySelector(".trade-topbar");
+        const tabs = document.querySelector(".trade-type-tabs");
+        const chart = document.querySelector(".chart-stage");
+        const ticket = byId("ticket-panel");
+        if (!terminal || !window.matchMedia("(max-width: 900px)").matches) return;
+        window.PROFITERA_MOBILE_LAYOUT = {
+            topbar: Math.round(topbar?.getBoundingClientRect().height || 0),
+            tabsDisplay: tabs ? getComputedStyle(tabs).display : "missing",
+            tabsHeight: Math.round(tabs?.getBoundingClientRect().height || 0),
+            chart: Math.round(chart?.getBoundingClientRect().height || 0),
+            ticket: Math.round(ticket?.getBoundingClientRect().height || 0),
+        };
+        console.info("Profitera mobile layout", window.PROFITERA_MOBILE_LAYOUT);
+    }
     applyInitialState();
     renderTicket();
     updateRiskPreview();
@@ -939,5 +1082,7 @@
             terminal.classList.remove("is-loading");
             terminal.classList.add("is-ready");
         }
+        window.profiteraChart?.resize?.();
+        reportMobileLayout();
     }, 420);
 })();

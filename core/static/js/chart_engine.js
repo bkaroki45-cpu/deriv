@@ -17,6 +17,7 @@
             this.contractOverlay = { type: "rise_fall" };
             this.accumulatorRange = null;
             this.priceAnimation = null;
+            this.flowAnimation = null;
             this.animationFrame = null;
             this.readout = document.getElementById("crosshair-readout");
             this.dragging = false;
@@ -175,7 +176,10 @@
                 last.close = candle.close;
                 last.time = candle.time;
             } else {
-                if (last) this.animatePrice(last.close, candle.close);
+                if (last) {
+                    this.animatePrice(last.close, candle.close);
+                    this.animateFlow();
+                }
                 this.candles.push({ ...candle, bucket });
             }
             if (this.candles.length > 500) this.candles.shift();
@@ -188,8 +192,19 @@
                 from: Number(from),
                 to: Number(to),
                 start: performance.now(),
-                duration: 260,
+                duration: 420,
             };
+        }
+
+        animateFlow() {
+            this.flowAnimation = {
+                start: performance.now(),
+                duration: 420,
+            };
+        }
+
+        animationEase(progress) {
+            return 1 - Math.pow(1 - Math.min(1, Math.max(0, progress)), 3);
         }
 
         requestDraw() {
@@ -241,7 +256,8 @@
             const source = this.mode === "ticks"
                 ? this.ticks.map((tick) => ({ open: tick.price, high: tick.price, low: tick.price, close: tick.price, time: tick.time }))
                 : this.candles;
-            const target = Math.floor(140 / this.zoom);
+            const metrics = this.plotMetrics(this.canvas.width || 900);
+            const target = Math.ceil(metrics.plotWidth / metrics.step) + 8;
             return source.slice(Math.max(0, source.length - target));
         }
 
@@ -249,7 +265,7 @@
             if (!this.priceAnimation || !series.length) return series;
             const elapsed = performance.now() - this.priceAnimation.start;
             const progress = Math.min(1, Math.max(0, elapsed / this.priceAnimation.duration));
-            const eased = 1 - Math.pow(1 - progress, 3);
+            const eased = this.animationEase(progress);
             const close = this.priceAnimation.from + (this.priceAnimation.to - this.priceAnimation.from) * eased;
             const copy = series.map((item) => ({ ...item }));
             const latest = copy[copy.length - 1];
@@ -315,7 +331,7 @@
             this.drawDrawings(ctx, width, height);
             this.drawTradeFlags(ctx, series, scale, width);
             this.drawCrosshair(ctx, series, scale, width, height);
-            if (this.priceAnimation) this.requestDraw();
+            if (this.priceAnimation || this.flowAnimation) this.requestDraw();
         }
 
         drawGrid(ctx, width, height) {
@@ -356,19 +372,36 @@
         plotMetrics(width) {
             const axisWidth = 92 * devicePixelRatio;
             const futureWidth = Math.min(Math.max(width * 0.16, 90 * devicePixelRatio), 190 * devicePixelRatio);
+            const plotRight = width - axisWidth;
+            const activeRight = plotRight - futureWidth;
+            const plotWidth = Math.max(120 * devicePixelRatio, activeRight);
+            const step = Math.max(5 * devicePixelRatio, Math.min(18 * devicePixelRatio, 8 * devicePixelRatio * this.zoom));
             return {
                 axisWidth,
                 futureWidth,
-                plotRight: width - axisWidth,
-                activeRight: width - axisWidth - futureWidth,
-                plotWidth: width - axisWidth - futureWidth,
+                plotRight,
+                activeRight,
+                plotWidth,
+                step,
             };
+        }
+
+        flowOffset(width, count) {
+            if (!this.flowAnimation || count <= 1) return 0;
+            const elapsed = performance.now() - this.flowAnimation.start;
+            const progress = Math.min(1, Math.max(0, elapsed / this.flowAnimation.duration));
+            const metrics = this.plotMetrics(width);
+            if (progress >= 1) {
+                this.flowAnimation = null;
+                return 0;
+            }
+            return metrics.step * (1 - this.animationEase(progress));
         }
 
         seriesX(index, count, width) {
             const metrics = this.plotMetrics(width);
-            if (count <= 1) return metrics.activeRight + this.pan;
-            return (index * (metrics.plotWidth / (count - 1))) + this.pan;
+            const latestOffset = Math.max(0, count - 1 - index) * metrics.step;
+            return metrics.activeRight - latestOffset + this.pan + this.flowOffset(width, count);
         }
 
         drawLatestPriceLine(ctx, series, scale, width) {
@@ -393,8 +426,7 @@
 
         drawCandles(ctx, series, scale, width) {
             const metrics = this.plotMetrics(width);
-            const step = metrics.plotWidth / Math.max(series.length, 1);
-            const bodyWidth = Math.max(4 * devicePixelRatio, step * 0.58);
+            const bodyWidth = Math.max(3 * devicePixelRatio, Math.min(10 * devicePixelRatio, metrics.step * 0.58));
             series.forEach((candle, index) => {
                 const x = this.seriesX(index, series.length, width);
                 const openY = scale.y(candle.open);
@@ -630,8 +662,6 @@
         }
 
         drawBollinger(ctx, series, scale, width) {
-            const plotWidth = width - 92;
-            const step = plotWidth / Math.max(series.length - 1, 1);
             const period = Math.min(20, Math.max(3, series.length));
             ["upper", "lower"].forEach((band) => {
                 ctx.strokeStyle = "rgba(58, 168, 255, 0.72)";
@@ -643,7 +673,7 @@
                     const variance = slice.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / slice.length;
                     const deviation = Math.sqrt(variance) * 2;
                     const value = band === "upper" ? mean + deviation : mean - deviation;
-                    const x = index * step + this.pan;
+                    const x = this.seriesX(index, series.length, width);
                     const y = scale.y(value);
                     if (index === 0) ctx.moveTo(x, y);
                     else ctx.lineTo(x, y);
@@ -664,8 +694,6 @@
         }
 
         drawAverage(ctx, series, scale, width, type, color) {
-            const plotWidth = width - 92;
-            const step = plotWidth / Math.max(series.length - 1, 1);
             const period = Math.min(10, Math.max(3, series.length));
             let ema = series[0].close;
             ctx.strokeStyle = color;
@@ -681,7 +709,7 @@
                     const slice = series.slice(Math.max(0, index - period + 1), index + 1);
                     value = slice.reduce((sum, point) => sum + point.close, 0) / slice.length;
                 }
-                const x = index * step + this.pan;
+                const x = this.seriesX(index, series.length, width);
                 const y = scale.y(value);
                 if (index === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
@@ -716,11 +744,10 @@
         }
 
         drawTradeFlags(ctx, series, scale, width) {
-            const plotWidth = width - 92;
-            const step = plotWidth / Math.max(series.length - 1, 1);
             this.tradeFlags.forEach((flag) => {
-                const index = Math.max(0, series.findIndex((item) => item.time >= flag.time));
-                const x = (index >= 0 ? index : series.length - 1) * step + this.pan;
+                const found = series.findIndex((item) => item.time >= flag.time);
+                const index = found >= 0 ? found : series.length - 1;
+                const x = this.seriesX(index, series.length, width);
                 const y = scale.y(flag.price);
                 ctx.fillStyle = flag.kind === "win" ? "#31d4a0" : flag.kind === "loss" ? "#ff5f6d" : "#f5b942";
                 ctx.beginPath();
@@ -751,7 +778,8 @@
 
             const price = scale.top - ((this.crosshair.y - 18) / (height - 44)) * (scale.top - scale.bottom);
             if (this.readout) {
-                const nearest = Math.max(0, Math.min(series.length - 1, Math.round((this.crosshair.x - this.pan) / Math.max(1, this.plotMetrics(width).plotWidth / Math.max(series.length - 1, 1)))));
+                const metrics = this.plotMetrics(width);
+                const nearest = Math.max(0, Math.min(series.length - 1, series.length - 1 - Math.round((metrics.activeRight + this.pan - this.crosshair.x) / Math.max(1, metrics.step))));
                 const item = series[nearest] || series[series.length - 1];
                 const time = item && item.time ? new Date(item.time * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "--";
                 this.readout.textContent = `Price ${price.toFixed(4)} / ${time}`;

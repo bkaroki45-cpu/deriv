@@ -2365,6 +2365,61 @@ body.theme-light .deriv-terminal {
     color: var(--dt-muted);
     font-size: 12px;
 }
+.ticket-field--split {
+    gap: 8px;
+}
+
+.ticket-input-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+}
+
+.ticket-field--split[data-field="stake"] .ticket-input-row {
+    grid-template-columns: 30px minmax(0, 1fr) 30px;
+    padding-right: 42px;
+}
+
+.ticket-segment {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(48px, 1fr));
+    gap: 2px;
+    border: 1px solid #3a414c;
+    border-radius: 999px;
+    background: #111820;
+    padding: 2px;
+}
+
+.ticket-segment button,
+.field-stepper {
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--dt-muted);
+    min-height: 28px;
+    padding: 0 9px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.ticket-segment button.is-active,
+.field-stepper:hover,
+.field-stepper:focus-visible {
+    background: #fff;
+    color: #11171c;
+}
+
+.field-stepper {
+    width: 30px;
+    padding: 0;
+    background: #111820;
+    color: var(--dt-text);
+    font-size: 16px;
+}
 
 .terms-list {
     display: grid;
@@ -4601,5 +4656,2162 @@ body.bot-page {
         min-height: 430px;
         max-height: 540px;
         margin: 0;
+    }
+}
+
+/* Video reference mobile terminal pass: keep contracts visible and chart geometry stable. */
+@media (max-width: 1480px) {
+    .trade-type-tabs button:nth-child(n+7) {
+        display: inline-grid;
+    }
+}
+
+@media (max-width: 900px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-topbar: 100px;
+        --mobile-ticket: 252px;
+        --mobile-nav: 58px;
+        --dt-bg: #191d1e;
+        --dt-panel: #191d1e;
+        --dt-panel-2: #202630;
+        --dt-line: #313637;
+        --dt-text: #f2f3f3;
+        --dt-muted: #a2a8aa;
+        --dt-chart: #171c24;
+        --dt-chart-line: #58d8cf;
+        background: #191d1e;
+    }
+
+    .trade-workspace {
+        grid-template-rows: var(--mobile-topbar) calc(100svh - var(--mobile-topbar) - var(--mobile-ticket) - var(--mobile-nav));
+        height: calc(100svh - var(--mobile-nav));
+        min-height: 0;
+        background: #191d1e;
+    }
+
+    .trade-topbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 52px 40px;
+        height: var(--mobile-topbar);
+        min-height: var(--mobile-topbar);
+        overflow: visible;
+        border-bottom: 1px solid #313637;
+        background: #191d1e;
+        padding: 0 8px 8px;
+    }
+
+    .mobile-account-strip {
+        display: grid;
+        grid-row: 1;
+        width: 100%;
+    }
+
+    .mobile-account-strip small {
+        color: #4bded1;
+    }
+
+    .mobile-account-strip strong {
+        color: #f2f3f3;
+    }
+
+    .deriv-terminal .trade-topbar .contract-trigger,
+    .deriv-terminal.theme-light .trade-topbar .contract-trigger {
+        position: static !important;
+        grid-row: 2;
+        align-self: stretch;
+        justify-self: start;
+        display: grid !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto;
+        width: min(178px, calc(100vw - 18px));
+        min-height: 36px;
+        max-height: 38px;
+        margin: 0;
+        border: 1px solid #343b45;
+        border-radius: 4px;
+        background: #202630;
+        color: #f2f3f3;
+        padding: 5px 9px;
+        box-shadow: none;
+    }
+
+    .chart-stage,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage {
+        height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket) - var(--mobile-nav)) !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        margin: 0 !important;
+        border-radius: 0;
+        background:
+            linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+            #171c24;
+        background-size: 64px 54px;
+        overflow: hidden;
+    }
+
+    #price-chart {
+        display: block;
+        width: 100%;
+        height: 100% !important;
+        min-height: 0 !important;
+    }
+
+    .symbol-card {
+        top: 8px !important;
+        left: 8px;
+        z-index: 15;
+        grid-template-columns: 24px minmax(0, 1fr);
+        width: auto;
+        max-width: calc(100% - 70px);
+        min-height: 30px;
+        border: 1px solid #313637;
+        border-radius: 4px;
+        background: #202630;
+        color: #fff;
+        padding: 5px 9px;
+    }
+
+    .symbol-card small,
+    .symbol-card .chevron {
+        display: none;
+    }
+
+    .symbol-card strong {
+        max-width: 210px;
+        color: #fff;
+        font-size: 11px;
+    }
+
+    .floating-tools {
+        top: 52px !important;
+        right: 8px;
+        left: auto;
+        z-index: 15;
+        gap: 6px;
+        width: auto;
+        padding: 0;
+        background: transparent;
+    }
+
+    .floating-tools button {
+        width: 30px;
+        height: 30px;
+        border: 1px solid #313637;
+        border-radius: 4px;
+        background: #202630;
+        color: #f2f3f3;
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+    }
+
+    .ticket-panel,
+    .ticket-panel.is-open {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: var(--mobile-nav);
+        z-index: 18;
+        width: 100vw;
+        height: var(--mobile-ticket) !important;
+        max-height: var(--mobile-ticket) !important;
+        border: 0;
+        border-top: 1px solid #313637;
+        background: #191d1e;
+        color: #f2f3f3;
+        overflow: hidden;
+        transform: none !important;
+        transition: none !important;
+    }
+
+    .trade-ticket {
+        height: var(--mobile-ticket);
+        max-height: var(--mobile-ticket);
+        overflow-y: auto;
+        padding: 8px 10px 10px;
+    }
+
+    .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) + .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) ~ .mobile-sheet-handle {
+        position: fixed;
+        left: 50%;
+        bottom: calc(var(--mobile-nav) + var(--mobile-ticket) - 13px);
+        z-index: 44;
+        display: grid !important;
+        place-items: center;
+        width: 58px;
+        height: 26px;
+        border: 1px solid #343b45;
+        border-radius: 999px;
+        background: #202630;
+        color: #c8d0d6;
+        font-size: 10px;
+        font-weight: 800;
+        transform: translateX(-50%);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, .24);
+    }
+
+    .contract-popover {
+        position: fixed;
+        top: calc(var(--mobile-topbar) + 6px);
+        right: 8px;
+        bottom: calc(var(--mobile-nav) + var(--mobile-ticket) + 8px);
+        left: 8px;
+        z-index: 46;
+        width: auto;
+        max-height: none;
+        border: 1px solid #313637;
+        border-radius: 6px;
+        background: #191d1e;
+        color: #f2f3f3;
+        overflow: auto;
+    }
+
+    .contract-card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .contract-card-grid button {
+        min-height: 72px;
+        border-color: #313637;
+        border-radius: 6px;
+        background: #202630;
+        padding: 10px;
+    }
+}
+
+@media (max-width: 420px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-ticket: 252px;
+    }
+}
+
+@media (max-width: 900px) {
+    html,
+    body,
+    body:has(.deriv-terminal),
+    .deriv-terminal {
+        width: 100%;
+        height: 100svh;
+        min-height: 100svh;
+        max-height: 100svh;
+        overflow: hidden;
+    }
+
+    .deriv-terminal.is-loading .chart-stage,
+    .deriv-terminal.is-loading .ticket-panel,
+    .deriv-terminal.is-loading .trade-topbar {
+        opacity: 1;
+    }
+
+    .deriv-terminal.is-ready .chart-stage,
+    .deriv-terminal.is-ready .ticket-panel,
+    .deriv-terminal.is-ready .trade-topbar {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+
+    .trade-ticket form {
+        min-height: 0;
+    }
+
+    .digit-picker {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .contract-popover[hidden],
+    .markets-popover[hidden] {
+        display: none !important;
+    }
+
+    .contract-popover:not([hidden]) {
+        display: grid !important;
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+}
+
+/* Hard mobile override: visible contract strip + fixed chart region. */
+@media (max-width: 900px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-topbar: 142px !important;
+        --mobile-ticket: 252px !important;
+        --mobile-nav: 58px !important;
+    }
+
+    .trade-workspace {
+        display: grid !important;
+        grid-template-rows: var(--mobile-topbar) calc(100svh - var(--mobile-topbar) - var(--mobile-ticket) - var(--mobile-nav)) !important;
+        height: calc(100svh - var(--mobile-nav)) !important;
+        max-height: calc(100svh - var(--mobile-nav)) !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .trade-topbar {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        grid-template-rows: 52px 38px 44px !important;
+        height: var(--mobile-topbar) !important;
+        min-height: var(--mobile-topbar) !important;
+        max-height: var(--mobile-topbar) !important;
+        overflow: hidden !important;
+        gap: 4px !important;
+        padding: 0 8px 6px !important;
+        background: #191d1e !important;
+    }
+
+    .mobile-account-strip {
+        grid-row: 1 !important;
+        display: grid !important;
+    }
+
+    .deriv-terminal .trade-topbar .contract-trigger,
+    .deriv-terminal.theme-light .trade-topbar .contract-trigger {
+        grid-row: 2 !important;
+        display: grid !important;
+        position: static !important;
+        width: min(178px, calc(100vw - 18px)) !important;
+        height: 36px !important;
+        min-height: 36px !important;
+        max-height: 36px !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .trade-type-tabs {
+        grid-row: 3 !important;
+        display: flex !important;
+        gap: 8px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 40px !important;
+        max-height: 40px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding: 2px 0 4px !important;
+        scrollbar-width: none !important;
+    }
+
+    .trade-type-tabs::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .trade-type-tabs button,
+    .trade-type-tabs button:nth-child(n+7) {
+        display: inline-grid !important;
+        place-items: center !important;
+        flex: 0 0 auto !important;
+        max-width: none !important;
+        min-width: max-content !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        border: 1px solid #343b45 !important;
+        border-radius: 999px !important;
+        background: #202630 !important;
+        color: #f2f3f3 !important;
+        padding: 7px 12px !important;
+        font-size: 12px !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+    }
+
+    .trade-type-tabs button.is-active {
+        border-color: #fff !important;
+        background: #fff !important;
+        color: #11171c !important;
+    }
+
+    .chart-stage,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage {
+        grid-row: 2 !important;
+        height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket) - var(--mobile-nav)) !important;
+        min-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket) - var(--mobile-nav)) !important;
+        max-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket) - var(--mobile-nav)) !important;
+        margin: 0 !important;
+        transform: none !important;
+    }
+
+    .ticket-panel,
+    .ticket-panel.is-open {
+        height: var(--mobile-ticket) !important;
+        min-height: var(--mobile-ticket) !important;
+        max-height: var(--mobile-ticket) !important;
+        transform: none !important;
+        transition: none !important;
+    }
+}
+
+/* Deriv reference trade panel pass: ticket buttons and bottom dock. */
+body,
+button,
+input,
+select {
+    font-family: "IBM Plex Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ticket-panel {
+    background: #191d1e;
+}
+
+.choice-pill {
+    border-radius: 4px;
+    background: transparent;
+    gap: 8px;
+    padding: 0;
+    border: 0;
+}
+
+.choice-pill button {
+    min-height: 44px;
+    border: 1px solid #313637;
+    border-radius: 4px;
+    background: #202630;
+    color: #f2f3f3;
+    font-weight: 800;
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.choice-pill button:hover,
+.choice-pill button:focus-visible {
+    border-color: #6b747d;
+    transform: translateY(-1px);
+}
+
+.choice-pill button.is-active[data-tone="rise"] {
+    border-color: #00c390;
+    background: #05352e;
+    color: #7fffe2;
+}
+
+.choice-pill button.is-active[data-tone="fall"] {
+    border-color: #ff444f;
+    background: #37181d;
+    color: #ffb6bd;
+}
+
+.buy-btn {
+    border-radius: 4px;
+    background: #00c390;
+    min-height: 48px;
+    box-shadow: none;
+}
+
+.buy-btn.is-fall,
+.buy-btn[data-tone="fall"] {
+    background: #ff444f;
+}
+
+.buy-btn:hover {
+    box-shadow: none;
+    filter: brightness(1.05);
+}
+
+.activity-head,
+.activity-card {
+    display: grid;
+    grid-template-columns: minmax(110px, 1.25fr) minmax(92px, .95fr) minmax(76px, .75fr) minmax(76px, .75fr) minmax(76px, .7fr);
+    gap: 10px;
+    align-items: center;
+}
+
+.activity-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    min-width: 560px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #313637;
+    background: #15191f;
+    color: #8d969a;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.activity-feed {
+    min-width: 560px;
+}
+
+.activity-card {
+    min-height: 42px;
+    border: 0;
+    border-bottom: 1px solid #262c31;
+    border-radius: 0;
+    background: transparent;
+    padding: 9px 12px;
+}
+
+.activity-card:hover {
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.bottom-dock nav {
+    height: 38px;
+    align-items: stretch;
+    background: #191d1e;
+}
+
+.bottom-dock nav button {
+    min-width: 104px;
+    color: #a2a8aa;
+    font-size: 12px;
+}
+
+.bottom-dock nav button.is-active {
+    color: #f2f3f3;
+    border-color: #ff444f;
+}
+
+.bottom-panel {
+    padding: 0;
+}
+
+.empty-state-inline {
+    display: block;
+    padding: 18px 12px;
+    color: #8d969a;
+    font-size: 12px;
+}
+
+@media (max-width: 900px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-ticket: 286px !important;
+        --mobile-topbar: 142px !important;
+        --mobile-nav: 58px !important;
+    }
+
+    .ticket-panel,
+    .ticket-panel.is-open {
+        border-top: 1px solid #313637 !important;
+        background: #191d1e !important;
+    }
+
+    .ticket-panel::before {
+        content: "";
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        z-index: 2;
+        width: 42px;
+        height: 4px;
+        border-radius: 999px;
+        background: #505762;
+        transform: translateX(-50%);
+    }
+
+    .account-strip,
+    .terminal-clock,
+    .risk-grid,
+    .execution-summary {
+        display: none !important;
+    }
+
+    .trade-ticket {
+        height: var(--mobile-ticket) !important;
+        max-height: var(--mobile-ticket) !important;
+        padding: 18px 10px 10px !important;
+        background: #191d1e;
+    }
+
+    .how-to {
+        margin: 0 0 8px;
+        color: #f2f3f3;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .trade-ticket form {
+        gap: 8px !important;
+    }
+
+    .choice-pill {
+        gap: 8px !important;
+    }
+
+    .choice-pill button {
+        min-height: 38px !important;
+        padding: 7px 8px !important;
+        font-size: 13px !important;
+    }
+
+    .ticket-field {
+        min-height: 50px !important;
+        border-radius: 4px !important;
+        padding: 8px 10px !important;
+    }
+
+    .ticket-field span {
+        font-size: 11px !important;
+    }
+
+    .ticket-field input,
+    .ticket-field select {
+        font-size: 14px !important;
+        font-weight: 800;
+    }
+
+    .buy-btn {
+        min-height: 46px !important;
+        border-radius: 4px !important;
+        font-size: 15px !important;
+    }
+
+    .risk-copy {
+        margin: 0;
+        min-height: 16px;
+        font-size: 11px;
+        line-height: 1.25;
+    }
+
+    .bottom-dock {
+        display: none !important;
+    }
+}
+
+/* Dynamic Deriv-style mobile bottom sheet. */
+@media (max-width: 900px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-topbar: 142px !important;
+        --mobile-nav: 58px !important;
+        --mobile-ticket-expanded: min(372px, 50svh);
+        --mobile-ticket-collapsed: 156px;
+        --mobile-ticket-current: var(--mobile-ticket-expanded);
+        --mobile-ticket: var(--mobile-ticket-current) !important;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)),
+    .deriv-terminal.ticket-sheet-collapsed {
+        --mobile-ticket-current: var(--mobile-ticket-collapsed);
+    }
+
+    .trade-workspace {
+        grid-template-rows: var(--mobile-topbar) calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        height: calc(100svh - var(--mobile-nav)) !important;
+        max-height: calc(100svh - var(--mobile-nav)) !important;
+        overflow: hidden !important;
+    }
+
+    .chart-stage,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage {
+        grid-row: 2 !important;
+        height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        min-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        max-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        margin: 0 !important;
+    }
+
+    .ticket-panel,
+    .ticket-panel.is-open {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: var(--mobile-nav) !important;
+        z-index: 38 !important;
+        display: grid !important;
+        grid-template-rows: minmax(0, 1fr) !important;
+        width: 100vw !important;
+        height: var(--mobile-ticket-expanded) !important;
+        min-height: var(--mobile-ticket-expanded) !important;
+        max-height: var(--mobile-ticket-expanded) !important;
+        border: 1px solid #313637 !important;
+        border-bottom: 0 !important;
+        border-radius: 16px 16px 0 0 !important;
+        background: #191d1e !important;
+        color: #f2f3f3 !important;
+        overflow: hidden !important;
+        transform: translateY(calc(var(--mobile-ticket-expanded) - var(--mobile-ticket-current) + var(--sheet-drag, 0px))) !important;
+        transition: transform 360ms cubic-bezier(.2, 1.05, .22, 1), height 260ms ease !important;
+        will-change: transform !important;
+        box-shadow: 0 -18px 34px rgba(0, 0, 0, .36) !important;
+    }
+
+    .ticket-panel.is-dragging,
+    .deriv-terminal.ticket-sheet-dragging .mobile-sheet-handle {
+        transition: none !important;
+    }
+
+    .ticket-panel::before {
+        top: 7px !important;
+        width: 44px !important;
+        height: 4px !important;
+        background: #59616b !important;
+    }
+
+    .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) + .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) ~ .mobile-sheet-handle {
+        position: fixed !important;
+        left: 50% !important;
+        bottom: calc(var(--mobile-nav) + var(--mobile-ticket-collapsed) - 25px) !important;
+        z-index: 52 !important;
+        display: inline-grid !important;
+        grid-template-columns: auto 10px !important;
+        gap: 5px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 68px !important;
+        height: 30px !important;
+        border: 1px solid #3a4149 !important;
+        border-radius: 999px !important;
+        background: #202630 !important;
+        color: #eef2f4 !important;
+        font-size: 11px !important;
+        font-weight: 900 !important;
+        transform: translateX(-50%) !important;
+        transition: background 160ms ease, color 160ms ease, opacity 160ms ease, transform 160ms ease !important;
+        touch-action: none !important;
+        user-select: none !important;
+        box-shadow: 0 10px 22px rgba(0, 0, 0, .34) !important;
+    }
+
+    .mobile-sheet-handle i {
+        width: 8px;
+        height: 8px;
+        border-top: 2px solid currentColor;
+        border-left: 2px solid currentColor;
+        transform: translateY(2px) rotate(45deg);
+        transition: transform 180ms ease;
+    }
+
+    .mobile-sheet-handle[aria-expanded="true"] i {
+        transform: translateY(-2px) rotate(225deg);
+    }
+
+    .account-strip,
+    .terminal-clock,
+    .execution-summary,
+    .risk-grid,
+    .how-to {
+        display: none !important;
+    }
+
+    .trade-ticket {
+        height: var(--mobile-ticket-expanded) !important;
+        max-height: var(--mobile-ticket-expanded) !important;
+        padding: 21px 10px 11px !important;
+        overflow: hidden auto !important;
+        background: #191d1e !important;
+        scrollbar-width: none !important;
+    }
+
+    .trade-ticket::-webkit-scrollbar,
+    .trade-ticket form::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .trade-ticket form {
+        display: flex !important;
+        flex-flow: row wrap !important;
+        align-content: start !important;
+        gap: 8px !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        opacity: 1 !important;
+    }
+
+    .choice-pill {
+        order: 1;
+        display: grid !important;
+        flex: 1 0 100% !important;
+        gap: 8px !important;
+        min-height: 40px !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+
+    .choice-pill button {
+        min-height: 40px !important;
+        border: 1px solid #313637 !important;
+        border-radius: 4px !important;
+        background: #202630 !important;
+        color: #f2f3f3 !important;
+        font-size: 13px !important;
+        font-weight: 900 !important;
+        padding: 7px 8px !important;
+    }
+
+    .choice-pill button.is-active[data-tone="rise"] {
+        border-color: #00c390 !important;
+        background: #05352e !important;
+        color: #7fffe2 !important;
+    }
+
+    .choice-pill button.is-active[data-tone="fall"] {
+        border-color: #ff444f !important;
+        background: #37181d !important;
+        color: #ffb6bd !important;
+    }
+
+    .ticket-field,
+    .digit-picker,
+    .terms-list {
+        order: 2;
+        flex: 1 0 min(152px, calc(50% - 4px)) !important;
+        min-width: min(152px, calc(50% - 4px)) !important;
+        min-height: 54px !important;
+        border: 1px solid #313637 !important;
+        border-radius: 6px !important;
+        background: #202630 !important;
+        color: #f2f3f3 !important;
+        padding: 8px 10px !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .025) !important;
+    }
+
+    .ticket-field span,
+    .ticket-field b {
+        color: #9fa8b4 !important;
+        font-size: 11px !important;
+    }
+
+    .ticket-field input,
+    .ticket-field select {
+        color: #f2f3f3 !important;
+        font-size: 14px !important;
+        font-weight: 900 !important;
+    }
+
+    .ticket-segment {
+        grid-template-columns: repeat(2, minmax(38px, 1fr)) !important;
+    }
+
+    .terms-list {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: 8px !important;
+        min-height: 52px !important;
+        overflow-x: auto !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+    }
+
+    .terms-list:empty {
+        display: none !important;
+    }
+
+    .terms-list div {
+        flex: 1 0 142px;
+        border: 1px solid #313637;
+        border-radius: 6px;
+        background: #202630;
+        padding: 8px 10px;
+    }
+
+    .buy-btn {
+        order: 3;
+        flex: 1 0 100% !important;
+        min-height: 48px !important;
+        border-radius: 4px !important;
+        background: #00c390 !important;
+        color: #fff !important;
+        font-size: 15px !important;
+        font-weight: 900 !important;
+    }
+
+    .buy-btn.is-fall,
+    .buy-btn[data-tone="fall"] {
+        background: #ff444f !important;
+    }
+
+    .risk-copy,
+    #contract-status {
+        order: 4;
+        flex: 1 0 100% !important;
+        margin: 0 !important;
+        color: #9fa8b4 !important;
+        font-size: 11px !important;
+        line-height: 1.25 !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-ticket-expanded: min(352px, 50svh);
+        --mobile-ticket-collapsed: 150px;
+    }
+
+    .ticket-field,
+    .digit-picker,
+    .terms-list {
+        flex-basis: calc(50% - 4px) !important;
+        min-width: calc(50% - 4px) !important;
+    }
+}
+
+
+/* Video-exact mobile ticket row: parameters stay left-to-right like Deriv. */
+@media (max-width: 900px) {
+    .trade-ticket form {
+        display: grid !important;
+        grid-template-rows: auto auto auto auto !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        align-content: start !important;
+        gap: 8px !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        opacity: 1 !important;
+    }
+
+    .choice-pill {
+        order: initial !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .ticket-card-row {
+        display: flex !important;
+        flex-flow: row nowrap !important;
+        gap: 8px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding: 0 0 2px !important;
+        overscroll-behavior-x: contain !important;
+        scroll-snap-type: x proximity !important;
+        scrollbar-width: none !important;
+    }
+
+    .ticket-card-row::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .ticket-card-row > .ticket-field,
+    .ticket-card-row > .digit-picker {
+        order: initial !important;
+        flex: 0 0 calc(50% - 4px) !important;
+        min-width: calc(50% - 4px) !important;
+        max-width: calc(50% - 4px) !important;
+        scroll-snap-align: start !important;
+    }
+
+    .ticket-card-row > .ticket-field[hidden],
+    .ticket-card-row > .digit-picker[hidden],
+    .ticket-card-row > .terms-list:empty {
+        display: none !important;
+    }
+
+    .ticket-card-row > .terms-list {
+        order: initial !important;
+        flex: 0 0 auto !important;
+        min-width: max-content !important;
+        max-width: none !important;
+        align-self: stretch !important;
+    }
+
+    .ticket-card-row > .terms-list div {
+        flex: 0 0 136px !important;
+        min-width: 136px !important;
+    }
+
+    .buy-btn {
+        order: initial !important;
+        width: 100% !important;
+    }
+
+    .risk-copy,
+    #contract-status {
+        order: initial !important;
+        width: 100% !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .ticket-card-row > .ticket-field,
+    .ticket-card-row > .digit-picker {
+        flex-basis: calc(50% - 4px) !important;
+        min-width: calc(50% - 4px) !important;
+        max-width: calc(50% - 4px) !important;
+    }
+}
+
+/* Screenshot-sized mobile ticket: compact default, moderate Rise/Fall open, taller digit open. */
+@media (max-width: 900px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-ticket-expanded: min(300px, 38svh) !important;
+        --mobile-ticket-collapsed: 208px !important;
+        --mobile-ticket-current: var(--mobile-ticket-expanded) !important;
+    }
+
+    .deriv-terminal.ticket-contract-digits {
+        --mobile-ticket-expanded: min(475px, calc(100svh - var(--mobile-topbar) - var(--mobile-nav) - 86px)) !important;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)),
+    .deriv-terminal.ticket-sheet-collapsed {
+        --mobile-ticket-current: var(--mobile-ticket-collapsed) !important;
+    }
+
+    .ticket-panel,
+    .ticket-panel.is-open {
+        height: var(--mobile-ticket-expanded) !important;
+        min-height: var(--mobile-ticket-expanded) !important;
+        max-height: var(--mobile-ticket-expanded) !important;
+        transform: translateY(calc(var(--mobile-ticket-expanded) - var(--mobile-ticket-current) + var(--sheet-drag, 0px))) !important;
+    }
+
+    .trade-ticket {
+        height: var(--mobile-ticket-expanded) !important;
+        max-height: var(--mobile-ticket-expanded) !important;
+        padding: 33px 10px 8px !important;
+    }
+
+    .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) + .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) ~ .mobile-sheet-handle {
+        bottom: calc(var(--mobile-nav) + var(--mobile-ticket-collapsed) - 25px) !important;
+        width: 64px !important;
+        height: 26px !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        color: #69717c !important;
+        grid-template-columns: 18px !important;
+        gap: 0 !important;
+    }
+
+    .mobile-sheet-handle span {
+        display: none !important;
+    }
+
+    .mobile-sheet-handle i {
+        width: 20px !important;
+        height: 20px !important;
+        border-top-width: 3px !important;
+        border-left-width: 3px !important;
+    }
+
+    .choice-pill button {
+        min-height: 36px !important;
+    }
+
+    .ticket-card-row > .ticket-field,
+    .ticket-card-row > .digit-picker {
+        min-height: 56px !important;
+    }
+
+    .buy-btn {
+        min-height: 56px !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .trade-ticket {
+        overflow: hidden !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed.ticket-contract-digits .digit-picker {
+        min-height: 56px !important;
+        max-height: 56px !important;
+        overflow: hidden !important;
+    }
+}
+
+/* Keep chart dominant: compact bottom ticket dock above navigation. */
+@media (max-width: 900px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-ticket-expanded: clamp(178px, 23svh, 194px) !important;
+        --mobile-ticket-collapsed: clamp(142px, 18svh, 154px) !important;
+        --mobile-ticket-current: var(--mobile-ticket-expanded) !important;
+    }
+
+    .deriv-terminal.ticket-contract-digits {
+        --mobile-ticket-expanded: clamp(198px, 27svh, 232px) !important;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)),
+    .deriv-terminal.ticket-sheet-collapsed {
+        --mobile-ticket-current: var(--mobile-ticket-collapsed) !important;
+    }
+
+    .trade-workspace {
+        grid-template-rows: var(--mobile-topbar) calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+    }
+
+    .chart-stage,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage,
+    .deriv-terminal.ticket-sheet-collapsed .chart-stage {
+        height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        min-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        max-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        margin: 0 !important;
+    }
+
+    .ticket-panel,
+    .ticket-panel.is-open {
+        height: var(--mobile-ticket-expanded) !important;
+        min-height: var(--mobile-ticket-expanded) !important;
+        max-height: var(--mobile-ticket-expanded) !important;
+        transform: translateY(calc(var(--mobile-ticket-expanded) - var(--mobile-ticket-current) + var(--sheet-drag, 0px))) !important;
+    }
+
+    .trade-ticket {
+        height: var(--mobile-ticket-expanded) !important;
+        max-height: var(--mobile-ticket-expanded) !important;
+        padding: 28px 10px 7px !important;
+        overflow: hidden !important;
+    }
+
+    .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) + .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) ~ .mobile-sheet-handle {
+        bottom: calc(var(--mobile-nav) + var(--mobile-ticket-collapsed) - 25px) !important;
+    }
+
+    .choice-pill button {
+        min-height: 34px !important;
+        padding: 6px 8px !important;
+    }
+
+    .ticket-card-row > .ticket-field,
+    .ticket-card-row > .digit-picker {
+        min-height: 52px !important;
+    }
+
+    .ticket-field,
+    .ticket-card-row > .ticket-field {
+        padding: 7px 10px !important;
+    }
+
+    .buy-btn {
+        min-height: 50px !important;
+    }
+
+    .risk-copy,
+    #contract-status {
+        display: none !important;
+    }
+}
+
+/* Video reference trade ticket sizing and contract-sensitive layout. */
+.deriv-terminal {
+    grid-template-columns: 88px minmax(0, 1fr) clamp(420px, 29vw, 560px) !important;
+}
+
+.ticket-panel {
+    width: 100% !important;
+    height: 100vh !important;
+    background: #171c24 !important;
+}
+
+.account-strip {
+    min-height: 64px;
+    padding: 12px 16px !important;
+}
+
+.trade-ticket {
+    padding: 16px !important;
+    background: #171c24 !important;
+}
+
+.trade-ticket form,
+.ticket-card-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    min-width: 0;
+}
+
+.choice-pill {
+    min-height: 48px;
+}
+
+.choice-pill button {
+    min-height: 40px;
+    font-weight: 900;
+}
+
+.ticket-field {
+    min-height: 66px;
+}
+
+.digit-picker {
+    min-height: 196px;
+}
+
+.buy-btn {
+    min-height: 58px;
+    border-radius: 999px;
+}
+
+.deriv-terminal.ticket-contract-accumulator .ticket-card-row,
+.deriv-terminal.ticket-contract-multiplier .ticket-card-row,
+.deriv-terminal.ticket-contract-turbos .ticket-card-row,
+.deriv-terminal.ticket-contract-vanillas .ticket-card-row {
+    gap: 10px;
+}
+
+.deriv-terminal.ticket-contract-accumulator .terms-list,
+.deriv-terminal.ticket-contract-multiplier .terms-list,
+.deriv-terminal.ticket-contract-turbos .terms-list,
+.deriv-terminal.ticket-contract-vanillas .terms-list {
+    margin-top: 2px;
+    padding: 8px 0;
+}
+
+@media (max-width: 1180px) and (min-width: 901px) {
+    .deriv-terminal {
+        grid-template-columns: 72px minmax(0, 1fr) clamp(360px, 34vw, 440px) !important;
+    }
+}
+
+@media (max-width: 900px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-ticket-expanded: clamp(330px, 46svh, 430px) !important;
+        --mobile-ticket-collapsed: clamp(190px, 27svh, 230px) !important;
+        --mobile-ticket-current: var(--mobile-ticket-expanded) !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .deriv-terminal.ticket-contract-digits {
+        --mobile-ticket-expanded: clamp(430px, 58svh, 560px) !important;
+    }
+
+    .deriv-terminal.ticket-contract-accumulator {
+        --mobile-ticket-expanded: clamp(390px, 53svh, 510px) !important;
+    }
+
+    .deriv-terminal.ticket-contract-multiplier,
+    .deriv-terminal.ticket-contract-turbos,
+    .deriv-terminal.ticket-contract-vanillas {
+        --mobile-ticket-expanded: clamp(370px, 50svh, 490px) !important;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)),
+    .deriv-terminal.ticket-sheet-collapsed {
+        --mobile-ticket-current: var(--mobile-ticket-collapsed) !important;
+    }
+
+    .trade-workspace {
+        grid-template-rows: var(--mobile-topbar) calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        height: calc(100svh - var(--mobile-nav)) !important;
+        max-height: calc(100svh - var(--mobile-nav)) !important;
+    }
+
+    .chart-stage,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage,
+    .deriv-terminal.ticket-sheet-collapsed .chart-stage {
+        height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        min-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        max-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+    }
+
+    .ticket-panel,
+    .ticket-panel.is-open {
+        width: 100vw !important;
+        height: var(--mobile-ticket-expanded) !important;
+        min-height: var(--mobile-ticket-expanded) !important;
+        max-height: var(--mobile-ticket-expanded) !important;
+        border-radius: 16px 16px 0 0 !important;
+        transform: translateY(calc(var(--mobile-ticket-expanded) - var(--mobile-ticket-current) + var(--sheet-drag, 0px))) !important;
+    }
+
+    .trade-ticket {
+        height: var(--mobile-ticket-expanded) !important;
+        max-height: var(--mobile-ticket-expanded) !important;
+        padding: 30px 10px 10px !important;
+        overflow: hidden auto !important;
+    }
+
+    .trade-ticket form {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 9px !important;
+    }
+
+    .choice-pill {
+        display: grid !important;
+        width: 100% !important;
+        min-height: 42px !important;
+    }
+
+    .choice-pill button {
+        min-height: 38px !important;
+    }
+
+    .ticket-card-row {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        overflow: visible !important;
+        padding: 0 !important;
+    }
+
+    .ticket-card-row > .digit-picker,
+    .ticket-card-row > .terms-list {
+        grid-column: 1 / -1 !important;
+    }
+
+    .ticket-card-row > .ticket-field,
+    .ticket-card-row > .digit-picker {
+        flex: initial !important;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+
+    .ticket-card-row > .ticket-field {
+        min-height: 58px !important;
+    }
+
+    .digit-picker {
+        min-height: 198px !important;
+        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    }
+
+    .deriv-terminal.ticket-contract-digits .digit-picker {
+        min-height: 222px !important;
+    }
+
+    .terms-list {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 7px !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+    }
+
+    .terms-list:empty {
+        display: none !important;
+    }
+
+    .terms-list div {
+        min-width: 0 !important;
+    }
+
+    .buy-btn {
+        min-height: 54px !important;
+        border-radius: 999px !important;
+    }
+
+    .risk-copy,
+    #contract-status {
+        display: block !important;
+        width: 100% !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-ticket-expanded: clamp(318px, 48svh, 410px) !important;
+        --mobile-ticket-collapsed: clamp(184px, 28svh, 222px) !important;
+    }
+
+    .deriv-terminal.ticket-contract-digits {
+        --mobile-ticket-expanded: clamp(420px, 61svh, 540px) !important;
+    }
+}
+
+/* Final Deriv reference pass: full-depth ticket and contract-responsive bottom sheet. */
+.deriv-terminal {
+    --ticket-column-width: clamp(420px, 29vw, 560px);
+    --ticket-fill-gap: 12px;
+    grid-template-columns: 88px minmax(0, 1fr) var(--ticket-column-width) !important;
+}
+
+.ticket-panel {
+    grid-template-rows: 64px minmax(0, 1fr) 48px !important;
+    width: 100% !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+}
+
+.account-strip {
+    min-height: 64px !important;
+    max-height: 64px !important;
+}
+
+.terminal-clock {
+    min-height: 48px !important;
+}
+
+.trade-ticket {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+.trade-ticket form {
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    gap: 12px !important;
+    overflow: hidden !important;
+}
+
+.ticket-card-row {
+    align-content: start !important;
+    min-height: 0 !important;
+    overflow: hidden auto !important;
+    padding-right: 2px !important;
+    scrollbar-width: thin;
+}
+
+.deriv-terminal.ticket-contract-rise_fall .ticket-card-row,
+.deriv-terminal.ticket-contract-even_odd .ticket-card-row {
+    align-content: end !important;
+    padding-bottom: clamp(90px, 14vh, 150px) !important;
+}
+
+.deriv-terminal.ticket-contract-high_low .ticket-card-row,
+.deriv-terminal.ticket-contract-touch .ticket-card-row,
+.deriv-terminal.ticket-contract-turbos .ticket-card-row,
+.deriv-terminal.ticket-contract-vanillas .ticket-card-row {
+    padding-bottom: clamp(54px, 8vh, 92px) !important;
+}
+
+.deriv-terminal.ticket-contract-accumulator .ticket-card-row,
+.deriv-terminal.ticket-contract-multiplier .ticket-card-row,
+.deriv-terminal.ticket-contract-digits .ticket-card-row {
+    padding-bottom: 18px !important;
+}
+
+.deriv-terminal.ticket-contract-digits .digit-picker {
+    min-height: 252px !important;
+}
+
+.ticket-field,
+.choice-pill button {
+    border-radius: 4px !important;
+}
+
+.buy-btn {
+    align-self: end !important;
+    width: 100% !important;
+    min-height: 58px !important;
+    border-radius: 999px !important;
+}
+
+.risk-copy,
+#contract-status {
+    min-width: 0 !important;
+    overflow-wrap: anywhere !important;
+}
+
+@media (max-width: 1180px) and (min-width: 901px) {
+    .deriv-terminal {
+        --ticket-column-width: clamp(360px, 34vw, 440px);
+        grid-template-columns: 72px minmax(0, 1fr) var(--ticket-column-width) !important;
+    }
+}
+
+@media (max-width: 900px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-ticket-expanded: clamp(340px, 48svh, 450px) !important;
+        --mobile-ticket-collapsed: clamp(188px, 28svh, 232px) !important;
+        --mobile-ticket-current: var(--mobile-ticket-expanded) !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .deriv-terminal.ticket-contract-rise_fall,
+    .deriv-terminal.ticket-contract-even_odd {
+        --mobile-ticket-expanded: clamp(318px, 45svh, 410px) !important;
+    }
+
+    .deriv-terminal.ticket-contract-high_low,
+    .deriv-terminal.ticket-contract-touch {
+        --mobile-ticket-expanded: clamp(360px, 51svh, 480px) !important;
+    }
+
+    .deriv-terminal.ticket-contract-accumulator {
+        --mobile-ticket-expanded: clamp(398px, 56svh, 530px) !important;
+    }
+
+    .deriv-terminal.ticket-contract-multiplier,
+    .deriv-terminal.ticket-contract-turbos,
+    .deriv-terminal.ticket-contract-vanillas {
+        --mobile-ticket-expanded: clamp(382px, 54svh, 510px) !important;
+    }
+
+    .deriv-terminal.ticket-contract-digits {
+        --mobile-ticket-expanded: clamp(448px, 64svh, 585px) !important;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)),
+    .deriv-terminal.ticket-sheet-collapsed {
+        --mobile-ticket-current: var(--mobile-ticket-collapsed) !important;
+    }
+
+    .trade-workspace {
+        grid-template-rows: var(--mobile-topbar) calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        height: calc(100svh - var(--mobile-nav)) !important;
+        max-height: calc(100svh - var(--mobile-nav)) !important;
+    }
+
+    .chart-stage,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage,
+    .deriv-terminal.ticket-sheet-collapsed .chart-stage {
+        height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        min-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+        max-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav)) !important;
+    }
+
+    .ticket-panel,
+    .ticket-panel.is-open {
+        grid-template-rows: minmax(0, 1fr) !important;
+        width: 100vw !important;
+        height: var(--mobile-ticket-expanded) !important;
+        min-height: var(--mobile-ticket-expanded) !important;
+        max-height: var(--mobile-ticket-expanded) !important;
+        border-radius: 16px 16px 0 0 !important;
+        transform: translateY(calc(var(--mobile-ticket-expanded) - var(--mobile-ticket-current) + var(--sheet-drag, 0px))) !important;
+    }
+
+    .trade-ticket {
+        height: var(--mobile-ticket-expanded) !important;
+        max-height: var(--mobile-ticket-expanded) !important;
+        padding: 30px 10px 10px !important;
+        overflow: hidden !important;
+    }
+
+    .trade-ticket form {
+        grid-template-rows: auto minmax(0, 1fr) auto auto auto !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        gap: 9px !important;
+    }
+
+    .ticket-card-row {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        align-content: start !important;
+        overflow: hidden auto !important;
+        padding: 0 2px 4px 0 !important;
+    }
+
+    .deriv-terminal.ticket-contract-rise_fall .ticket-card-row,
+    .deriv-terminal.ticket-contract-even_odd .ticket-card-row {
+        align-content: end !important;
+        padding-bottom: clamp(16px, 4svh, 42px) !important;
+    }
+
+    .ticket-card-row > .digit-picker,
+    .ticket-card-row > .terms-list {
+        grid-column: 1 / -1 !important;
+    }
+
+    .digit-picker {
+        min-height: 208px !important;
+    }
+
+    .deriv-terminal.ticket-contract-digits .digit-picker {
+        min-height: 254px !important;
+    }
+
+    .ticket-field,
+    .ticket-card-row > .ticket-field {
+        min-height: 58px !important;
+    }
+
+    .buy-btn {
+        min-height: 54px !important;
+    }
+
+    .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) + .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) ~ .mobile-sheet-handle {
+        bottom: calc(var(--mobile-nav) + var(--mobile-ticket-collapsed) - 25px) !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-ticket-expanded: clamp(318px, 49svh, 420px) !important;
+        --mobile-ticket-collapsed: clamp(184px, 29svh, 224px) !important;
+    }
+
+    .deriv-terminal.ticket-contract-digits {
+        --mobile-ticket-expanded: clamp(430px, 66svh, 560px) !important;
+    }
+}
+
+/* Mobile sheet collapse: make the arrow tuck the ticket down so the chart owns the screen. */
+@media (max-width: 900px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-ticket-collapsed: clamp(78px, 12svh, 104px) !important;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)),
+    .deriv-terminal.ticket-sheet-collapsed {
+        --mobile-ticket-current: var(--mobile-ticket-collapsed) !important;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .trade-workspace,
+    .deriv-terminal.ticket-sheet-collapsed .trade-workspace {
+        grid-template-rows: var(--mobile-topbar) calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-collapsed) - var(--mobile-nav)) !important;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage,
+    .deriv-terminal.ticket-sheet-collapsed .chart-stage {
+        height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-collapsed) - var(--mobile-nav)) !important;
+        min-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-collapsed) - var(--mobile-nav)) !important;
+        max-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-collapsed) - var(--mobile-nav)) !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .ticket-panel,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-panel {
+        transform: translateY(calc(var(--mobile-ticket-expanded) - var(--mobile-ticket-collapsed) + var(--sheet-drag, 0px))) !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .trade-ticket,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .trade-ticket {
+        overflow: hidden !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) + .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) ~ .mobile-sheet-handle {
+        bottom: calc(var(--mobile-nav) + var(--mobile-ticket-collapsed) - 25px) !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-ticket-collapsed: clamp(78px, 12svh, 104px) !important;
+    }
+}
+
+/* Video 17-25 reduced-ticket reference: keep Deriv-like bottom nav visible. */
+body,
+button,
+input,
+select,
+textarea {
+    font-family: "IBM Plex Sans", "Roboto", Arial, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+.icon-markets::before {
+    left: 4px;
+    top: 4px;
+    width: 10px;
+    height: 10px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+}
+
+.icon-markets::after {
+    left: 13px;
+    top: 13px;
+    width: 8px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+    transform: rotate(45deg);
+    transform-origin: left center;
+}
+
+.icon-menu::before {
+    left: 4px;
+    top: 5px;
+    width: 16px;
+    height: 2px;
+    border-radius: 2px;
+    background: currentColor;
+    box-shadow: 0 6px 0 currentColor, 0 12px 0 currentColor;
+}
+
+.icon-menu::after {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-nav: 58px !important;
+        --mobile-ticket-collapsed: clamp(142px, 18svh, 154px) !important;
+        --mobile-ticket-current: var(--mobile-ticket-expanded) !important;
+        font-family: "IBM Plex Sans", "Roboto", Arial, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)),
+    .deriv-terminal.ticket-sheet-collapsed {
+        --mobile-ticket-current: var(--mobile-ticket-collapsed) !important;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .trade-workspace,
+    .deriv-terminal.ticket-sheet-collapsed .trade-workspace {
+        grid-template-rows: var(--mobile-topbar) calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-collapsed) - var(--mobile-nav)) !important;
+        height: calc(100svh - var(--mobile-nav)) !important;
+        max-height: calc(100svh - var(--mobile-nav)) !important;
+    }
+
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage,
+    .deriv-terminal.ticket-sheet-collapsed .chart-stage {
+        height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-collapsed) - var(--mobile-nav)) !important;
+        min-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-collapsed) - var(--mobile-nav)) !important;
+        max-height: calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-collapsed) - var(--mobile-nav)) !important;
+    }
+
+    .ticket-panel,
+    .ticket-panel.is-open {
+        bottom: var(--mobile-nav) !important;
+        z-index: 38 !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .ticket-panel,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-panel {
+        transform: translateY(calc(var(--mobile-ticket-expanded) - var(--mobile-ticket-collapsed) + var(--sheet-drag, 0px))) !important;
+    }
+
+    .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) + .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) ~ .mobile-sheet-handle,
+    .deriv-terminal.ticket-sheet-collapsed .mobile-sheet-handle {
+        bottom: calc(var(--mobile-nav) + var(--mobile-ticket-collapsed) - 22px) !important;
+        z-index: 74 !important;
+        width: 54px !important;
+        height: 24px !important;
+        border-color: #3a4045 !important;
+        background: #202426 !important;
+        color: #f2f3f3 !important;
+        font-size: 10px !important;
+        font-weight: 600 !important;
+    }
+
+    .mobile-nav {
+        position: fixed !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        z-index: 80 !important;
+        display: grid !important;
+        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+        width: 100vw !important;
+        height: var(--mobile-nav) !important;
+        min-height: var(--mobile-nav) !important;
+        max-height: var(--mobile-nav) !important;
+        border-top: 1px solid #313637 !important;
+        background: #191d1e !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+    }
+
+    .mobile-nav button,
+    .mobile-nav a {
+        display: grid !important;
+        align-content: center !important;
+        justify-items: center !important;
+        gap: 2px !important;
+        min-width: 0 !important;
+        min-height: var(--mobile-nav) !important;
+        border: 0 !important;
+        background: transparent !important;
+        color: #9ea5a8 !important;
+        font-family: "IBM Plex Sans", "Roboto", Arial, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        line-height: 1.1 !important;
+        text-decoration: none !important;
+    }
+
+    .mobile-nav .rail-icon {
+        width: 22px !important;
+        height: 22px !important;
+        margin: 0 !important;
+        color: currentColor !important;
+    }
+
+    .mobile-nav span:not(.rail-icon) {
+        max-width: 100% !important;
+        overflow: hidden !important;
+        color: currentColor !important;
+        font-size: 10px !important;
+        line-height: 1.1 !important;
+        letter-spacing: 0 !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    .mobile-nav .is-active {
+        color: #ff444f !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-ticket-collapsed: clamp(142px, 18svh, 154px) !important;
+    }
+}
+
+/* Collapsed ticket controls: compact horizontal cards with visible action. */
+@media (max-width: 900px) {
+    .deriv-terminal.ticket-sheet-collapsed,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) {
+        --mobile-ticket-collapsed: clamp(150px, 20svh, 176px) !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .trade-ticket,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .trade-ticket {
+        height: var(--mobile-ticket-expanded) !important;
+        max-height: var(--mobile-ticket-expanded) !important;
+        padding: 18px 8px 6px !important;
+        overflow: hidden !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .how-to,
+    .deriv-terminal.ticket-sheet-collapsed .risk-grid,
+    .deriv-terminal.ticket-sheet-collapsed .risk-copy,
+    .deriv-terminal.ticket-sheet-collapsed #contract-status,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .how-to,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .risk-grid,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .risk-copy,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) #contract-status {
+        display: none !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .trade-ticket form,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .trade-ticket form {
+        display: grid !important;
+        grid-template-rows: 30px 54px 40px !important;
+        gap: 5px !important;
+        height: calc(var(--mobile-ticket-collapsed) - 26px) !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .choice-pill,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .choice-pill {
+        display: grid !important;
+        grid-auto-flow: column !important;
+        grid-auto-columns: minmax(96px, 1fr) !important;
+        grid-template-columns: none !important;
+        gap: 6px !important;
+        min-height: 30px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scrollbar-width: none !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .choice-pill::-webkit-scrollbar,
+    .deriv-terminal.ticket-sheet-collapsed .ticket-card-row::-webkit-scrollbar,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .choice-pill::-webkit-scrollbar,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-card-row::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .choice-pill button,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .choice-pill button {
+        min-height: 30px !important;
+        height: 30px !important;
+        padding: 5px 8px !important;
+        border-radius: 4px !important;
+        font-size: 12px !important;
+        line-height: 1 !important;
+        white-space: nowrap !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .ticket-card-row,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-card-row {
+        display: flex !important;
+        grid-template-columns: none !important;
+        gap: 6px !important;
+        min-height: 54px !important;
+        height: 54px !important;
+        max-height: 54px !important;
+        padding: 0 2px 2px 0 !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scroll-snap-type: x proximity !important;
+        scrollbar-width: none !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .ticket-card-row > .ticket-field,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-card-row > .ticket-field {
+        flex: 0 0 min(148px, 43vw) !important;
+        min-width: min(148px, 43vw) !important;
+        max-width: min(148px, 43vw) !important;
+        min-height: 50px !important;
+        height: 50px !important;
+        padding: 5px 7px !important;
+        scroll-snap-align: start !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .ticket-field span,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-field span {
+        font-size: 9px !important;
+        line-height: 1 !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .ticket-field input,
+    .deriv-terminal.ticket-sheet-collapsed .ticket-field select,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-field input,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-field select {
+        min-width: 0 !important;
+        height: 22px !important;
+        font-size: 12px !important;
+        line-height: 1 !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .ticket-field--split .ticket-input-row,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-field--split .ticket-input-row {
+        gap: 4px !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .ticket-field--split[data-field="stake"] .ticket-input-row,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-field--split[data-field="stake"] .ticket-input-row {
+        grid-template-columns: 24px minmax(0, 1fr) 24px !important;
+        padding-right: 28px !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .ticket-segment,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-segment {
+        grid-template-columns: repeat(2, minmax(32px, 1fr)) !important;
+        min-width: 68px !important;
+        padding: 1px !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .ticket-segment button,
+    .deriv-terminal.ticket-sheet-collapsed .field-stepper,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-segment button,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .field-stepper {
+        min-height: 22px !important;
+        height: 22px !important;
+        width: 24px !important;
+        padding: 0 !important;
+        font-size: 10px !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .ticket-segment button,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-segment button {
+        width: auto !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .ticket-card-row > .digit-picker,
+    .deriv-terminal.ticket-sheet-collapsed .ticket-card-row > .terms-list,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-card-row > .digit-picker,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .ticket-card-row > .terms-list {
+        flex: 0 0 min(280px, 78vw) !important;
+        min-width: min(280px, 78vw) !important;
+        max-width: min(280px, 78vw) !important;
+        min-height: 50px !important;
+        height: 50px !important;
+        overflow: hidden auto !important;
+        scroll-snap-align: start !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .buy-btn,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .buy-btn {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+        min-height: 40px !important;
+        height: 40px !important;
+        padding: 6px 10px !important;
+        border-radius: 999px !important;
+        font-size: 13px !important;
+        line-height: 1 !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .buy-btn span,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .buy-btn span {
+        display: inline !important;
+        font-size: 10px !important;
+        line-height: 1 !important;
+        opacity: .92 !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) + .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) ~ .mobile-sheet-handle {
+        bottom: calc(var(--mobile-nav) + var(--mobile-ticket-collapsed) - 20px) !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .deriv-terminal.ticket-sheet-collapsed,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) {
+        --mobile-ticket-collapsed: clamp(150px, 21svh, 176px) !important;
+    }
+}
+
+/* Final mobile chart/ticket polish: compact reduced sheet and one-button chart tools. */
+.floating-tools {
+    overflow: visible;
+}
+
+.floating-tools-menu {
+    display: none;
+    gap: 8px;
+}
+
+.floating-tools.is-open .floating-tools-menu {
+    display: grid;
+}
+
+.icon-chart-menu::before {
+    content: "1T";
+    left: 2px;
+    top: 0;
+    color: currentColor;
+    font-size: 8px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.icon-chart-menu::after {
+    left: 4px;
+    right: 3px;
+    bottom: 3px;
+    height: 11px;
+    border-left: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    background: linear-gradient(135deg, transparent 38%, currentColor 40%, currentColor 48%, transparent 50%);
+    opacity: .9;
+}
+
+.icon-chart-type::before {
+    left: 3px;
+    right: 3px;
+    bottom: 4px;
+    height: 12px;
+    border-left: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+}
+
+.icon-chart-type::after {
+    left: 5px;
+    right: 4px;
+    top: 7px;
+    height: 8px;
+    border-top: 1.5px solid currentColor;
+    border-right: 1.5px solid currentColor;
+    transform: skew(-20deg);
+}
+
+@media (min-width: 901px) {
+    .floating-tools {
+        width: 50px;
+    }
+
+    .floating-tools-menu {
+        position: absolute;
+        top: 44px;
+        left: 0;
+        width: 50px;
+        padding: 8px;
+        border-radius: 4px;
+        background: #202630;
+        box-shadow: 0 16px 32px rgba(0, 0, 0, .26);
+    }
+}
+
+@media (max-width: 900px) {
+    .deriv-terminal,
+    .deriv-terminal.theme-light {
+        --mobile-chart-min: clamp(220px, 34svh, 310px) !important;
+        --mobile-ticket-expanded: min(clamp(300px, 42svh, 390px), calc(100svh - var(--mobile-topbar) - var(--mobile-nav) - var(--mobile-chart-min))) !important;
+        --mobile-ticket-collapsed: clamp(112px, 17svh, 136px) !important;
+    }
+
+    .deriv-terminal.ticket-contract-digits {
+        --mobile-ticket-expanded: min(clamp(350px, 52svh, 470px), calc(100svh - var(--mobile-topbar) - var(--mobile-nav) - var(--mobile-chart-min))) !important;
+    }
+
+    .trade-workspace,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .trade-workspace,
+    .deriv-terminal.ticket-sheet-collapsed .trade-workspace {
+        grid-template-rows: var(--mobile-topbar) minmax(var(--mobile-chart-min), calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav))) !important;
+    }
+
+    .chart-stage,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .chart-stage,
+    .deriv-terminal.ticket-sheet-collapsed .chart-stage {
+        height: max(var(--mobile-chart-min), calc(100svh - var(--mobile-topbar) - var(--mobile-ticket-current) - var(--mobile-nav))) !important;
+        min-height: var(--mobile-chart-min) !important;
+        max-height: none !important;
+    }
+
+    .floating-tools {
+        top: 50px !important;
+        right: 8px !important;
+        left: auto !important;
+        display: grid !important;
+        width: 34px !important;
+        gap: 6px !important;
+        padding: 0 !important;
+        background: transparent !important;
+    }
+
+    .floating-tools-menu {
+        position: absolute;
+        top: 38px;
+        right: 0;
+        width: 34px;
+        padding: 5px;
+        border: 1px solid #313637;
+        border-radius: 4px;
+        background: #202630;
+        box-shadow: 0 14px 28px rgba(0, 0, 0, .28);
+    }
+
+    .floating-tools button,
+    .floating-tools .tool-icon {
+        width: 34px !important;
+        height: 34px !important;
+        border: 1px solid #313637 !important;
+        border-radius: 3px !important;
+        background: #111820 !important;
+        color: #f2f3f3 !important;
+        box-shadow: none !important;
+    }
+
+    .floating-tools.is-open [data-chart-tools-toggle],
+    .floating-tools button:hover,
+    .floating-tools button:focus-visible {
+        background: #2d3541 !important;
+        color: #70d9dd !important;
+    }
+
+
+    .deriv-terminal.ticket-sheet-collapsed.ticket-contract-digits .ticket-card-row > .digit-picker,
+    .deriv-terminal.ticket-sheet-collapsed.ticket-contract-digits .ticket-card-row > .terms-list,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)).ticket-contract-digits .ticket-card-row > .digit-picker,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)).ticket-contract-digits .ticket-card-row > .terms-list {
+        display: none !important;
+    }
+
+
+    .deriv-terminal.ticket-sheet-collapsed .buy-btn,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .buy-btn {
+        justify-self: center !important;
+        align-self: center !important;
+        width: clamp(148px, 44vw, 190px) !important;
+        max-width: calc(100vw - 28px) !important;
+        min-height: 36px !important;
+        height: 36px !important;
+        padding: 6px 14px !important;
+        border-radius: 999px !important;
+        font-size: 13px !important;
+    }
+
+    .deriv-terminal.ticket-sheet-collapsed .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) + .mobile-sheet-handle,
+    .ticket-panel:not(.is-open) ~ .mobile-sheet-handle {
+        bottom: calc(var(--mobile-nav) + var(--mobile-ticket-collapsed) - 22px) !important;
     }
 }
