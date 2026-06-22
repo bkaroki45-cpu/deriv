@@ -1,50 +1,92 @@
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+
+from django.db import transaction
+
 from .models import Wallet, WalletTransaction
 
 
+MONEY_QUANT = Decimal("0.01")
+
+
+def money(value):
+    try:
+        amount = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError("Amount must be a valid number") from exc
+    if amount <= 0:
+        raise ValueError("Amount must be greater than 0")
+    return amount.quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
+
+
 def get_wallet(user):
-    return Wallet.objects.get(user=user)
+    wallet, _ = Wallet.objects.get_or_create(
+        user=user,
+        defaults={"currency": getattr(user, "preferred_currency", "USD") or "USD"},
+    )
+    return wallet
 
 
 def deposit(wallet, amount, description="Deposit"):
-    wallet.balance += amount
-    wallet.save()
+    amount = money(amount)
 
-    WalletTransaction.objects.create(
-        wallet=wallet,
-        amount=amount,
-        type="deposit",
-        description=description
-    )
+    with transaction.atomic():
+        wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
+        wallet.balance = (wallet.balance + amount).quantize(MONEY_QUANT)
+        wallet.equity = (wallet.equity + amount).quantize(MONEY_QUANT)
+        wallet.save(update_fields=["balance", "equity", "updated_at"])
+
+        return WalletTransaction.objects.create(
+            wallet=wallet,
+            amount=amount,
+            type="deposit",
+            description=description,
+        )
 
 
 def withdraw(wallet, amount, description="Withdraw"):
+    amount = money(amount)
 
-    if wallet.balance < amount:
-        raise ValueError("Insufficient balance")
+    with transaction.atomic():
+        wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
 
-    wallet.balance -= amount
-    wallet.save()
+        if wallet.balance < amount:
+            raise ValueError("Insufficient balance")
 
-    WalletTransaction.objects.create(
-        wallet=wallet,
-        amount=amount,
-        type="withdraw",
-        description=description
-    )
+        wallet.balance = (wallet.balance - amount).quantize(MONEY_QUANT)
+        wallet.equity = (wallet.equity - amount).quantize(MONEY_QUANT)
+        wallet.save(update_fields=["balance", "equity", "updated_at"])
+
+        return WalletTransaction.objects.create(
+            wallet=wallet,
+            amount=amount,
+            type="withdraw",
+            description=description,
+        )
 
 
 def apply_trade_profit(user_or_wallet, trade):
     """Apply trade profit/loss to wallet. Accepts User or Wallet instance."""
-    if hasattr(user_or_wallet, "wallet"):
-        wallet = user_or_wallet.wallet
-    else:
-        wallet = user_or_wallet
-    wallet.balance += trade.profit
-    wallet.save()
+    wallet = get_wallet(user_or_wallet) if hasattr(user_or_wallet, "is_authenticated") else user_or_wallet
+    profit = Decimal(str(trade.profit or 0)).quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
+    description = f"Trade {trade.id}"
 
-    WalletTransaction.objects.create(
-        wallet=wallet,
-        amount=trade.profit,
-        type="profit" if trade.profit > 0 else "loss",
-        description=f"Trade {trade.id}"
-    )
+    with transaction.atomic():
+        wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
+        existing = WalletTransaction.objects.filter(
+            wallet=wallet,
+            description=description,
+            type__in=["profit", "loss"],
+        ).first()
+        if existing:
+            return existing
+
+        wallet.balance = (wallet.balance + profit).quantize(MONEY_QUANT)
+        wallet.equity = (wallet.equity + profit).quantize(MONEY_QUANT)
+        wallet.save(update_fields=["balance", "equity", "updated_at"])
+
+        return WalletTransaction.objects.create(
+            wallet=wallet,
+            amount=abs(profit),
+            type="profit" if profit >= 0 else "loss",
+            description=description,
+        )

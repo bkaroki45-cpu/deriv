@@ -6725,7 +6725,7 @@ textarea {
     .deriv-terminal.theme-light {
         --mobile-chart-min: clamp(220px, 34svh, 310px) !important;
         --mobile-ticket-expanded: min(clamp(300px, 42svh, 390px), calc(100svh - var(--mobile-topbar) - var(--mobile-nav) - var(--mobile-chart-min))) !important;
-        --mobile-ticket-collapsed: clamp(112px, 17svh, 136px) !important;
+        --mobile-ticket-collapsed: clamp(198px, 26svh, 218px) !important;
     }
 
     .deriv-terminal.ticket-contract-digits {
@@ -6796,17 +6796,23 @@ textarea {
     }
 
 
+    .deriv-terminal.ticket-sheet-collapsed .trade-ticket form,
+    .deriv-terminal:has(.ticket-panel:not(.is-open)) .trade-ticket form {
+        grid-template-rows: 30px 54px 56px !important;
+        gap: 8px !important;
+    }
+
     .deriv-terminal.ticket-sheet-collapsed .buy-btn,
     .deriv-terminal:has(.ticket-panel:not(.is-open)) .buy-btn {
-        justify-self: center !important;
-        align-self: center !important;
-        width: clamp(148px, 44vw, 190px) !important;
-        max-width: calc(100vw - 28px) !important;
-        min-height: 36px !important;
-        height: 36px !important;
-        padding: 6px 14px !important;
+        justify-self: stretch !important;
+        align-self: stretch !important;
+        width: 100% !important;
+        max-width: none !important;
+        min-height: 56px !important;
+        height: 56px !important;
+        padding: 8px 16px !important;
         border-radius: 999px !important;
-        font-size: 13px !important;
+        font-size: 15px !important;
     }
 
     .deriv-terminal.ticket-sheet-collapsed .mobile-sheet-handle,
