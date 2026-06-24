@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% if mode == "register" %}Register{% else %}Login{% endif %} | Profiteraa</title>
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=professional-ui-20260624-1">
 </head>
 <body class="auth-body">
     <main class="auth-shell">
@@ -24,6 +24,10 @@
             {% if error %}<strong class="auth-error">{{ error }}</strong>{% endif %}
             <a class="auth-primary" href="{% url 'deriv_login' %}">Continue to Deriv</a>
             <a class="auth-secondary" href="{% url 'register' %}">Create a Deriv account</a>
+            <div class="auth-help">
+                <strong>If Deriv shows "Access Denied"</strong>
+                <span>That block is coming from Deriv security, usually because the current IP or network was flagged. Try another network, disable VPN/proxy if one is active, wait a few minutes, then retry. If it keeps showing, send Deriv the Ray ID from that screen.</span>
+            </div>
             {% endif %}
             <small>App ID {{ deriv_app_id }}. Your password is never entered on Profiteraa.</small>
         </section>

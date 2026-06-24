@@ -220,6 +220,16 @@
                         time: candle.epoch,
                     }));
                 }
+                if (data.history && Array.isArray(data.history.prices) && window.profiteraChart) {
+                    window.profiteraChart.clear();
+                    data.history.prices.forEach((price, index) => {
+                        window.profiteraChart.ingestTick({
+                            symbol: this.activeSymbol,
+                            price,
+                            time: data.history.times && data.history.times[index],
+                        });
+                    });
+                }
             };
             this.derivSocket.onclose = () => {
                 this.setConnection(false);
@@ -255,14 +265,17 @@
         subscribeActive() {
             if (!this.derivSocket || this.derivSocket.readyState !== WebSocket.OPEN) return;
             this.subscribeVisibleRows();
-            this.derivSocket.send(JSON.stringify({
+            const interval = window.profiteraChart ? Number(window.profiteraChart.interval || 60) : 60;
+            const chartMode = window.profiteraChart ? window.profiteraChart.mode : "line";
+            const payload = {
                 ticks_history: this.activeSymbol,
                 end: "latest",
-                count: 500,
-                style: "candles",
-                granularity: window.profiteraChart ? window.profiteraChart.interval : 60,
+                count: 5000,
+                style: chartMode === "ticks" ? "ticks" : "candles",
                 req_id: 22,
-            }));
+            };
+            if (payload.style === "candles") payload.granularity = Math.max(60, interval);
+            this.derivSocket.send(JSON.stringify(payload));
         }
 
         subscribeVisibleRows() {

@@ -88,6 +88,24 @@ def _exchange_oauth_code(request, code):
     return data
 
 
+def _ensure_deriv_user(request, account_id=""):
+    if request.user.is_authenticated:
+        return request.user
+    user_model = get_user_model()
+    account_part = "".join(ch for ch in str(account_id or "") if ch.isalnum()).lower()
+    suffix = account_part or secrets.token_urlsafe(5).replace("-", "").replace("_", "")
+    username = f"deriv_user_{suffix}"
+    if user_model.objects.filter(username=username).exists():
+        suffix = secrets.token_urlsafe(5).replace("-", "").replace("_", "")
+        username = f"deriv_user_{suffix}"
+    user = user_model.objects.create_user(
+        username=username,
+        email=f"{username}@profiteraa.local",
+    )
+    login(request, user)
+    return user
+
+
 def _absolute_redirect_uri(request):
     configured = os.getenv("DERIV_REDIRECT_URI")
     if configured:
@@ -186,14 +204,7 @@ def deriv_oauth_callback(request):
             return redirect("login")
         try:
             data = _exchange_oauth_code(request, code)
-            if not request.user.is_authenticated:
-                user_model = get_user_model()
-                suffix = secrets.token_urlsafe(5).replace("-", "").replace("_", "")
-                user = user_model.objects.create_user(
-                    username=f"deriv_user_{suffix}",
-                    email=f"deriv_user_{suffix}@profiteraa.local",
-                )
-                login(request, user)
+            _ensure_deriv_user(request)
             validate_and_store_token(request, request.user, data["access_token"], token_type="oauth", token_payload=data)
         except Exception as exc:
             request.session["deriv_oauth_error"] = str(exc)
@@ -204,13 +215,11 @@ def deriv_oauth_callback(request):
     account_id = request.GET.get("acct1") or request.GET.get("account")
     currency = request.GET.get("cur1") or request.GET.get("currency") or "USD"
     if token:
-        if request.user.is_authenticated:
-            try:
-                request.session["deriv_account_id"] = account_id
-                validate_and_store_token(request, request.user, token, token_type="oauth")
-            except Exception:
-                _store_deriv_session(request, token, account_id, currency)
-        else:
+        try:
+            _ensure_deriv_user(request, account_id)
+            request.session["deriv_account_id"] = account_id
+            validate_and_store_token(request, request.user, token, token_type="oauth")
+        except Exception:
             _store_deriv_session(request, token, account_id, currency)
     return redirect("trade")
 

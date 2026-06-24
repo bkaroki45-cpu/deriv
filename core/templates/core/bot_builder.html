@@ -5,17 +5,17 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Profitera Bot Builder</title>
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=professional-ui-20260624-1">
 </head>
 <body class="bot-page">
     <main class="deriv-bot-builder">
         <aside class="deriv-rail" aria-label="Bot navigation">
-            <a class="deriv-logo" href="/bot-builder/" aria-label="Profitera bot">DB</a>
-            <a class="rail-item is-active" href="/bot-builder/">⌂<span>Home</span></a>
-            <a class="rail-item" href="/trade/">▱<span>Reports</span></a>
+            <a class="deriv-logo bot-logo" href="/bot-builder/" aria-label="Profitera bot">DB</a>
+            <a class="rail-item is-active" href="/bot-builder/"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Home</span></a>
+            <a class="rail-item" href="/trade/"><span class="rail-icon icon-report" aria-hidden="true"></span><span>Reports</span></a>
             <span class="rail-spacer"></span>
-            <button class="rail-item" type="button" data-theme-toggle>☼<span>Theme</span></button>
-            <a class="rail-item" href="/accounts/logout/">⇱<span>Log out</span></a>
+            <button class="rail-item" type="button" data-theme-toggle><span class="rail-icon icon-theme" aria-hidden="true"></span><span>Theme</span></button>
+            <a class="rail-item" href="/accounts/logout/"><span class="rail-icon icon-user" aria-hidden="true"></span><span>Log out</span></a>
         </aside>
 
         <section class="bot-main">
@@ -39,23 +39,24 @@
                         <button class="block-menu-item" draggable="true">Purchase conditions</button>
                         <button class="block-menu-item" draggable="true">Sell conditions (optional)</button>
                         <button class="block-menu-item" draggable="true">Restart trading conditions</button>
-                        <button class="block-menu-item" draggable="true">Analysis</button>
-                        <button class="block-menu-item" draggable="true">Utility</button>
+                        <button class="block-menu-item has-chevron" draggable="true">Analysis</button>
+                        <button class="block-menu-item has-chevron" draggable="true">Utility</button>
                     </section>
                 </aside>
 
                 <section class="bot-canvas-wrap">
                     <div class="bot-toolbar" aria-label="Bot builder tools">
-                        <button data-bot-modal="reset" type="button" title="Reset">↻</button>
-                        <button data-bot-modal="import" type="button" title="Import">▱</button>
-                        <button data-bot-modal="save" type="button" title="Save">▣</button>
-                        <button data-bot-action="sort" type="button" title="Sort blocks">╞</button>
-                        <button data-bot-modal="chart" type="button" title="Chart">⌁</button>
-                        <button data-bot-modal="tradingview" type="button" title="TradingView Chart">↯</button>
-                        <button data-bot-action="undo" type="button" title="Undo">↶</button>
-                        <button data-bot-action="redo" type="button" title="Redo">↷</button>
-                        <button data-bot-action="zoom-in" type="button" title="Zoom in">⊕</button>
-                        <button data-bot-action="zoom-out" type="button" title="Zoom out">⊖</button>
+                        <button class="bot-tool bot-tool-reset" data-bot-modal="reset" type="button" title="Reset" aria-label="Reset"></button>
+                        <button class="bot-tool bot-tool-folder" data-bot-modal="import" type="button" title="Import" aria-label="Import"></button>
+                        <button class="bot-tool bot-tool-save" data-bot-modal="save" type="button" title="Save" aria-label="Save"></button>
+                        <button class="bot-tool bot-tool-sort" data-bot-action="sort" type="button" title="Sort blocks" aria-label="Sort blocks"></button>
+                        <button class="bot-tool bot-tool-chart" data-bot-modal="chart" type="button" title="Chart" aria-label="Chart"></button>
+                        <button class="bot-tool bot-tool-tv" data-bot-modal="tradingview" type="button" title="TradingView Chart" aria-label="TradingView Chart"></button>
+                        <span class="bot-toolbar-spacer"></span>
+                        <button class="bot-tool bot-tool-undo" data-bot-action="undo" type="button" title="Undo" aria-label="Undo"></button>
+                        <button class="bot-tool bot-tool-redo" data-bot-action="redo" type="button" title="Redo" aria-label="Redo"></button>
+                        <button class="bot-tool bot-tool-zoom-in" data-bot-action="zoom-in" type="button" title="Zoom in" aria-label="Zoom in"></button>
+                        <button class="bot-tool bot-tool-zoom-out" data-bot-action="zoom-out" type="button" title="Zoom out" aria-label="Zoom out"></button>
                     </div>
 
                     <div class="bot-stage" id="builder-stage">
@@ -86,7 +87,7 @@
                 </section>
 
                 <aside class="bot-summary">
-                    <div class="run-strip"><button type="button">▶ Run</button><strong>Bot is not running</strong></div>
+                    <div class="run-strip"><button type="button">Run</button><strong>Bot is not running</strong></div>
                     <nav><button class="is-active">Summary</button><button>Transactions</button><button>Journal</button></nav>
                     <div class="summary-empty">When you're ready to trade, hit Run.<br>You'll be able to track your bot's performance here.</div>
                     <footer>
@@ -101,13 +102,13 @@
 
         <div class="modal-layer" id="bot-modal-layer" hidden>
             <section class="bot-dialog small" data-bot-panel="reset" hidden>
-                <header><strong>Reset strategy?</strong><button data-close-bot-modal type="button">×</button></header>
+                <header><strong>Reset strategy?</strong><button data-close-bot-modal type="button">x</button></header>
                 <p>Do you want to cancel the settings made for this bot?</p>
                 <footer><button data-close-bot-modal type="button">Cancel</button><button class="danger-btn" data-close-bot-modal type="button">Reset</button></footer>
             </section>
 
             <section class="bot-dialog load" data-bot-panel="import" hidden>
-                <header><strong>Load strategy</strong><button data-close-bot-modal type="button">×</button></header>
+                <header><strong>Load strategy</strong><button data-close-bot-modal type="button">x</button></header>
                 <div class="load-tabs"><button class="is-active">Recent</button><button>Local</button><button>Google Drive</button></div>
                 <aside><strong>Untitled Bot</strong><small>Unsaved</small></aside>
                 <div class="bot-preview"><span>Preview</span><div class="preview-blocks"></div></div>
@@ -115,24 +116,24 @@
             </section>
 
             <section class="bot-dialog small" data-bot-panel="save" hidden>
-                <header><strong>Save strategy</strong><button data-close-bot-modal type="button">×</button></header>
+                <header><strong>Save strategy</strong><button data-close-bot-modal type="button">x</button></header>
                 <p>Enter your bot name, choose where to save it, and hit Save.</p>
                 <input type="text" placeholder="Bot name">
-                <div class="save-options"><button class="is-active">▰<span>Local</span></button><button>▲<span>Google Drive</span></button></div>
+                <div class="save-options"><button class="is-active">File<span>Local</span></button><button>Drive<span>Google Drive</span></button></div>
                 <footer><button data-close-bot-modal type="button">Cancel</button><button class="danger-btn" type="button">Save</button></footer>
             </section>
 
             <section class="bot-dialog chart-dialog" data-bot-panel="chart" hidden>
-                <header><strong>Chart</strong><button data-close-bot-modal type="button">×</button></header>
+                <header><strong>Chart</strong><button data-close-bot-modal type="button">x</button></header>
                 <div class="mini-chart"><strong>Volatility 100 (1s) Index</strong><svg viewBox="0 0 420 320" role="img"><polyline points="0,210 40,170 70,190 110,70 150,40 180,120 220,160 260,184 300,180 330,230 420,230" fill="none" stroke="black"/><path d="M0 210 L40 170 L70 190 L110 70 L150 40 L180 120 L220 160 L260 184 L300 180 L330 230 L420 230 L420 320 L0 320Z" fill="rgba(0,0,0,.08)"/></svg></div>
             </section>
 
             <section class="bot-dialog chart-dialog" data-bot-panel="tradingview" hidden>
-                <header><strong>TradingView Chart</strong><button data-close-bot-modal type="button">×</button></header>
+                <header><strong>TradingView Chart</strong><button data-close-bot-modal type="button">x</button></header>
                 <div class="tradingview-mock"><h2>deriv</h2><div class="tv-toolbar">R_25  24h  Save</div><svg viewBox="0 0 420 320"><polyline points="20,40 50,110 80,130 120,190 170,205 220,240 260,210 300,225 360,210 400,214" fill="none" stroke="#ff444f" stroke-width="4"/></svg></div>
             </section>
         </div>
     </main>
-    <script src="{% static 'js/bot_builder.js' %}"></script>
+    <script src="{% static 'js/bot_builder.js' %}?v=professional-ui-20260624-1"></script>
 </body>
 </html>

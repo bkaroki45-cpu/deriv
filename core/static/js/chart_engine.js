@@ -10,6 +10,7 @@
             this.ticks = [];
             this.zoom = 1;
             this.pan = 0;
+            this.fitAllHistory = true;
             this.crosshair = null;
             this.activeTool = null;
             this.drawings = [];
@@ -113,11 +114,13 @@
 
         setMode(mode) {
             this.mode = mode;
+            this.fitAllHistory = true;
             this.draw();
         }
 
         setInterval(interval) {
             this.interval = Number(interval) || 1;
+            this.fitAllHistory = true;
             this.draw();
         }
 
@@ -128,6 +131,7 @@
         }
 
         setZoom(zoom) {
+            this.fitAllHistory = false;
             this.zoom = Math.min(6, Math.max(0.25, zoom));
             this.draw();
         }
@@ -146,6 +150,7 @@
         reset() {
             this.zoom = 1;
             this.pan = 0;
+            this.fitAllHistory = true;
             this.draw();
         }
 
@@ -154,7 +159,7 @@
             const time = Number(tick.time || tick.epoch || Date.now() / 1000);
             if (!Number.isFinite(price)) return;
             this.ticks.push({ price, time });
-            if (this.ticks.length > 700) this.ticks.shift();
+            if (this.ticks.length > 5000) this.ticks.shift();
             this.upsertCandle({ open: price, high: price, low: price, close: price, time });
         }
 
@@ -182,7 +187,7 @@
                 }
                 this.candles.push({ ...candle, bucket });
             }
-            if (this.candles.length > 500) this.candles.shift();
+            if (this.candles.length > 5000) this.candles.shift();
             this.requestDraw();
         }
 
@@ -256,7 +261,11 @@
             const source = this.mode === "ticks"
                 ? this.ticks.map((tick) => ({ open: tick.price, high: tick.price, low: tick.price, close: tick.price, time: tick.time }))
                 : this.candles;
-            const metrics = this.plotMetrics(this.canvas.width || 900);
+            if (this.fitAllHistory) {
+                const mobileLimit = window.matchMedia && window.matchMedia("(max-width: 700px)").matches ? 900 : 5000;
+                return source.slice(Math.max(0, source.length - mobileLimit));
+            }
+            const metrics = this.plotMetrics(this.canvas.width || 900, source.length);
             const target = Math.ceil(metrics.plotWidth / metrics.step) + 8;
             return source.slice(Math.max(0, source.length - target));
         }
@@ -369,13 +378,17 @@
             ctx.stroke();
         }
 
-        plotMetrics(width) {
+        plotMetrics(width, seriesLength = 0) {
             const axisWidth = 92 * devicePixelRatio;
             const futureWidth = Math.min(Math.max(width * 0.16, 90 * devicePixelRatio), 190 * devicePixelRatio);
             const plotRight = width - axisWidth;
             const activeRight = plotRight - futureWidth;
             const plotWidth = Math.max(120 * devicePixelRatio, activeRight);
-            const step = Math.max(5 * devicePixelRatio, Math.min(18 * devicePixelRatio, 8 * devicePixelRatio * this.zoom));
+            const fittedStep = seriesLength > 1 ? plotWidth / Math.max(1, seriesLength - 1) : 8 * devicePixelRatio;
+            const minFittedStep = window.matchMedia && window.matchMedia("(max-width: 700px)").matches ? 1.15 * devicePixelRatio : 0.45 * devicePixelRatio;
+            const step = this.fitAllHistory
+                ? Math.max(minFittedStep, fittedStep)
+                : Math.max(5 * devicePixelRatio, Math.min(18 * devicePixelRatio, 8 * devicePixelRatio * this.zoom));
             return {
                 axisWidth,
                 futureWidth,
@@ -390,7 +403,7 @@
             if (!this.flowAnimation || count <= 1) return 0;
             const elapsed = performance.now() - this.flowAnimation.start;
             const progress = Math.min(1, Math.max(0, elapsed / this.flowAnimation.duration));
-            const metrics = this.plotMetrics(width);
+            const metrics = this.plotMetrics(width, count);
             if (progress >= 1) {
                 this.flowAnimation = null;
                 return 0;
@@ -399,7 +412,7 @@
         }
 
         seriesX(index, count, width) {
-            const metrics = this.plotMetrics(width);
+            const metrics = this.plotMetrics(width, count);
             const latestOffset = Math.max(0, count - 1 - index) * metrics.step;
             return metrics.activeRight - latestOffset + this.pan + this.flowOffset(width, count);
         }

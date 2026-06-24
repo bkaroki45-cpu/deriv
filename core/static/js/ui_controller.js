@@ -93,7 +93,7 @@
             title: "Even/Odd",
             contract: "DIGITEVEN",
             choices: ["Even", "Odd"],
-            fields: ["duration", "stake"],
+            fields: ["digits", "duration", "stake"],
             payout: "19.53 USD",
             duration: "5",
             unit: "t",
@@ -141,12 +141,15 @@
     function renderDigits() {
         const picker = byId("digit-picker");
         if (!picker) return;
-        const label = ["match_diff", "over_under"].includes(activeTradeType) ? "Last digit prediction" : "Digit prediction";
+        const label = ["match_diff", "over_under", "even_odd"].includes(activeTradeType) ? "Last digit prediction" : "Digit prediction";
         const counts = window.profiteraDigits?.counts || Array.from({ length: 10 }, () => 0);
         const total = counts.reduce((sum, count) => sum + count, 0) || 1;
+        const positive = counts.filter((count) => count > 0);
+        const highest = positive.length ? Math.max(...positive) : 0;
+        const lowest = positive.length ? Math.min(...positive) : 0;
         picker.setAttribute("aria-label", label);
         picker.innerHTML = `<strong>${label}</strong>${Array.from({ length: 10 }, (_, digit) => `
-            <button type="button" data-digit="${digit}" class="${digit === activeDigit ? "is-active" : ""} ${digit === lastDigit ? "is-live" : ""} ${digitOutcomeClass(digit)}">
+            <button type="button" data-digit="${digit}" class="${digitClassName(digit, counts[digit], highest, lowest)}">
                 <span>${digit}</span>
                 <small>${((counts[digit] / total) * 100).toFixed(1)}%</small>
             </button>
@@ -161,6 +164,18 @@
                 scheduleProposal();
             });
         });
+    }
+
+    function digitClassName(digit, count, highest, lowest) {
+        const classes = [];
+        if (digit === activeDigit) classes.push("is-active");
+        if (digit === lastDigit) classes.push("is-live");
+        if (count > 0 && highest > 0 && count === highest) classes.push("is-hot");
+        if (count > 0 && lowest > 0 && count === lowest && lowest !== highest) classes.push("is-cold");
+        classes.push(`is-tone-${digit % 4}`);
+        const outcome = digitOutcomeClass(digit);
+        if (outcome) classes.push(outcome);
+        return classes.join(" ");
     }
 
     function digitOutcomeClass(digit) {
@@ -520,6 +535,7 @@
         button.addEventListener("click", () => {
             document.querySelectorAll("[data-chart-mode]").forEach((item) => item.classList.toggle("is-active", item === button));
             if (window.profiteraChart) window.profiteraChart.setMode(button.dataset.chartMode || "line");
+            if (window.profiteraMarkets) window.profiteraMarkets.subscribeActive();
             closeFloatingPanels();
         });
     });

@@ -6,7 +6,7 @@
         <i></i>
     </div>
     <aside class="deriv-rail" aria-label="Main navigation">
-        <a class="deriv-logo" href="{% url 'trade' %}" aria-label="Profitera trade">P</a>
+        <a class="deriv-logo" href="{% url 'home' %}" aria-label="Profitera home">P</a>
         <div class="rail-status" aria-label="Connection status">
             <span data-connection="markets">offline</span>
             <small>Markets</small>
@@ -15,7 +15,8 @@
             <span data-connection="deriv-options">{% if deriv_session.is_connected %}connecting{% else %}login required{% endif %}</span>
             <small>Deriv</small>
         </div>
-        <button class="rail-item is-active" type="button" data-page="trade" title="Trade" aria-label="Trade"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Trade</span></button>
+        <a class="rail-item" href="{% url 'home' %}" title="Home" aria-label="Home"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Home</span></a>
+        <button class="rail-item is-active" type="button" data-page="trade" title="Trade" aria-label="Trade"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Trade</span></button>
         <button class="rail-item" type="button" data-page="dashboard" title="Dashboard" aria-label="Dashboard"><span class="rail-icon icon-report" aria-hidden="true"></span><span>Dashboard</span></button>
         <button class="rail-item" type="button" data-toggle-markets title="Markets" aria-label="Markets"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Markets</span></button>
         <button class="rail-item" type="button" data-toggle-positions title="Portfolio" aria-label="Portfolio"><span class="rail-icon icon-briefcase" aria-hidden="true"></span><span>Portfolio</span></button>
@@ -230,7 +231,7 @@
 
     <button class="mobile-sheet-handle" type="button" data-toggle-ticket aria-label="Toggle trade ticket" aria-expanded="true"><span>Trade</span><i aria-hidden="true"></i></button>
     <nav class="mobile-nav" aria-label="Mobile navigation">
-        <button type="button" data-page="dashboard"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Home</span></button>
+        <a href="{% url 'home' %}"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Home</span></a>
         <button class="is-active" type="button" data-page="trade"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Trade</span></button>
         <button type="button" data-toggle-markets><span class="rail-icon icon-markets" aria-hidden="true"></span><span>Markets</span></button>
         <button type="button" data-toggle-positions><span class="rail-icon icon-briefcase" aria-hidden="true"></span><span>Portfolio</span></button>
@@ -277,10 +278,10 @@
         <section class="trade-modal" data-modal-panel="chart-types" hidden>
             <header><strong>Chart types</strong><button data-close-modal type="button">x</button></header>
             <div class="chart-type-grid">
-                <button class="is-active" data-chart-mode="line" type="button">A<span>Area</span></button>
-                <button data-chart-mode="candles" type="button">C<span>Candle</span></button>
-                <button data-chart-mode="ticks" type="button">T<span>Ticks</span></button>
-                <button data-chart-mode="digits" type="button">D<span>Digits</span></button>
+                <button class="is-active" data-chart-mode="line" type="button"><i class="chart-mode-icon area-icon" aria-hidden="true"></i><span>Area</span></button>
+                <button data-chart-mode="candles" type="button"><i class="chart-mode-icon candle-icon" aria-hidden="true"></i><span>Candle</span></button>
+                <button data-chart-mode="ticks" type="button"><i class="chart-mode-icon tick-icon" aria-hidden="true"></i><span>Ticks</span></button>
+                <button data-chart-mode="digits" type="button"><i class="chart-mode-icon digit-icon" aria-hidden="true"></i><span>Digits</span></button>
             </div>
             <h3>Time interval</h3>
             <div class="interval-grid">
