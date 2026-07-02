@@ -11,6 +11,7 @@
             this.zoom = 1;
             this.pan = 0;
             this.fitAllHistory = true;
+            this.historyOffset = 0;
             this.crosshair = null;
             this.activeTool = null;
             this.drawings = [];
@@ -49,7 +50,11 @@
 
             this.canvas.addEventListener("wheel", (event) => {
                 event.preventDefault();
-                this.setZoom(this.zoom + (event.deltaY > 0 ? -0.12 : 0.12));
+                if (event.ctrlKey || event.metaKey) {
+                    this.setZoom(this.zoom + (event.deltaY > 0 ? -0.12 : 0.12));
+                    return;
+                }
+                this.scrollHistory(event.deltaX || event.deltaY);
             }, { passive: false });
 
             this.canvas.addEventListener("mousedown", (event) => {
@@ -57,19 +62,26 @@
                     this.addDrawingPoint(event);
                     return;
                 }
+                this.fitAllHistory = false;
                 this.dragging = true;
                 this.lastPointerX = event.clientX;
+                this.canvas.classList.add("is-dragging");
             });
-            window.addEventListener("mouseup", () => { this.dragging = false; });
+            window.addEventListener("mouseup", () => {
+                this.dragging = false;
+                this.canvas.classList.remove("is-dragging");
+            });
             window.addEventListener("mousemove", (event) => {
                 if (!this.dragging) return;
                 this.pan += event.clientX - this.lastPointerX;
                 this.lastPointerX = event.clientX;
+                this.syncHistoryOffset();
                 this.draw();
             });
 
             this.canvas.addEventListener("touchstart", (event) => {
                 if (event.touches.length === 1) {
+                    this.fitAllHistory = false;
                     this.dragging = true;
                     this.lastPointerX = event.touches[0].clientX;
                 }
@@ -84,6 +96,7 @@
                     event.preventDefault();
                     this.pan += event.touches[0].clientX - this.lastPointerX;
                     this.lastPointerX = event.touches[0].clientX;
+                    this.syncHistoryOffset();
                     this.draw();
                 }
                 if (event.touches.length === 2) {
@@ -115,12 +128,16 @@
         setMode(mode) {
             this.mode = mode;
             this.fitAllHistory = true;
+            this.pan = 0;
+            this.historyOffset = 0;
             this.draw();
         }
 
         setInterval(interval) {
             this.interval = Number(interval) || 1;
             this.fitAllHistory = true;
+            this.pan = 0;
+            this.historyOffset = 0;
             this.draw();
         }
 
@@ -133,6 +150,7 @@
         setZoom(zoom) {
             this.fitAllHistory = false;
             this.zoom = Math.min(6, Math.max(0.25, zoom));
+            this.syncPanFromHistoryOffset();
             this.draw();
         }
 
@@ -151,6 +169,7 @@
             this.zoom = 1;
             this.pan = 0;
             this.fitAllHistory = true;
+            this.historyOffset = 0;
             this.draw();
         }
 
@@ -267,7 +286,48 @@
             }
             const metrics = this.plotMetrics(this.canvas.width || 900, source.length);
             const target = Math.ceil(metrics.plotWidth / metrics.step) + 8;
-            return source.slice(Math.max(0, source.length - target));
+            const maxOffset = Math.max(0, source.length - target);
+            this.historyOffset = Math.min(Math.max(0, this.historyOffset), maxOffset);
+            const end = Math.max(0, source.length - this.historyOffset);
+            const start = Math.max(0, end - target);
+            return source.slice(start, end);
+        }
+
+        sourceLength() {
+            return this.mode === "ticks" ? this.ticks.length : this.candles.length;
+        }
+
+        visibleTargetCount() {
+            const sourceLength = this.sourceLength();
+            const metrics = this.plotMetrics(this.canvas.width || 900, sourceLength);
+            return Math.ceil(metrics.plotWidth / metrics.step) + 8;
+        }
+
+        maxHistoryOffset() {
+            return Math.max(0, this.sourceLength() - this.visibleTargetCount());
+        }
+
+        syncHistoryOffset() {
+            const metrics = this.plotMetrics(this.canvas.width || 900, this.sourceLength());
+            const maxPan = this.maxHistoryOffset() * Math.max(1, metrics.step);
+            this.pan = Math.min(maxPan, Math.max(0, this.pan));
+            const offset = Math.round(this.pan / Math.max(1, metrics.step));
+            this.historyOffset = Math.min(this.maxHistoryOffset(), Math.max(0, offset));
+        }
+
+        syncPanFromHistoryOffset() {
+            const metrics = this.plotMetrics(this.canvas.width || 900, this.sourceLength());
+            this.historyOffset = Math.min(this.maxHistoryOffset(), Math.max(0, this.historyOffset));
+            this.pan = this.historyOffset * metrics.step;
+        }
+
+        scrollHistory(delta) {
+            this.fitAllHistory = false;
+            const direction = Number(delta) >= 0 ? 1 : -1;
+            const amount = Math.max(1, Math.min(24, Math.round(Math.abs(Number(delta) || 0) / 18)));
+            this.historyOffset = Math.min(this.maxHistoryOffset(), Math.max(0, this.historyOffset + direction * amount));
+            this.syncPanFromHistoryOffset();
+            this.draw();
         }
 
         renderedSeries(series) {
@@ -414,7 +474,7 @@
         seriesX(index, count, width) {
             const metrics = this.plotMetrics(width, count);
             const latestOffset = Math.max(0, count - 1 - index) * metrics.step;
-            return metrics.activeRight - latestOffset + this.pan + this.flowOffset(width, count);
+            return metrics.activeRight - latestOffset + this.flowOffset(width, count);
         }
 
         drawLatestPriceLine(ctx, series, scale, width) {
@@ -469,7 +529,7 @@
                     else ctx.lineTo(x, y);
                 });
                 ctx.lineTo(this.seriesX(series.length - 1, series.length, width), this.canvas.height);
-                ctx.lineTo(this.pan, this.canvas.height);
+                ctx.lineTo(0, this.canvas.height);
                 ctx.closePath();
                 const gradient = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
                 gradient.addColorStop(0, "rgba(163, 170, 178, 0.26)");
@@ -792,7 +852,7 @@
             const price = scale.top - ((this.crosshair.y - 18) / (height - 44)) * (scale.top - scale.bottom);
             if (this.readout) {
                 const metrics = this.plotMetrics(width);
-                const nearest = Math.max(0, Math.min(series.length - 1, series.length - 1 - Math.round((metrics.activeRight + this.pan - this.crosshair.x) / Math.max(1, metrics.step))));
+                const nearest = Math.max(0, Math.min(series.length - 1, series.length - 1 - Math.round((metrics.activeRight - this.crosshair.x) / Math.max(1, metrics.step))));
                 const item = series[nearest] || series[series.length - 1];
                 const time = item && item.time ? new Date(item.time * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "--";
                 this.readout.textContent = `Price ${price.toFixed(4)} / ${time}`;

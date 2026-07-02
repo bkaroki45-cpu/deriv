@@ -4,137 +4,251 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Profitera Automatic Trade</title>
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=professional-ui-20260624-1">
+    <title>Profitera Bot</title>
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=bot-shell-20260702-1">
 </head>
-<body class="bot-page">
-    <main class="deriv-bot-builder">
-        <aside class="deriv-rail" aria-label="Automatic trade navigation">
-            <a class="deriv-logo bot-logo" href="/automatic-trade/" aria-label="Profitera automatic trade">AT</a>
-            <a class="rail-item" href="/trade/"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Manual</span></a>
-            <a class="rail-item is-active" href="/automatic-trade/"><span class="rail-icon icon-menu" aria-hidden="true"></span><span>Automatic</span></a>
-            <a class="rail-item" href="/trade/"><span class="rail-icon icon-report" aria-hidden="true"></span><span>Reports</span></a>
-            <span class="rail-spacer"></span>
-            <button class="rail-item" type="button" data-theme-toggle><span class="rail-icon icon-theme" aria-hidden="true"></span><span>Theme</span></button>
-            <a class="rail-item" href="/accounts/logout/"><span class="rail-icon icon-user" aria-hidden="true"></span><span>Log out</span></a>
-        </aside>
+<body class="bot-page bot-shell-page">
+    <main class="dbot-shell" data-bot-running="false">
+        <header class="dbot-topbar">
+            <section class="dbot-brandbar" aria-label="Application">
+                <a class="dbot-logo" href="/">P</a>
+                <a class="dbot-hub" href="/">Trader's Hub</a>
+                <button class="dbot-app-switch" type="button">Profitera Bot<span class="chevron" aria-hidden="true"></span></button>
+            </section>
 
-        <section class="bot-main">
-            <header class="bot-topbar">
-                <nav>
-                    <a href="/trade/">Manual trade</a>
-                    <a class="is-active" href="/automatic-trade/">Automatic trade</a>
-                    <a href="/trade/">Charts</a>
-                    <a href="#">Tutorials</a>
-                </nav>
-                <div class="bot-account"><small>Real account</small><strong>0.00 USD</strong><a class="deposit-btn" href="/account/">Deposit</a></div>
-            </header>
+            <nav class="dbot-tabs" aria-label="Bot workspace">
+                <button class="is-active" type="button" data-bot-tab="dashboard">Dashboard</button>
+                <button type="button" data-bot-tab="builder">Bot Builder</button>
+                <button type="button" data-bot-tab="charts">Charts</button>
+                <button type="button" data-bot-tab="tutorials">Tutorials</button>
+            </nav>
 
-            <div class="bot-content">
-                <aside class="blocks-menu">
-                    <button class="quick-strategy" type="button">Quick strategy</button>
-                    <section>
-                        <h2>Blocks menu</h2>
-                        <input type="search" placeholder="Search">
-                        <button class="block-menu-item" draggable="true">Trade parameters</button>
-                        <button class="block-menu-item" draggable="true">Purchase conditions</button>
-                        <button class="block-menu-item" draggable="true">Sell conditions (optional)</button>
-                        <button class="block-menu-item" draggable="true">Restart trading conditions</button>
-                        <button class="block-menu-item has-chevron" draggable="true">Analysis</button>
-                        <button class="block-menu-item has-chevron" draggable="true">Utility</button>
-                    </section>
-                </aside>
+            <section class="dbot-actions" aria-label="Bot controls">
+                <span class="dbot-connection is-live" title="Connection live"></span>
+                <button class="dbot-info" type="button" aria-label="Information">i</button>
+                <button class="dbot-run" type="button" data-bot-run><span aria-hidden="true">&gt;</span>Run</button>
+                <button class="dbot-stop" type="button" data-bot-stop hidden>Stop</button>
+                <strong class="dbot-status" data-bot-status><i></i>Bot is not running</strong>
+                <div class="dbot-auth">
+                    {% if deriv_session.is_connected %}
+                    <button class="dbot-account-pill" type="button"><small>{{ deriv_session.account_type|default:"real"|title }}</small><strong>{{ real_balance|default:"0.00" }} {{ deriv_session.currency|default:"USD" }}</strong></button>
+                    {% else %}
+                    <a href="{% url 'login' %}">Log in</a>
+                    <a class="dbot-signup" href="{% url 'register' %}">Sign up</a>
+                    {% endif %}
+                </div>
+            </section>
+        </header>
 
-                <section class="bot-canvas-wrap">
-                    <div class="bot-toolbar" aria-label="Automatic trade builder tools">
-                        <button class="bot-tool bot-tool-reset" data-bot-modal="reset" type="button" title="Reset" aria-label="Reset"></button>
-                        <button class="bot-tool bot-tool-folder" data-bot-modal="import" type="button" title="Import" aria-label="Import"></button>
-                        <button class="bot-tool bot-tool-save" data-bot-modal="save" type="button" title="Save" aria-label="Save"></button>
-                        <button class="bot-tool bot-tool-sort" data-bot-action="sort" type="button" title="Sort blocks" aria-label="Sort blocks"></button>
-                        <button class="bot-tool bot-tool-chart" data-bot-modal="chart" type="button" title="Chart" aria-label="Chart"></button>
-                        <button class="bot-tool bot-tool-tv" data-bot-modal="tradingview" type="button" title="TradingView Chart" aria-label="TradingView Chart"></button>
-                        <span class="bot-toolbar-spacer"></span>
-                        <button class="bot-tool bot-tool-undo" data-bot-action="undo" type="button" title="Undo" aria-label="Undo"></button>
-                        <button class="bot-tool bot-tool-redo" data-bot-action="redo" type="button" title="Redo" aria-label="Redo"></button>
-                        <button class="bot-tool bot-tool-zoom-in" data-bot-action="zoom-in" type="button" title="Zoom in" aria-label="Zoom in"></button>
-                        <button class="bot-tool bot-tool-zoom-out" data-bot-action="zoom-out" type="button" title="Zoom out" aria-label="Zoom out"></button>
-                    </div>
-
-                    <div class="bot-stage" id="builder-stage">
-                        <article class="bot-block block-large" style="left: 18px; top: 48px;">
-                            <h3>1. Trade parameters</h3>
-                            <p>Market: <span>Derived</span> &gt; <span>Continuous Indices</span> &gt; <span>Volatility 100 (1s) Index</span></p>
-                            <p>Trade Type: <span>Up/Down</span> &gt; <span>Rise/Fall</span></p>
-                            <p>Contract Type: <span>Both</span></p>
-                            <p>Default Candle Interval: <span>1 minute</span></p>
-                            <label>Restart buy/sell on error <input type="checkbox"></label>
-                            <label>Restart last trade on error <input type="checkbox" checked></label>
-                            <h4>Trade options:</h4>
-                            <p>Duration: <span>Ticks</span> <b>1</b> Stake: USD <b>1</b></p>
-                        </article>
-                        <article class="bot-block" style="left: 18px; top: 466px;">
-                            <h3>2. Purchase conditions</h3>
-                            <p>Purchase <span>Rise</span></p>
-                        </article>
-                        <article class="bot-block" style="left: 520px; top: 48px;">
-                            <h3>3. Sell conditions</h3>
-                            <p>if <span>Sell is available</span> then</p>
-                        </article>
-                        <article class="bot-block" style="left: 520px; top: 210px;">
-                            <h3>4. Restart trading conditions</h3>
-                            <p><span>Trade again</span></p>
-                        </article>
+        <section class="dbot-body">
+            <section class="dbot-workspace">
+                <section class="dbot-page is-active" data-bot-page="dashboard">
+                    <div class="dbot-dashboard">
+                        <button class="dbot-help-close" type="button" data-close-help aria-label="Close welcome panel">x</button>
+                        <section class="dbot-load">
+                            <h1>Load or build your bot</h1>
+                            <p>Start with a saved XML file, open a template, or build a new strategy from blocks.</p>
+                            <div class="dbot-load-grid">
+                                <button type="button" data-open-local>
+                                    <span class="dbot-card-icon">UP</span>
+                                    <strong>My computer</strong>
+                                    <small>Upload local XML</small>
+                                </button>
+                                <button type="button" disabled>
+                                    <span class="dbot-card-icon">GD</span>
+                                    <strong>Google Drive</strong>
+                                    <small>Coming soon</small>
+                                </button>
+                                <button type="button" data-bot-tab-jump="builder">
+                                    <span class="dbot-card-icon">BB</span>
+                                    <strong>Bot builder</strong>
+                                    <small>Blank workspace</small>
+                                </button>
+                                <button type="button" data-bot-modal="quick">
+                                    <span class="dbot-card-icon">QS</span>
+                                    <strong>Quick strategy</strong>
+                                    <small>Use a template</small>
+                                </button>
+                            </div>
+                        </section>
+                        <aside class="dbot-help-panel" data-help-panel>
+                        <header><strong>Welcome to Profitera Bot</strong><button type="button" data-close-help>x</button></header>
+                            <p>Build a strategy visually, run it on a demo account first, and monitor the result from the right panel.</p>
+                            <a href="#">How bot blocks work</a>
+                            <a href="#">Why a strategy may stop</a>
+                            <a href="#">Using demo before real money</a>
+                        </aside>
                     </div>
                 </section>
 
-                <aside class="bot-summary">
-                    <div class="run-strip"><button type="button">Run</button><strong>Automatic trade is not running</strong></div>
-                    <nav><button class="is-active">Summary</button><button>Transactions</button><button>Journal</button></nav>
-                    <div class="summary-empty">When you're ready to trade, hit Run.<br>You'll be able to track your automatic trade performance here.</div>
-                    <footer>
-                        <span>Total stake<strong>0.00 USD</strong></span>
-                        <span>Total payout<strong>0.00 USD</strong></span>
-                        <span>No. of runs<strong>0</strong></span>
-                        <button type="button">Reset</button>
-                    </footer>
-                </aside>
-            </div>
+                <section class="dbot-page" data-bot-page="builder">
+                    <div class="dbot-builder-grid">
+                        <aside class="dbot-blocks-menu">
+                            <button class="dbot-quick" type="button" data-bot-modal="quick">Quick strategy</button>
+                            <section>
+                                <header>
+                                    <strong>Blocks menu</strong>
+                                    <button type="button" data-collapse-blocks aria-label="Collapse blocks menu">Menu</button>
+                                </header>
+                                <input type="search" placeholder="Search blocks" data-block-search>
+                                <button class="block-menu-item" type="button" data-block-info="Trade parameters">Trade parameters</button>
+                                <button class="block-menu-item" type="button" data-block-info="Purchase conditions">Purchase conditions</button>
+                                <button class="block-menu-item" type="button" data-block-info="Sell conditions (optional)">Sell conditions (optional)</button>
+                                <button class="block-menu-item" type="button" data-block-info="Restart trading conditions">Restart trading conditions</button>
+                                <button class="block-menu-item has-chevron" type="button" data-block-info="Analysis">Analysis</button>
+                                <button class="block-menu-item has-chevron" type="button" data-block-info="Utility">Utility</button>
+                            </section>
+                            <div class="dbot-flyout" data-block-flyout hidden>
+                                <button type="button" data-close-flyout aria-label="Close block info">x</button>
+                                <strong data-flyout-title>Trade parameters</strong>
+                                <p data-flyout-copy>Configure market, contract type, duration, stake, and startup behavior.</p>
+                                <div class="dbot-flyout-preview"><span data-flyout-preview>Trade parameters</span></div>
+                                <a href="#">Learn more</a>
+                            </div>
+                        </aside>
+
+                        <section class="dbot-canvas-wrap">
+                            <div class="dbot-toolbar" aria-label="Builder tools">
+                                <button class="bot-tool bot-tool-reset" data-bot-action="reset" type="button" title="Reset" aria-label="Reset"></button>
+                                <button class="bot-tool bot-tool-folder" data-bot-modal="load" type="button" title="Load" aria-label="Load"></button>
+                                <button class="bot-tool bot-tool-save" data-bot-modal="save" type="button" title="Save" aria-label="Save"></button>
+                                <button class="bot-tool bot-tool-sort" data-bot-action="sort" type="button" title="Align blocks" aria-label="Align blocks"></button>
+                                <button class="bot-tool bot-tool-chart" data-bot-tab-jump="charts" type="button" title="Chart view" aria-label="Chart view"></button>
+                                <button class="bot-tool bot-tool-tv" data-bot-modal="tradingview" type="button" title="TradingView Chart" aria-label="TradingView Chart"></button>
+                                <span class="bot-toolbar-spacer"></span>
+                                <button class="bot-tool bot-tool-undo" data-bot-action="undo" type="button" title="Undo" aria-label="Undo"></button>
+                                <button class="bot-tool bot-tool-redo" data-bot-action="redo" type="button" title="Redo" aria-label="Redo"></button>
+                                <button class="bot-tool bot-tool-zoom-in" data-bot-action="zoom-in" type="button" title="Zoom in" aria-label="Zoom in"></button>
+                                <button class="bot-tool bot-tool-zoom-out" data-bot-action="zoom-out" type="button" title="Zoom out" aria-label="Zoom out"></button>
+                            </div>
+                            <div class="dbot-stage" id="builder-stage" aria-label="Blockly workspace">
+                                <article class="dbot-block block-large" data-block-label="Trade parameters">
+                                    <h3>1. Trade parameters</h3>
+                                    <p>Market: <span>Derived</span> <span>Continuous Indices</span> <span>Volatility 10 (1s) Index</span></p>
+                                    <p>Trade Type: <span>Up/Down</span> <span>Rise/Fall</span></p>
+                                    <p>Contract Type: <span>Both</span></p>
+                                    <p>Default Candle Interval: <span>1 minute</span></p>
+                                    <label>Restart buy/sell on error <input type="checkbox"></label>
+                                    <label>Restart last trade on error <input type="checkbox" checked></label>
+                                    <div class="dbot-slot">Run once at start</div>
+                                    <div class="dbot-slot">Trade options: Duration <b>1</b> <span>Ticks</span> Stake USD <b>1</b> <small>(min: 0.6 - max: 72000)</small></div>
+                                </article>
+                                <article class="dbot-block" data-block-label="Purchase conditions">
+                                    <h3>2. Purchase conditions</h3>
+                                    <p>Purchase <span>Rise</span></p>
+                                </article>
+                                <article class="dbot-block" data-block-label="Sell conditions (optional)">
+                                    <h3>3. Sell conditions</h3>
+                                    <p>if <span>Sell is available</span> then <button type="button">+</button></p>
+                                </article>
+                                <article class="dbot-block" data-block-label="Restart trading conditions">
+                                    <h3>4. Restart trading conditions</h3>
+                                    <p><span>Trade again</span></p>
+                                </article>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+
+                <section class="dbot-page" data-bot-page="charts">
+                    <section class="dbot-chart-page">
+                        <div class="dbot-chart-tools" aria-label="Chart tools">
+                            <button type="button" title="Line chart">L</button>
+                            <button type="button" title="Candles">C</button>
+                            <button type="button" title="Draw">D</button>
+                            <button type="button" title="Download">DL</button>
+                        </div>
+                        <button class="dbot-symbol-picker" type="button"><strong>Volatility 10 (1s) Index</strong><small>1HZ10V / Waiting / 0.00%</small></button>
+                        <div class="dbot-chart-canvas">
+                            <svg viewBox="0 0 900 460" role="img" aria-label="Live price chart preview">
+                                <path d="M0 360 C80 280 120 310 180 210 S280 120 340 170 430 300 500 230 620 80 720 130 800 250 900 190" fill="none" stroke="#00d4aa" stroke-width="4"/>
+                                <path d="M0 360 C80 280 120 310 180 210 S280 120 340 170 430 300 500 230 620 80 720 130 800 250 900 190 L900 460 L0 460Z" fill="rgba(0,212,170,.09)"/>
+                            </svg>
+                        </div>
+                    </section>
+                </section>
+
+                <section class="dbot-page" data-bot-page="tutorials">
+                    <div class="dbot-tutorials">
+                        <h1>Tutorials</h1>
+                        <article><strong>Build a Rise/Fall bot</strong><span>Start with trade parameters, purchase conditions, and restart rules.</span></article>
+                        <article><strong>Use analysis blocks</strong><span>Read ticks history and last digit statistics before buying.</span></article>
+                        <article><strong>Run safely</strong><span>Always test on demo and enforce stop-loss rules server-side.</span></article>
+                    </div>
+                </section>
+            </section>
+
+            <aside class="dbot-monitor">
+                <div class="dbot-monitor-run">
+                    <button class="dbot-run" type="button" data-bot-run><span aria-hidden="true">&gt;</span>Run</button>
+                    <button class="dbot-stop" type="button" data-bot-stop hidden>Stop</button>
+                    <strong class="dbot-status" data-bot-status><i></i>Bot is not running</strong>
+                </div>
+                <nav class="dbot-monitor-tabs">
+                    <button class="is-active" type="button" data-monitor-tab="summary">Summary</button>
+                    <button type="button" data-monitor-tab="transactions">Transactions</button>
+                    <button type="button" data-monitor-tab="journal">Journal</button>
+                </nav>
+                <section class="dbot-monitor-panel is-active" data-monitor-panel="summary">
+                    <div class="dbot-summary-empty" data-summary-empty>When you're ready to trade, hit Run.<br>You'll be able to track your bot's performance here.</div>
+                    <div class="dbot-stat-grid">
+                        <span>Total stake<strong data-stat="stake">0.00 USD</strong></span>
+                        <span>Total payout<strong data-stat="payout">0.00 USD</strong></span>
+                        <span>No. of runs<strong data-stat="runs">0</strong></span>
+                        <span>Contracts lost<strong data-stat="lost">0</strong></span>
+                        <span>Contracts won<strong data-stat="won">0</strong></span>
+                        <span>Total profit/loss<strong class="is-neutral" data-stat="profit">0.00 USD</strong></span>
+                    </div>
+                    <button class="dbot-reset-stats" type="button" data-reset-stats>Reset</button>
+                </section>
+                <section class="dbot-monitor-panel" data-monitor-panel="transactions">
+                    <div class="dbot-table">
+                        <span>Time</span><span>Contract</span><span>Entry</span><span>Stake</span><span>P/L</span>
+                        <small class="empty-row">No transactions yet.</small>
+                    </div>
+                </section>
+                <section class="dbot-monitor-panel" data-monitor-panel="journal">
+                    <pre class="dbot-journal" data-journal></pre>
+                </section>
+            </aside>
         </section>
 
         <div class="modal-layer" id="bot-modal-layer" hidden>
-            <section class="bot-dialog small" data-bot-panel="reset" hidden>
-                <header><strong>Reset strategy?</strong><button data-close-bot-modal type="button">x</button></header>
-                <p>Do you want to cancel the settings made for this automatic trade?</p>
-                <footer><button data-close-bot-modal type="button">Cancel</button><button class="danger-btn" data-close-bot-modal type="button">Reset</button></footer>
-            </section>
-
-            <section class="bot-dialog load" data-bot-panel="import" hidden>
+            <section class="bot-dialog load dbot-dialog" data-bot-panel="load" hidden>
                 <header><strong>Load strategy</strong><button data-close-bot-modal type="button">x</button></header>
-                <div class="load-tabs"><button class="is-active">Recent</button><button>Local</button><button>Google Drive</button></div>
-                <aside><strong>Untitled Automatic Trade</strong><small>Unsaved</small></aside>
-                <div class="bot-preview"><span>Preview</span><div class="preview-blocks"></div></div>
-                <footer><button class="danger-btn" type="button">Open</button></footer>
+                <div class="load-tabs">
+                    <button class="is-active" type="button" data-load-tab="recent">Recent</button>
+                    <button type="button" data-load-tab="local">Local</button>
+                    <button type="button" data-load-tab="drive">Google Drive</button>
+                </div>
+                <div class="load-panel is-active" data-load-panel="recent"><p>You do not have any recent bots.</p><a href="#">Why can't I see my recent bots?</a></div>
+                <div class="load-panel" data-load-panel="local">
+                    <label class="xml-drop-zone">Drag your XML file here<input type="file" accept=".xml" data-xml-input hidden><span>or select an XML file from your device</span></label>
+                    <small>Importing XML files from Binary Bot and other third-party platforms may take longer.</small>
+                </div>
+                <div class="load-panel" data-load-panel="drive"><p>Google Drive sign-in will be available after Drive OAuth is configured.</p></div>
             </section>
 
-            <section class="bot-dialog small" data-bot-panel="save" hidden>
+            <section class="bot-dialog small dbot-dialog" data-bot-panel="save" hidden>
                 <header><strong>Save strategy</strong><button data-close-bot-modal type="button">x</button></header>
-                <p>Enter your automatic trade name, choose where to save it, and hit Save.</p>
-                <input type="text" placeholder="Automatic trade name">
-                <div class="save-options"><button class="is-active">File<span>Local</span></button><button>Drive<span>Google Drive</span></button></div>
-                <footer><button data-close-bot-modal type="button">Cancel</button><button class="danger-btn" type="button">Save</button></footer>
+                <input type="text" placeholder="Bot name" data-save-name value="Profitera strategy">
+                <div class="save-options"><button class="is-active" type="button">Local<span>Downloads XML</span></button><button type="button" disabled>Google Drive<span>Coming soon</span></button></div>
+                <footer><button data-close-bot-modal type="button">Cancel</button><button class="danger-btn" data-save-xml type="button">Save</button></footer>
             </section>
 
-            <section class="bot-dialog chart-dialog" data-bot-panel="chart" hidden>
-                <header><strong>Chart</strong><button data-close-bot-modal type="button">x</button></header>
-                <div class="mini-chart"><strong>Volatility 100 (1s) Index</strong><svg viewBox="0 0 420 320" role="img"><polyline points="0,210 40,170 70,190 110,70 150,40 180,120 220,160 260,184 300,180 330,230 420,230" fill="none" stroke="black"/><path d="M0 210 L40 170 L70 190 L110 70 L150 40 L180 120 L220 160 L260 184 L300 180 L330 230 L420 230 L420 320 L0 320Z" fill="rgba(0,0,0,.08)"/></svg></div>
+            <section class="bot-dialog small dbot-dialog" data-bot-panel="quick" hidden>
+                <header><strong>Quick strategy</strong><button data-close-bot-modal type="button">x</button></header>
+                <button class="quick-template" type="button" data-quick-template="rise_fall">Rise/Fall starter</button>
+                <button class="quick-template" type="button" data-quick-template="digits">Digit matcher</button>
+                <button class="quick-template" type="button" data-quick-template="martingale">Martingale skeleton</button>
             </section>
 
-            <section class="bot-dialog chart-dialog" data-bot-panel="tradingview" hidden>
+            <section class="bot-dialog chart-dialog dbot-dialog" data-bot-panel="tradingview" hidden>
                 <header><strong>TradingView Chart</strong><button data-close-bot-modal type="button">x</button></header>
-                <div class="tradingview-mock"><h2>deriv</h2><div class="tv-toolbar">R_25  24h  Save</div><svg viewBox="0 0 420 320"><polyline points="20,40 50,110 80,130 120,190 170,205 220,240 260,210 300,225 360,210 400,214" fill="none" stroke="#ff444f" stroke-width="4"/></svg></div>
+                <div class="tradingview-mock"><div class="tv-toolbar"><input placeholder="Search symbol"><button>6m</button><button>3m</button><button>1m</button><button>5d</button><button>1d</button></div><p>O 1293.10 H 1294.82 L 1291.40 C 1294.00</p><svg viewBox="0 0 640 360"><polyline points="20,280 80,210 130,240 180,160 260,180 330,90 420,140 500,110 620,170" fill="none" stroke="#ff444f" stroke-width="4"/></svg></div>
             </section>
         </div>
     </main>
-    <script src="{% static 'js/bot_builder.js' %}?v=professional-ui-20260624-1"></script>
+    <script src="{% static 'js/bot_builder.js' %}?v=bot-shell-20260702-1"></script>
 </body>
 </html>

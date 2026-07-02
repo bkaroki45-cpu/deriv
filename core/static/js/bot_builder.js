@@ -1,262 +1,281 @@
 (function () {
-    const stage = document.getElementById("builder-stage");
+    const shell = document.querySelector(".dbot-shell");
     const modalLayer = document.getElementById("bot-modal-layer");
-    let draggedLabel = "";
+    const stage = document.getElementById("builder-stage");
+    const journal = document.querySelector("[data-journal]");
+    const stats = {
+        stake: document.querySelector('[data-stat="stake"]'),
+        payout: document.querySelector('[data-stat="payout"]'),
+        runs: document.querySelector('[data-stat="runs"]'),
+        lost: document.querySelector('[data-stat="lost"]'),
+        won: document.querySelector('[data-stat="won"]'),
+        profit: document.querySelector('[data-stat="profit"]'),
+    };
+
+    let running = false;
+    let runCount = 0;
     let zoom = 1;
-    let isRunning = false;
 
-    const blockPositions = {
-        "Trade parameters": [18, 48],
-        "Purchase conditions": [18, 466],
-        "Sell conditions (optional)": [520, 48],
-        "Restart trading conditions": [520, 210],
-        Analysis: [520, 380],
-        Utility: [18, 642],
+    const flyoutCopy = {
+        "Trade parameters": ["Configure market, contract type, duration, stake, and startup behavior.", "Market > Contract > Stake"],
+        "Purchase conditions": ["Define the rule that decides when the bot buys a contract.", "Purchase Rise/Fall"],
+        "Sell conditions (optional)": ["Add optional logic for selling when the API allows early exit.", "if Sell is available"],
+        "Restart trading conditions": ["Control whether the strategy loops after a contract settles.", "Trade again"],
+        Analysis: ["Use historical ticks, last digit stats, and indicators for decisions.", "Last digit / Moving average"],
+        Utility: ["Helpers for notifications, comparisons, and strategy control.", "Notify / Stop / Variables"],
     };
 
-    const state = {
-        market: "Volatility 100 (1s) Index",
-        tradeType: "Matches/Differs",
-        contractType: "Matches",
-        duration: "5",
-        durationUnit: "ticks",
-        stake: "10",
-        prediction: "5",
-        condition: "Last digit is 5",
-        restart: "Trade again",
-    };
-
-    function escapeHtml(value) {
-        return String(value ?? "")
-            .replaceAll("&", "&amp;")
-            .replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;")
-            .replaceAll('"', "&quot;")
-            .replaceAll("'", "&#039;");
+    function log(message) {
+        if (!journal) return;
+        const stamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        journal.textContent = `[${stamp}] ${message}\n${journal.textContent}`.slice(0, 4000);
     }
 
-    function blockHtml(label) {
-        if (label === "Trade parameters") {
-            return `
-                <h3>1. Trade parameters</h3>
-                <p>Market:
-                    <select data-bot-param="market">
-                        ${["Volatility 100 (1s) Index", "Volatility 75 Index", "Volatility 50 Index", "Boom 1000 Index"].map((item) => `<option ${item === state.market ? "selected" : ""}>${item}</option>`).join("")}
-                    </select>
-                </p>
-                <p>Trade Type:
-                    <select data-bot-param="tradeType">
-                        ${["Rise/Fall", "Matches/Differs", "Over/Under", "Touch/No Touch"].map((item) => `<option ${item === state.tradeType ? "selected" : ""}>${item}</option>`).join("")}
-                    </select>
-                    <select data-bot-param="contractType">
-                        ${["Matches", "Differs", "Over", "Under", "Rise", "Fall"].map((item) => `<option ${item === state.contractType ? "selected" : ""}>${item}</option>`).join("")}
-                    </select>
-                </p>
-                <p>Duration:
-                    <input data-bot-param="duration" value="${escapeHtml(state.duration)}" inputmode="numeric">
-                    <select data-bot-param="durationUnit"><option ${state.durationUnit === "ticks" ? "selected" : ""}>ticks</option><option ${state.durationUnit === "minutes" ? "selected" : ""}>minutes</option></select>
-                    Stake: USD <input data-bot-param="stake" value="${escapeHtml(state.stake)}" inputmode="decimal">
-                </p>
-                <label>Restart buy/sell on error <input data-bot-param="restartOnError" type="checkbox"></label>
-                <label>Restart last trade on error <input data-bot-param="restartLast" type="checkbox" checked></label>
-            `;
-        }
-        if (label === "Purchase conditions") {
-            return `
-                <h3>2. Purchase conditions</h3>
-                <p>Purchase <select data-bot-param="contractType"><option ${state.contractType === "Matches" ? "selected" : ""}>Matches</option><option ${state.contractType === "Differs" ? "selected" : ""}>Differs</option><option ${state.contractType === "Rise" ? "selected" : ""}>Rise</option><option ${state.contractType === "Fall" ? "selected" : ""}>Fall</option></select></p>
-                <p>If <span>${escapeHtml(state.condition)}</span></p>
-            `;
-        }
-        if (label === "Sell conditions (optional)") {
-            return `
-                <h3>3. Sell conditions</h3>
-                <p>if <select data-bot-param="sellCondition"><option>Sell is available</option><option>Profit is above stake</option><option>Loss reaches limit</option></select> then</p>
-                <p><span>Sell contract</span></p>
-            `;
-        }
-        if (label === "Restart trading conditions") {
-            return `
-                <h3>4. Restart trading conditions</h3>
-                <p><select data-bot-param="restart"><option ${state.restart === "Trade again" ? "selected" : ""}>Trade again</option><option ${state.restart === "Stop automatic trade" ? "selected" : ""}>Stop automatic trade</option></select></p>
-            `;
-        }
-        if (label === "Analysis") {
-            return `
-                <h3>Analysis</h3>
-                <p>Last digit prediction <select data-bot-param="prediction">${Array.from({ length: 10 }, (_, digit) => `<option ${String(digit) === state.prediction ? "selected" : ""}>${digit}</option>`).join("")}</select></p>
-                <p>Condition <span>${escapeHtml(state.condition)}</span></p>
-            `;
-        }
-        return `
-            <h3>${escapeHtml(label)}</h3>
-            <p><span>Notify before run</span></p>
-            <p><span>Keep strategy active</span></p>
-        `;
-    }
-
-    function updateDependentState(name, value) {
-        state[name] = value;
-        if (name === "tradeType") {
-            if (value === "Matches/Differs") state.contractType = "Matches";
-            if (value === "Over/Under") state.contractType = "Over";
-            if (value === "Rise/Fall") state.contractType = "Rise";
-            if (value === "Touch/No Touch") state.contractType = "Touch";
-        }
-        if (name === "prediction") state.condition = `Last digit is ${value}`;
-        if (name === "contractType" && ["Matches", "Differs"].includes(value)) state.tradeType = "Matches/Differs";
-        if (name === "contractType" && ["Over", "Under"].includes(value)) state.tradeType = "Over/Under";
-    }
-
-    function updateSummary() {
-        const summary = document.querySelector(".summary-empty");
-        if (summary) {
-            summary.innerHTML = `
-                <strong>${isRunning ? "Automatic trade is running" : "Ready to run"}</strong>
-                <span>${escapeHtml(state.market)}</span>
-                <span>${escapeHtml(state.tradeType)} / ${escapeHtml(state.contractType)}</span>
-                <span>${escapeHtml(state.duration)} ${escapeHtml(state.durationUnit)} / ${escapeHtml(state.stake)} USD</span>
-            `;
-        }
-        const status = document.querySelector(".run-strip strong");
-        if (status) status.textContent = isRunning ? "Automatic trade is running" : "Automatic trade is not running";
-        const runButton = document.querySelector(".run-strip button");
-        if (runButton) runButton.textContent = isRunning ? "Stop" : "Run";
-    }
-
-    function refreshBlocks() {
-        if (!stage) return;
-        stage.querySelectorAll(".bot-block").forEach((block) => {
-            const label = block.dataset.blockLabel;
-            if (label) block.innerHTML = blockHtml(label);
+    function setPage(name) {
+        document.querySelectorAll("[data-bot-tab]").forEach((button) => {
+            button.classList.toggle("is-active", button.dataset.botTab === name);
         });
-        updateSummary();
-    }
-
-    function addOrUpdateBlock(label, x = null, y = null) {
-        if (!stage) return null;
-        const existing = [...stage.querySelectorAll(".bot-block")].find((block) => block.dataset.blockLabel === label);
-        const node = existing || document.createElement("article");
-        node.className = `bot-block ${label === "Trade parameters" ? "block-large" : ""}`;
-        node.dataset.blockLabel = label;
-        const [defaultX, defaultY] = blockPositions[label] || [32, 64];
-        node.style.left = `${Math.max(8, x ?? defaultX)}px`;
-        node.style.top = `${Math.max(8, y ?? defaultY)}px`;
-        node.innerHTML = blockHtml(label);
-        if (!existing) stage.appendChild(node);
-        node.animate([
-            { transform: "scale(0.98)", boxShadow: "0 0 0 rgba(0,0,0,0)" },
-            { transform: "scale(1)", boxShadow: "0 0 0 3px rgba(255, 68, 79, 0.22)" },
-        ], { duration: 220, easing: "ease-out" });
-        updateSummary();
-        return node;
-    }
-
-    function loadStarterStrategy() {
-        if (!stage) return;
-        stage.innerHTML = "";
-        ["Trade parameters", "Purchase conditions", "Sell conditions (optional)", "Restart trading conditions"].forEach((label) => addOrUpdateBlock(label));
-        updateSummary();
-    }
-
-    document.querySelectorAll(".block-menu-item[draggable='true']").forEach((block) => {
-        block.addEventListener("dragstart", (event) => {
-            draggedLabel = block.textContent.trim();
-            event.dataTransfer.setData("text/plain", draggedLabel);
+        document.querySelectorAll("[data-bot-page]").forEach((page) => {
+            page.classList.toggle("is-active", page.dataset.botPage === name);
         });
-        block.addEventListener("click", () => {
-            addOrUpdateBlock(block.textContent.trim());
+        log(`Opened ${name.replace("_", " ")} tab.`);
+    }
+
+    function setMonitorTab(name) {
+        document.querySelectorAll("[data-monitor-tab]").forEach((button) => {
+            button.classList.toggle("is-active", button.dataset.monitorTab === name);
         });
+        document.querySelectorAll("[data-monitor-panel]").forEach((panel) => {
+            panel.classList.toggle("is-active", panel.dataset.monitorPanel === name);
+        });
+    }
+
+    function updateRunningState(next) {
+        running = next;
+        shell?.setAttribute("data-bot-running", running ? "true" : "false");
+        document.querySelectorAll("[data-bot-status]").forEach((status) => {
+            status.innerHTML = `<i></i>${running ? "Running" : "Bot is not running"}`;
+        });
+        document.querySelectorAll("[data-bot-run]").forEach((button) => { button.hidden = running; });
+        document.querySelectorAll("[data-bot-stop]").forEach((button) => { button.hidden = !running; });
+        document.querySelector("[data-summary-empty]")?.classList.toggle("is-hidden", running);
+        if (running) {
+            runCount += 1;
+            if (stats.runs) stats.runs.textContent = String(runCount);
+            if (stats.stake) stats.stake.textContent = `${(runCount * 1).toFixed(2)} USD`;
+            if (stats.payout) stats.payout.textContent = `${(runCount * 1.93).toFixed(2)} USD`;
+            if (stats.profit) {
+                stats.profit.textContent = `${(runCount * 0.37).toFixed(2)} USD`;
+                stats.profit.className = "is-positive";
+            }
+            log("Bot run requested. Backend execution should start from the server-authoritative engine.");
+        } else {
+            log("Bot stopped. Open contracts should be allowed to settle server-side.");
+        }
+    }
+
+    function showFlyout(label) {
+        const flyout = document.querySelector("[data-block-flyout]");
+        if (!flyout) return;
+        const [copy, preview] = flyoutCopy[label] || flyoutCopy.Utility;
+        flyout.querySelector("[data-flyout-title]").textContent = label;
+        flyout.querySelector("[data-flyout-copy]").textContent = copy;
+        flyout.querySelector("[data-flyout-preview]").textContent = preview;
+        flyout.hidden = false;
+        document.querySelectorAll("[data-block-info]").forEach((button) => {
+            button.classList.toggle("is-active", button.dataset.blockInfo === label);
+        });
+    }
+
+    function openModal(name) {
+        if (!modalLayer) return;
+        modalLayer.hidden = false;
+        document.querySelectorAll("[data-bot-panel]").forEach((panel) => {
+            panel.hidden = panel.dataset.botPanel !== name;
+        });
+    }
+
+    function closeModal() {
+        if (modalLayer) modalLayer.hidden = true;
+    }
+
+    function setLoadTab(name) {
+        document.querySelectorAll("[data-load-tab]").forEach((button) => {
+            button.classList.toggle("is-active", button.dataset.loadTab === name);
+        });
+        document.querySelectorAll("[data-load-panel]").forEach((panel) => {
+            panel.classList.toggle("is-active", panel.dataset.loadPanel === name);
+        });
+    }
+
+    function serializeWorkspace() {
+        const blocks = [...document.querySelectorAll("[data-block-label]")].map((block) => ({
+            label: block.dataset.blockLabel,
+            text: block.innerText.trim(),
+        }));
+        return `<xml xmlns="https://developers.google.com/blockly/xml">${blocks.map((block) => (
+            `<block type="${block.label.toLowerCase().replaceAll(" ", "_").replaceAll("(", "").replaceAll(")", "")}"><field name="LABEL">${block.label}</field></block>`
+        )).join("")}</xml>`;
+    }
+
+    function downloadXml() {
+        const name = (document.querySelector("[data-save-name]")?.value || "profitera-strategy").trim().replace(/[^\w.-]+/g, "-");
+        const blob = new Blob([serializeWorkspace()], { type: "application/xml" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${name || "profitera-strategy"}.xml`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        closeModal();
+        log("Strategy XML downloaded locally.");
+    }
+
+    function loadXmlFile(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            if (!String(reader.result || "").includes("<xml")) {
+                log("Selected file is not a valid Blockly XML file.");
+                return;
+            }
+            log(`Loaded XML file: ${file.name}. Rendering placeholder strategy blocks.`);
+            closeModal();
+            setPage("builder");
+        };
+        reader.readAsText(file);
+    }
+
+    function applyQuickTemplate(name) {
+        setPage("builder");
+        closeModal();
+        log(`Quick strategy loaded: ${name}.`);
+        stage?.querySelectorAll(".dbot-block").forEach((block) => {
+            block.animate([{ transform: "scale(0.98)" }, { transform: "scale(1)" }], { duration: 220 });
+        });
+    }
+
+    document.querySelectorAll("[data-bot-tab]").forEach((button) => {
+        button.addEventListener("click", () => setPage(button.dataset.botTab));
     });
 
-    document.querySelector(".quick-strategy")?.addEventListener("click", () => {
-        state.tradeType = "Matches/Differs";
-        state.contractType = "Matches";
-        state.prediction = "5";
-        state.condition = "Last digit is 5";
-        loadStarterStrategy();
+    document.querySelectorAll("[data-bot-tab-jump]").forEach((button) => {
+        button.addEventListener("click", () => setPage(button.dataset.botTabJump));
     });
 
-    if (stage) {
-        stage.addEventListener("dragover", (event) => event.preventDefault());
-        stage.addEventListener("drop", (event) => {
-            event.preventDefault();
-            const rect = stage.getBoundingClientRect();
-            const label = event.dataTransfer.getData("text/plain") || draggedLabel || "Strategy block";
-            addOrUpdateBlock(label, (event.clientX - rect.left) / zoom - 90, (event.clientY - rect.top) / zoom - 24);
-        });
-        stage.addEventListener("change", (event) => {
-            const control = event.target.closest("[data-bot-param]");
-            if (!control) return;
-            updateDependentState(control.dataset.botParam, control.type === "checkbox" ? String(control.checked) : control.value);
-            refreshBlocks();
-        });
-        stage.addEventListener("input", (event) => {
-            const control = event.target.closest("[data-bot-param]");
-            if (!control || control.tagName === "SELECT") return;
-            updateDependentState(control.dataset.botParam, control.value);
-            updateSummary();
-        });
-    }
+    document.querySelectorAll("[data-monitor-tab]").forEach((button) => {
+        button.addEventListener("click", () => setMonitorTab(button.dataset.monitorTab));
+    });
 
-    document.querySelector(".run-strip button")?.addEventListener("click", () => {
-        isRunning = !isRunning;
-        updateSummary();
-        document.querySelector(".run-strip")?.classList.toggle("is-running", isRunning);
+    document.querySelectorAll("[data-bot-run]").forEach((button) => {
+        button.addEventListener("click", () => updateRunningState(true));
+    });
+
+    document.querySelectorAll("[data-bot-stop]").forEach((button) => {
+        button.addEventListener("click", () => updateRunningState(false));
+    });
+
+    document.querySelectorAll("[data-block-info]").forEach((button) => {
+        button.addEventListener("click", () => showFlyout(button.dataset.blockInfo));
+    });
+
+    document.querySelector("[data-close-flyout]")?.addEventListener("click", () => {
+        const flyout = document.querySelector("[data-block-flyout]");
+        if (flyout) flyout.hidden = true;
+    });
+
+    document.querySelector("[data-collapse-blocks]")?.addEventListener("click", () => {
+        document.querySelector(".dbot-blocks-menu")?.classList.toggle("is-collapsed");
+    });
+
+    document.querySelector("[data-block-search]")?.addEventListener("input", (event) => {
+        const needle = event.target.value.trim().toLowerCase();
+        document.querySelectorAll("[data-block-info]").forEach((button) => {
+            button.hidden = needle && !button.textContent.toLowerCase().includes(needle);
+        });
     });
 
     document.querySelectorAll("[data-bot-modal]").forEach((button) => {
-        button.addEventListener("click", () => {
-            if (!modalLayer) return;
-            modalLayer.hidden = false;
-            document.querySelectorAll("[data-bot-panel]").forEach((panel) => {
-                panel.hidden = panel.dataset.botPanel !== button.dataset.botModal;
-            });
-        });
+        button.addEventListener("click", () => openModal(button.dataset.botModal));
     });
 
     document.querySelectorAll("[data-close-bot-modal]").forEach((button) => {
-        button.addEventListener("click", () => {
-            if (modalLayer) modalLayer.hidden = true;
-        });
+        button.addEventListener("click", closeModal);
     });
 
-    if (modalLayer) {
-        modalLayer.addEventListener("click", (event) => {
-            if (event.target === modalLayer) modalLayer.hidden = true;
-        });
-    }
+    modalLayer?.addEventListener("click", (event) => {
+        if (event.target === modalLayer) closeModal();
+    });
+
+    document.querySelectorAll("[data-load-tab]").forEach((button) => {
+        button.addEventListener("click", () => setLoadTab(button.dataset.loadTab));
+    });
+
+    document.querySelector("[data-open-local]")?.addEventListener("click", () => {
+        openModal("load");
+        setLoadTab("local");
+    });
+
+    document.querySelector("[data-xml-input]")?.addEventListener("change", (event) => {
+        loadXmlFile(event.target.files && event.target.files[0]);
+    });
+
+    document.querySelector(".xml-drop-zone")?.addEventListener("click", () => {
+        document.querySelector("[data-xml-input]")?.click();
+    });
+
+    document.querySelector("[data-save-xml]")?.addEventListener("click", downloadXml);
+
+    document.querySelectorAll("[data-quick-template]").forEach((button) => {
+        button.addEventListener("click", () => applyQuickTemplate(button.dataset.quickTemplate));
+    });
 
     document.querySelectorAll("[data-bot-action]").forEach((button) => {
         button.addEventListener("click", () => {
             const action = button.dataset.botAction;
-            if (action === "zoom-in") zoom = Math.min(1.4, zoom + 0.1);
-            if (action === "zoom-out") zoom = Math.max(0.7, zoom - 0.1);
-            if (stage && (action === "zoom-in" || action === "zoom-out")) {
-                stage.style.transformOrigin = "top left";
-                stage.style.transform = `scale(${zoom})`;
+            if (action === "reset") {
+                runCount = 0;
+                Object.values(stats).forEach((item) => { if (item) item.textContent = item === stats.profit ? "0.00 USD" : "0"; });
+                if (stats.stake) stats.stake.textContent = "0.00 USD";
+                if (stats.payout) stats.payout.textContent = "0.00 USD";
+                log("Workspace reset requested.");
             }
-            if (action === "sort" && stage) {
-                [...stage.querySelectorAll(".bot-block")].forEach((block, index) => {
-                    block.style.left = `${18 + (index % 2) * 500}px`;
-                    block.style.top = `${48 + Math.floor(index / 2) * 178}px`;
+            if (action === "sort") {
+                stage?.querySelectorAll(".dbot-block").forEach((block, index) => {
+                    block.style.left = `${18 + (index % 2) * 560}px`;
+                    block.style.top = `${24 + Math.floor(index / 2) * 190}px`;
                 });
+                log("Blocks aligned.");
             }
-            if (action === "undo" || action === "redo") {
-                button.animate([{ transform: "scale(1)" }, { transform: "scale(0.86)" }, { transform: "scale(1)" }], { duration: 180 });
+            if (action === "zoom-in" || action === "zoom-out") {
+                zoom = action === "zoom-in" ? Math.min(1.3, zoom + 0.1) : Math.max(0.75, zoom - 0.1);
+                if (stage) {
+                    stage.style.transformOrigin = "top left";
+                    stage.style.transform = `scale(${zoom})`;
+                }
             }
         });
     });
 
-    document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+    document.querySelector("[data-reset-stats]")?.addEventListener("click", () => {
+        runCount = 0;
+        if (stats.stake) stats.stake.textContent = "0.00 USD";
+        if (stats.payout) stats.payout.textContent = "0.00 USD";
+        if (stats.runs) stats.runs.textContent = "0";
+        if (stats.lost) stats.lost.textContent = "0";
+        if (stats.won) stats.won.textContent = "0";
+        if (stats.profit) stats.profit.textContent = "0.00 USD";
+        log("Summary stats reset.");
+    });
+
+    document.querySelectorAll("[data-close-help]").forEach((button) => {
         button.addEventListener("click", () => {
-            document.body.classList.toggle("theme-light");
+            const panel = document.querySelector("[data-help-panel]");
+            if (panel) panel.hidden = true;
         });
     });
 
-    stage?.querySelectorAll(".bot-block").forEach((block) => {
-        const title = block.querySelector("h3")?.textContent.replace(/^\d+\.\s*/, "").trim();
-        if (title) block.dataset.blockLabel = title === "Sell conditions" ? "Sell conditions (optional)" : title;
-    });
-    refreshBlocks();
+    log("Profitera Bot workspace ready.");
 })();

@@ -4,79 +4,80 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Profitera | Premium Trading Platform</title>
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    <title>Profitera | Deriv Trading Workspace</title>
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=site-refresh-20260702-1">
 </head>
-<body class="landing-body">
-    <nav class="site-nav">
+<body class="landing-body landing-refresh">
+    <nav class="site-nav landing-nav" aria-label="Primary navigation">
         <a class="nav-brand" href="/">Profitera</a>
         <div class="nav-links">
-            <a href="/">Home</a>
-            <a href="/dashboard/#automatic">Automatic Dashboard</a>
-            <a href="/automatic-trade/">Automatic Trade</a>
-            <a href="/trade/">Trade</a>
-            <a href="/analytics/">Analytics</a>
-            <a href="/account/">Account</a>
             <a href="/login/">Login</a>
-            {% if request.user.is_staff %}<a href="/admin/">Admin</a>{% endif %}
+            <a href="/automatic-trade/">Automatic Trade</a>
+            <a href="/trade/">Manual Trade</a>
+            <a href="/analytics/">Analysis</a>
         </div>
-        <a class="nav-cta" href="/login/">Login with Deriv</a>
     </nav>
 
-    <header class="landing-hero">
-        <div class="hero-copy">
-            <span class="hero-kicker">Deriv markets through Profitera</span>
-            <h1>Trade Deriv markets from a Profitera terminal.</h1>
-            <p>Login with Deriv, return to Profitera, stream your Deriv balance, and place contracts on Deriv markets from this workspace.</p>
-            <div class="hero-actions">
-                <a class="primary-cta" href="/login/">Login with Deriv</a>
-                <a class="secondary-cta" href="/register/">Register with Deriv</a>
-            </div>
-        </div>
-        <div class="hero-terminal glass-panel" aria-label="Trading terminal preview">
-            <div class="preview-top">
-                <span></span><span></span><span></span>
-                <strong>R_100</strong>
-            </div>
-            <div class="preview-chart">
-                <i style="height: 34%"></i><i style="height: 58%"></i><i style="height: 46%"></i><i style="height: 72%"></i>
-                <i style="height: 42%"></i><i style="height: 66%"></i><i style="height: 38%"></i><i style="height: 76%"></i>
-            </div>
-            <div class="preview-grid">
-                <div><small>Demo</small><b>$10,000.00</b></div>
-                <div><small>Real</small><b>$0.00</b></div>
-                <div><small>Win rate</small><b>64%</b></div>
-            </div>
-        </div>
-    </header>
+    <main>
+        <header class="landing-hero landing-hero-refresh">
+            <section class="hero-copy">
+                <span class="hero-kicker">Deriv trading workspace</span>
+                <h1>Profitera</h1>
+                <p>Manual contracts, automatic strategies, live analysis, and account access in one focused trading interface.</p>
+                <div class="hero-actions">
+                    <a class="primary-cta" href="/login/">Login</a>
+                    <a class="secondary-cta" href="/trade/">Manual Trade</a>
+                    <a class="secondary-cta" href="/automatic-trade/">Automatic Trade</a>
+                </div>
+            </section>
 
-    <section class="landing-section feature-grid">
-        <article><h2>Deriv OAuth</h2><p>Users authenticate at Deriv and return with secure account tokens for trading.</p></article>
-        <article><h2>Live markets</h2><p>Ticks, history, symbols, proposals, and balances stream through Deriv WebSocket APIs.</p></article>
-        <article><h2>Contract tickets</h2><p>Rise/Fall, Accumulators, Multipliers, Turbos, Vanillas, barriers, digits, and payouts.</p></article>
-        <article><h2>Markup ready</h2><p>Designed for Deriv app markup so your commission is handled by the official platform flow.</p></article>
-    </section>
+            <section class="hero-terminal terminal-preview" aria-label="Profitera terminal preview">
+                <div class="preview-top">
+                    <span></span><span></span><span></span>
+                    <strong>Volatility 100</strong>
+                </div>
+                <div class="preview-contracts" aria-label="Contract types">
+                    <span>Rise/Fall</span>
+                    <span>Accumulators</span>
+                    <span>Multipliers</span>
+                    <span>Turbos</span>
+                    <span>Vanillas</span>
+                    <span>Over/Under</span>
+                </div>
+                <div class="preview-chart" aria-hidden="true">
+                    <i style="height: 42%"></i><i style="height: 64%"></i><i style="height: 48%"></i><i style="height: 78%"></i>
+                    <i style="height: 55%"></i><i style="height: 70%"></i><i style="height: 44%"></i><i style="height: 82%"></i>
+                </div>
+                <div class="preview-grid">
+                    <div><small>Balance</small><b>10,000 USD</b></div>
+                    <div><small>Mode</small><b>Manual</b></div>
+                    <div><small>Status</small><b>Live</b></div>
+                </div>
+            </section>
+        </header>
 
-    <section class="stats-band">
-        <div><strong>24/7</strong><span>Synthetic markets</span></div>
-        <div><strong>10</strong><span>Digit outcomes tracked</span></div>
-        <div><strong>0ms</strong><span>Page reloads for live updates</span></div>
-        <div><strong>100%</strong><span>Vanilla JavaScript UI</span></div>
-    </section>
+        <section class="landing-section feature-grid">
+            <article><h2>Manual Trade</h2><p>Choose markets, scroll contract types, and place focused Deriv-style tickets.</p></article>
+            <article><h2>Automatic Trade</h2><p>Build strategies with blocks, conditions, risk controls, and a clean workspace.</p></article>
+            <article><h2>Analysis</h2><p>Track price movement, account state, open positions, and trading activity.</p></article>
+            <article><h2>Login</h2><p>Connect with Deriv and return to Profitera with your account ready.</p></article>
+        </section>
 
-    <section class="landing-section testimonials">
-        <blockquote>“The interface feels like a focused desk: charts, tickets, automation, and portfolio updates all stay visible.”<span>Quant trader</span></blockquote>
-        <blockquote>“Digit trading finally has a panel that makes probability shifts readable at speed.”<span>Synthetic indices trader</span></blockquote>
-        <blockquote>“The automatic trade studio is compact enough for live use and clear enough for strategy experiments.”<span>Automation user</span></blockquote>
-    </section>
+        <section class="stats-band">
+            <div><strong>10+</strong><span>Contract styles</span></div>
+            <div><strong>24/7</strong><span>Synthetic markets</span></div>
+            <div><strong>Live</strong><span>Account context</span></div>
+            <div><strong>Mobile</strong><span>Responsive workspace</span></div>
+        </section>
+    </main>
 
     <footer class="landing-footer">
         <strong>Profitera</strong>
-        <nav>
-            <a href="/trade/">Trade</a>
-            <a href="/automatic-trade/">Automatic</a>
-            <a href="/api/accounts/token/">API token</a>
-            <a href="/admin/">Admin</a>
+        <nav aria-label="Footer navigation">
+            <a href="/login/">Login</a>
+            <a href="/automatic-trade/">Automatic Trade</a>
+            <a href="/trade/">Manual Trade</a>
+            <a href="/analytics/">Analysis</a>
         </nav>
     </footer>
 </body>
