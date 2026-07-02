@@ -1963,6 +1963,36 @@ body.theme-light .deriv-terminal {
     background: #5ff1c7;
 }
 
+.trade-mode-tabs {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--dt-line);
+    border-radius: 999px;
+    background: #151a21;
+    padding: 3px;
+}
+
+.trade-mode-tabs a {
+    display: inline-grid;
+    place-items: center;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    color: var(--dt-muted);
+    font-size: 12px;
+    font-weight: 850;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.trade-mode-tabs a.is-active {
+    background: #fff;
+    color: #11171c;
+}
+
 .trade-type-tabs {
     display: flex;
     gap: 8px;
@@ -7549,6 +7579,19 @@ textarea {
         overflow-x: auto !important;
         overflow-y: hidden !important;
         scroll-snap-type: x proximity;
+    }
+
+    .trade-mode-tabs {
+        grid-row: 1 !important;
+        max-width: 100% !important;
+        min-height: 34px !important;
+        padding: 2px !important;
+    }
+
+    .trade-mode-tabs a {
+        min-height: 28px !important;
+        padding: 0 10px !important;
+        font-size: 11px !important;
     }
 
     .trade-type-tabs button,

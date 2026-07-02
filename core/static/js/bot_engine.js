@@ -43,13 +43,13 @@
         start() {
             this.running = true;
             this.setState("running");
-            this.log("Bot started.");
+            this.log("Automatic trade started.");
         }
 
         stop() {
             this.running = false;
             this.setState("stopped");
-            this.log("Bot stopped.");
+            this.log("Automatic trade stopped.");
         }
 
         onTick({ symbol, price }) {

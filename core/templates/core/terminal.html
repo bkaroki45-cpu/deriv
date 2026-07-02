@@ -16,7 +16,8 @@
             <small>Deriv</small>
         </div>
         <a class="rail-item" href="{% url 'home' %}" title="Home" aria-label="Home"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Home</span></a>
-        <button class="rail-item is-active" type="button" data-page="trade" title="Trade" aria-label="Trade"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Trade</span></button>
+        <button class="rail-item is-active" type="button" data-page="trade" title="Manual trade" aria-label="Manual trade"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Manual</span></button>
+        <a class="rail-item" href="{% url 'automatic_trade' %}" title="Automatic trade" aria-label="Automatic trade"><span class="rail-icon icon-menu" aria-hidden="true"></span><span>Automatic</span></a>
         <button class="rail-item" type="button" data-page="dashboard" title="Dashboard" aria-label="Dashboard"><span class="rail-icon icon-report" aria-hidden="true"></span><span>Dashboard</span></button>
         <button class="rail-item" type="button" data-toggle-markets title="Markets" aria-label="Markets"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Markets</span></button>
         <button class="rail-item" type="button" data-toggle-positions title="Portfolio" aria-label="Portfolio"><span class="rail-icon icon-briefcase" aria-hidden="true"></span><span>Portfolio</span></button>
@@ -56,6 +57,10 @@
                 <a class="deposit-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}">{% if deriv_session.is_connected %}Deposit{% else %}Login{% endif %}</a>
             </div>
             <button class="app-grid" type="button" aria-label="Apps"><span class="grid-icon" aria-hidden="true"></span></button>
+            <nav class="trade-mode-tabs" aria-label="Trade mode">
+                <a class="is-active" href="{% url 'trade' %}">Manual trade</a>
+                <a href="{% url 'automatic_trade' %}">Automatic trade</a>
+            </nav>
             <button class="contract-trigger" id="contract-trigger" type="button" aria-haspopup="dialog" aria-expanded="false"><span id="contract-trigger-label">Rise/Fall</span><small>Contract</small></button>
             <nav class="trade-type-tabs" aria-label="Trade type">
                 <button class="is-active" data-trade-type="rise_fall" type="button">Rise/Fall</button>
@@ -232,10 +237,10 @@
     <button class="mobile-sheet-handle" type="button" data-toggle-ticket aria-label="Toggle trade ticket" aria-expanded="true"><span>Trade</span><i aria-hidden="true"></i></button>
     <nav class="mobile-nav" aria-label="Mobile navigation">
         <a href="{% url 'home' %}"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Home</span></a>
-        <button class="is-active" type="button" data-page="trade"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Trade</span></button>
+        <button class="is-active" type="button" data-page="trade"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Manual</span></button>
         <button type="button" data-toggle-markets><span class="rail-icon icon-markets" aria-hidden="true"></span><span>Markets</span></button>
         <button type="button" data-toggle-positions><span class="rail-icon icon-briefcase" aria-hidden="true"></span><span>Portfolio</span></button>
-        <a href="{% url 'bot_builder' %}"><span class="rail-icon icon-menu" aria-hidden="true"></span><span>Menu</span></a>
+        <a href="{% url 'automatic_trade' %}"><span class="rail-icon icon-menu" aria-hidden="true"></span><span>Automatic</span></a>
     </nav>
 
     <div class="markets-popover" id="markets-popover" role="dialog" aria-label="Markets" hidden>

@@ -78,7 +78,7 @@
         if (label === "Restart trading conditions") {
             return `
                 <h3>4. Restart trading conditions</h3>
-                <p><select data-bot-param="restart"><option ${state.restart === "Trade again" ? "selected" : ""}>Trade again</option><option ${state.restart === "Stop bot" ? "selected" : ""}>Stop bot</option></select></p>
+                <p><select data-bot-param="restart"><option ${state.restart === "Trade again" ? "selected" : ""}>Trade again</option><option ${state.restart === "Stop automatic trade" ? "selected" : ""}>Stop automatic trade</option></select></p>
             `;
         }
         if (label === "Analysis") {
@@ -112,14 +112,14 @@
         const summary = document.querySelector(".summary-empty");
         if (summary) {
             summary.innerHTML = `
-                <strong>${isRunning ? "Bot is running" : "Ready to run"}</strong>
+                <strong>${isRunning ? "Automatic trade is running" : "Ready to run"}</strong>
                 <span>${escapeHtml(state.market)}</span>
                 <span>${escapeHtml(state.tradeType)} / ${escapeHtml(state.contractType)}</span>
                 <span>${escapeHtml(state.duration)} ${escapeHtml(state.durationUnit)} / ${escapeHtml(state.stake)} USD</span>
             `;
         }
         const status = document.querySelector(".run-strip strong");
-        if (status) status.textContent = isRunning ? "Bot is running" : "Bot is not running";
+        if (status) status.textContent = isRunning ? "Automatic trade is running" : "Automatic trade is not running";
         const runButton = document.querySelector(".run-strip button");
         if (runButton) runButton.textContent = isRunning ? "Stop" : "Run";
     }

@@ -4,14 +4,15 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Profitera Bot Builder</title>
+    <title>Profitera Automatic Trade</title>
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=professional-ui-20260624-1">
 </head>
 <body class="bot-page">
     <main class="deriv-bot-builder">
-        <aside class="deriv-rail" aria-label="Bot navigation">
-            <a class="deriv-logo bot-logo" href="/bot-builder/" aria-label="Profitera bot">DB</a>
-            <a class="rail-item is-active" href="/bot-builder/"><span class="rail-icon icon-home" aria-hidden="true"></span><span>Home</span></a>
+        <aside class="deriv-rail" aria-label="Automatic trade navigation">
+            <a class="deriv-logo bot-logo" href="/automatic-trade/" aria-label="Profitera automatic trade">AT</a>
+            <a class="rail-item" href="/trade/"><span class="rail-icon icon-candles" aria-hidden="true"></span><span>Manual</span></a>
+            <a class="rail-item is-active" href="/automatic-trade/"><span class="rail-icon icon-menu" aria-hidden="true"></span><span>Automatic</span></a>
             <a class="rail-item" href="/trade/"><span class="rail-icon icon-report" aria-hidden="true"></span><span>Reports</span></a>
             <span class="rail-spacer"></span>
             <button class="rail-item" type="button" data-theme-toggle><span class="rail-icon icon-theme" aria-hidden="true"></span><span>Theme</span></button>
@@ -21,8 +22,8 @@
         <section class="bot-main">
             <header class="bot-topbar">
                 <nav>
-                    <a href="/trade/">Dashboard</a>
-                    <a class="is-active" href="/bot-builder/">Bot Builder</a>
+                    <a href="/trade/">Manual trade</a>
+                    <a class="is-active" href="/automatic-trade/">Automatic trade</a>
                     <a href="/trade/">Charts</a>
                     <a href="#">Tutorials</a>
                 </nav>
@@ -45,7 +46,7 @@
                 </aside>
 
                 <section class="bot-canvas-wrap">
-                    <div class="bot-toolbar" aria-label="Bot builder tools">
+                    <div class="bot-toolbar" aria-label="Automatic trade builder tools">
                         <button class="bot-tool bot-tool-reset" data-bot-modal="reset" type="button" title="Reset" aria-label="Reset"></button>
                         <button class="bot-tool bot-tool-folder" data-bot-modal="import" type="button" title="Import" aria-label="Import"></button>
                         <button class="bot-tool bot-tool-save" data-bot-modal="save" type="button" title="Save" aria-label="Save"></button>
@@ -87,9 +88,9 @@
                 </section>
 
                 <aside class="bot-summary">
-                    <div class="run-strip"><button type="button">Run</button><strong>Bot is not running</strong></div>
+                    <div class="run-strip"><button type="button">Run</button><strong>Automatic trade is not running</strong></div>
                     <nav><button class="is-active">Summary</button><button>Transactions</button><button>Journal</button></nav>
-                    <div class="summary-empty">When you're ready to trade, hit Run.<br>You'll be able to track your bot's performance here.</div>
+                    <div class="summary-empty">When you're ready to trade, hit Run.<br>You'll be able to track your automatic trade performance here.</div>
                     <footer>
                         <span>Total stake<strong>0.00 USD</strong></span>
                         <span>Total payout<strong>0.00 USD</strong></span>
@@ -103,22 +104,22 @@
         <div class="modal-layer" id="bot-modal-layer" hidden>
             <section class="bot-dialog small" data-bot-panel="reset" hidden>
                 <header><strong>Reset strategy?</strong><button data-close-bot-modal type="button">x</button></header>
-                <p>Do you want to cancel the settings made for this bot?</p>
+                <p>Do you want to cancel the settings made for this automatic trade?</p>
                 <footer><button data-close-bot-modal type="button">Cancel</button><button class="danger-btn" data-close-bot-modal type="button">Reset</button></footer>
             </section>
 
             <section class="bot-dialog load" data-bot-panel="import" hidden>
                 <header><strong>Load strategy</strong><button data-close-bot-modal type="button">x</button></header>
                 <div class="load-tabs"><button class="is-active">Recent</button><button>Local</button><button>Google Drive</button></div>
-                <aside><strong>Untitled Bot</strong><small>Unsaved</small></aside>
+                <aside><strong>Untitled Automatic Trade</strong><small>Unsaved</small></aside>
                 <div class="bot-preview"><span>Preview</span><div class="preview-blocks"></div></div>
                 <footer><button class="danger-btn" type="button">Open</button></footer>
             </section>
 
             <section class="bot-dialog small" data-bot-panel="save" hidden>
                 <header><strong>Save strategy</strong><button data-close-bot-modal type="button">x</button></header>
-                <p>Enter your bot name, choose where to save it, and hit Save.</p>
-                <input type="text" placeholder="Bot name">
+                <p>Enter your automatic trade name, choose where to save it, and hit Save.</p>
+                <input type="text" placeholder="Automatic trade name">
                 <div class="save-options"><button class="is-active">File<span>Local</span></button><button>Drive<span>Google Drive</span></button></div>
                 <footer><button data-close-bot-modal type="button">Cancel</button><button class="danger-btn" type="button">Save</button></footer>
             </section>
