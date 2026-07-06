@@ -20,6 +20,10 @@ def deriv_app_id():
     return settings.DERIV_APP_ID
 
 
+def deriv_ws_app_id():
+    return settings.DERIV_WS_APP_ID
+
+
 def referral_defaults():
     return {
         "affiliate_token": settings.DERIV_AFFILIATE_TOKEN,
@@ -188,6 +192,36 @@ class DerivAPIClient:
         return self.request("GET", "/applications/v1/markup-statistics")
 
 
+async def _deriv_ws_request(token, *payloads):
+    try:
+        import websockets
+    except ImportError as exc:
+        raise RuntimeError("Install the websockets package in the active Python environment") from exc
+
+    url = f"wss://ws.derivws.com/websockets/v3?app_id={deriv_ws_app_id()}"
+    async with websockets.connect(url) as ws:
+        await ws.send(json.dumps({"authorize": token}))
+        auth = json.loads(await ws.recv())
+        if auth.get("error"):
+            raise RuntimeError(auth["error"]["message"])
+
+        replies = [auth]
+        for payload in payloads:
+            await ws.send(json.dumps(payload))
+            reply = json.loads(await ws.recv())
+            if reply.get("error"):
+                raise RuntimeError(reply["error"]["message"])
+            replies.append(reply)
+        return replies
+
+
+def _ws_authorize(token):
+    import asyncio
+
+    auth, balance = asyncio.run(_deriv_ws_request(token, {"balance": 1}))
+    return auth.get("authorize", {}), balance.get("balance", {})
+
+
 def _first_account(data):
     accounts = data.get("accounts") if isinstance(data, dict) else data
     if isinstance(accounts, dict):
@@ -226,6 +260,85 @@ def sync_accounts(user, accounts_payload, active_account_id=""):
         saved[0].is_active = True
         saved[0].save(update_fields=["is_active"])
     return saved
+
+
+def sync_legacy_oauth_tokens(request, user, credentials):
+    saved = []
+    first_token = ""
+    first_token_id = None
+
+    for credential in credentials:
+        token = credential.get("token", "")
+        if not token:
+            continue
+
+        account_id = credential.get("account_id", "")
+        currency = credential.get("currency", "USD")
+        account_type = "demo" if account_id.upper().startswith("VRTC") else "real"
+        balance = Decimal("0")
+        raw = {"source": "legacy_oauth_callback", "callback": credential}
+
+        try:
+            auth, balance_payload = _ws_authorize(token)
+            account_id = str(auth.get("loginid") or account_id)
+            currency = balance_payload.get("currency") or auth.get("currency") or currency
+            account_type = "demo" if auth.get("is_virtual") or account_id.upper().startswith("VRTC") else "real"
+            balance = Decimal(str(balance_payload.get("balance") or 0))
+            raw.update({"authorize": auth, "balance": balance_payload})
+        except Exception as exc:
+            raw["sync_error"] = str(exc)
+
+        if not account_id:
+            continue
+
+        account, _ = DerivAccount.objects.update_or_create(
+            user=user,
+            account_id=account_id,
+            defaults={
+                "account_type": account_type,
+                "currency": currency or "USD",
+                "balance": balance,
+                "is_active": False,
+                "raw": raw,
+            },
+        )
+        oauth_token = OAuthToken.objects.create(
+            user=user,
+            token_type="oauth",
+            access_token=seal_token(token),
+            active_account=account,
+            is_valid=True,
+            last_validated_at=timezone.now(),
+        )
+        if not first_token:
+            first_token = token
+            first_token_id = oauth_token.id
+        saved.append((account, token, oauth_token.id))
+
+    if not saved:
+        raise RuntimeError("Deriv did not return any usable account token.")
+
+    active_account, active_token, active_token_id = next(
+        ((account, token, token_id) for account, token, token_id in saved if account.account_type == "real"),
+        saved[0],
+    )
+    DerivAccount.objects.filter(user=user).update(is_active=False)
+    active_account.is_active = True
+    active_account.save(update_fields=["is_active"])
+
+    user.deriv_connected = True
+    user.save(update_fields=["deriv_connected"])
+    set_deriv_session(
+        request,
+        active_token or first_token,
+        active_account.account_id,
+        active_account.currency,
+        active_account.account_type,
+        active_token_id or first_token_id,
+    )
+    ActivityLog.objects.create(user=user, action="deriv_legacy_oauth_synced", metadata={"accounts": len(saved)})
+    bind_referral_to_user(request, user)
+    return [account for account, _, _ in saved]
 
 
 def validate_and_store_token(request, user, token, token_type="oauth", token_payload=None):

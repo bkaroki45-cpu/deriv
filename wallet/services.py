@@ -26,44 +26,6 @@ def get_wallet(user):
     return wallet
 
 
-def deposit(wallet, amount, description="Deposit"):
-    amount = money(amount)
-
-    with transaction.atomic():
-        wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
-        wallet.balance = (wallet.balance + amount).quantize(MONEY_QUANT)
-        wallet.equity = (wallet.equity + amount).quantize(MONEY_QUANT)
-        wallet.save(update_fields=["balance", "equity", "updated_at"])
-
-        return WalletTransaction.objects.create(
-            wallet=wallet,
-            amount=amount,
-            type="deposit",
-            description=description,
-        )
-
-
-def withdraw(wallet, amount, description="Withdraw"):
-    amount = money(amount)
-
-    with transaction.atomic():
-        wallet = Wallet.objects.select_for_update().get(pk=wallet.pk)
-
-        if wallet.balance < amount:
-            raise ValueError("Insufficient balance")
-
-        wallet.balance = (wallet.balance - amount).quantize(MONEY_QUANT)
-        wallet.equity = (wallet.equity - amount).quantize(MONEY_QUANT)
-        wallet.save(update_fields=["balance", "equity", "updated_at"])
-
-        return WalletTransaction.objects.create(
-            wallet=wallet,
-            amount=amount,
-            type="withdraw",
-            description=description,
-        )
-
-
 def apply_trade_profit(user_or_wallet, trade):
     """Apply trade profit/loss to wallet. Accepts User or Wallet instance."""
     wallet = get_wallet(user_or_wallet) if hasattr(user_or_wallet, "is_authenticated") else user_or_wallet

@@ -15,6 +15,7 @@ from .deriv_api import (
     exchange_code,
     get_session,
     set_deriv_session,
+    sync_legacy_oauth_tokens,
     validate_and_store_token,
 )
 
@@ -41,7 +42,10 @@ def _deriv_oauth_scope():
 
 
 def _use_pkce_oauth():
-    return os.getenv("DERIV_OAUTH_PKCE", "0") == "1"
+    configured = os.getenv("DERIV_OAUTH_PKCE")
+    if configured is not None:
+        return configured.strip().lower() in {"1", "true", "yes", "on"}
+    return not str(_deriv_app_id()).isdigit()
 
 
 def _clear_deriv_session(request):
@@ -53,8 +57,11 @@ def _oauth_authorize_url(request, *, signup=False):
 
 
 def _legacy_authorize_url(request, *, signup=False):
+    app_id = os.getenv("DERIV_LEGACY_APP_ID") or (
+        _deriv_app_id() if str(_deriv_app_id()).isdigit() else _deriv_ws_app_id()
+    )
     params = {
-        "app_id": _deriv_legacy_app_id(),
+        "app_id": app_id,
         "l": "EN",
         "brand": "deriv",
         "redirect_uri": _absolute_redirect_uri(request),
@@ -129,6 +136,39 @@ def _absolute_redirect_uri(request):
 def _deriv_session(request):
     return get_session(request)
 
+
+def _callback_credentials(query):
+    credentials = []
+    index = 1
+    while True:
+        token = query.get(f"token{index}")
+        account_id = query.get(f"acct{index}")
+        currency = query.get(f"cur{index}") or "USD"
+        if not token and not account_id:
+            break
+        if token:
+            credentials.append({
+                "token": token,
+                "account_id": account_id or "",
+                "currency": currency.upper(),
+            })
+        index += 1
+
+    fallback_token = query.get("token")
+    if fallback_token and not credentials:
+        credentials.append({
+            "token": fallback_token,
+            "account_id": query.get("account") or "",
+            "currency": (query.get("currency") or "USD").upper(),
+        })
+    return credentials
+
+
+def _active_deriv_account(request):
+    if not request.user.is_authenticated:
+        return None
+    return request.user.deriv_accounts.filter(is_active=True).first()
+
 def home(request):
     capture_referral(request, request.user)
     if any(key in request.GET for key in ("code", "token1", "token", "error")):
@@ -140,10 +180,11 @@ def dashboard(request):
     wallet = getattr(request.user, "wallet", None) if request.user.is_authenticated else None
     deriv_session = _deriv_session(request)
     deriv_accounts = request.user.deriv_accounts.all() if request.user.is_authenticated else []
+    active_deriv_account = _active_deriv_account(request)
     return render(request, "core/dashboard.html", {
         "wallet": wallet,
         "demo_balance": "10000.00",
-        "real_balance": getattr(wallet, "balance", "0.00") if wallet else "0.00",
+        "real_balance": getattr(active_deriv_account, "balance", getattr(wallet, "balance", "0.00") if wallet else "0.00"),
         "deriv_app_id": _deriv_app_id(),
         "deriv_ws_app_id": _deriv_ws_app_id(),
         "deriv_session": deriv_session,
@@ -153,7 +194,12 @@ def dashboard(request):
 
 
 def bot_builder(request):
-    return render(request, "core/bot_builder.html")
+    deriv_session = _deriv_session(request)
+    active_deriv_account = _active_deriv_account(request)
+    return render(request, "core/bot_builder.html", {
+        "deriv_session": deriv_session,
+        "real_balance": getattr(active_deriv_account, "balance", "0.00"),
+    })
 
 
 def deriv_login_page(request):
@@ -211,16 +257,21 @@ def deriv_oauth_callback(request):
             return redirect("login")
         return redirect("trade")
 
-    token = request.GET.get("token1") or request.GET.get("token")
-    account_id = request.GET.get("acct1") or request.GET.get("account")
-    currency = request.GET.get("cur1") or request.GET.get("currency") or "USD"
-    if token:
+    credentials = _callback_credentials(request.GET)
+    if credentials:
         try:
+            first = credentials[0]
+            account_id = first.get("account_id", "")
             _ensure_deriv_user(request, account_id)
-            request.session["deriv_account_id"] = account_id
-            validate_and_store_token(request, request.user, token, token_type="oauth")
+            sync_legacy_oauth_tokens(request, request.user, credentials)
         except Exception:
-            _store_deriv_session(request, token, account_id, currency)
+            first = credentials[0]
+            _store_deriv_session(
+                request,
+                first.get("token", ""),
+                first.get("account_id", ""),
+                first.get("currency", "USD"),
+            )
     return redirect("trade")
 
 

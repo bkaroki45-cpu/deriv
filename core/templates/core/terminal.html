@@ -54,7 +54,7 @@
             <div class="mobile-account-strip">
                 <span class="deriv-logo">DT</span>
                 <span><small id="mobile-account-label">{% if deriv_session.is_connected %}{{ deriv_session.account_id }}{% else %}Real account{% endif %}</small><strong id="mobile-account-balance">{{ real_balance|default:'0.00' }} {{ deriv_session.currency|default:'USD' }}</strong></span>
-                <a class="deposit-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}">{% if deriv_session.is_connected %}Deposit{% else %}Login{% endif %}</a>
+                <a class="account-link-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}">{% if deriv_session.is_connected %}Account{% else %}Login{% endif %}</a>
             </div>
             <button class="app-grid" type="button" aria-label="Apps"><span class="grid-icon" aria-hidden="true"></span></button>
             <nav class="trade-mode-tabs" aria-label="Trade mode">
@@ -137,7 +137,7 @@
             </div>
             <div class="bottom-panel" data-bottom-panel="transactions">
                 <div class="activity-head" aria-hidden="true"><span>ID</span><span>Contract</span><span>Stake</span><span>Payout</span><span>Status</span></div>
-                <div class="activity-feed" id="transactions-feed"><span class="empty-state-inline">Deposits, stakes, and payouts will appear here.</span></div>
+                <div class="activity-feed" id="transactions-feed"><span class="empty-state-inline">Stakes, contract results, and payouts will appear here.</span></div>
             </div>
         </section>
         <section class="workspace-page dashboard-page" data-workspace-page="dashboard" hidden>
@@ -181,7 +181,7 @@
                 <span><small id="account-label">{% if deriv_session.is_connected %}{{ deriv_session.account_id }}{% else %}Real account{% endif %}</small><strong id="account-balance">{{ real_balance|default:'0.00' }} {{ deriv_session.currency|default:'USD' }}</strong></span>
                 <span class="chevron" aria-hidden="true"></span>
             </button>
-            <a class="deposit-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}">{% if deriv_session.is_connected %}Deposit{% else %}Login{% endif %}</a>
+            <a class="account-link-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}">{% if deriv_session.is_connected %}Account{% else %}Login{% endif %}</a>
             <div class="account-menu" id="account-menu" role="menu">
                 {% if deriv_session.is_connected %}
                 <button type="button" data-account-type="{{ deriv_session.account_type }}" data-label="{{ deriv_session.account_id }}" data-balance="{{ real_balance|default:'0.00' }} {{ deriv_session.currency|default:'USD' }}"><span><small>Deriv Account</small><strong>{{ deriv_session.account_id }}</strong></span></button>

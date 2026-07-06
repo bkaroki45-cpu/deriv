@@ -1,8 +1,6 @@
 from django.urls import path
-from .views import WalletView, DepositView, WithdrawView
+from .views import WalletView
 
 urlpatterns = [
     path("", WalletView.as_view()),
-    path("deposit/", DepositView.as_view()),
-    path("withdraw/", WithdrawView.as_view()),
 ]

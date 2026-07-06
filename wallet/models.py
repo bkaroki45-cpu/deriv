@@ -26,8 +26,6 @@ class Wallet(models.Model):
 class WalletTransaction(models.Model):
 
     TYPE_CHOICES = [
-        ("deposit", "Deposit"),
-        ("withdraw", "Withdraw"),
         ("profit", "Profit"),
         ("loss", "Loss"),
         ("adjustment", "Adjustment"),
