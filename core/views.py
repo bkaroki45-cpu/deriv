@@ -248,7 +248,7 @@ def deriv_oauth_callback(request):
         expected_state = request.session.pop("deriv_oauth_state", "")
         if not expected_state or request.GET.get("state") != expected_state:
             request.session.pop("deriv_oauth_verifier", None)
-            request.session["deriv_oauth_error"] = "Deriv login state mismatch. Please try again."
+            request.session["deriv_oauth_error"] = "Your Deriv login request expired. Please start again and complete the login in the same tab."
             return redirect("login")
         try:
             data = _exchange_oauth_code(request, code)
