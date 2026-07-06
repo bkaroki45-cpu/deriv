@@ -42,10 +42,12 @@ def _deriv_oauth_scope():
 
 
 def _use_pkce_oauth():
+    if not str(_deriv_app_id()).isdigit():
+        return True
     configured = os.getenv("DERIV_OAUTH_PKCE")
     if configured is not None:
         return configured.strip().lower() in {"1", "true", "yes", "on"}
-    return not str(_deriv_app_id()).isdigit()
+    return False
 
 
 def _clear_deriv_session(request):
