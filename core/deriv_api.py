@@ -119,6 +119,8 @@ def authorize_url(request, redirect_uri, signup=False):
         "code_challenge_method": "S256",
         "prompt": "registration" if signup else "login",
     }
+    if not signup:
+        params["max_age"] = "0"
     if signup:
         ref = referral_defaults()
         params.update({
