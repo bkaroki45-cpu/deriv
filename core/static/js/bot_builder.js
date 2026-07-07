@@ -15,6 +15,18 @@
     let running = false;
     let runCount = 0;
     let zoom = 1;
+    const botMarket = {
+        symbol: "1HZ10V",
+        name: "Volatility 10 (1s) Index",
+        socket: null,
+        reconnectTimer: null,
+        ticks: [],
+        digits: Array.from({ length: 10 }, () => 0),
+        lastDigit: null,
+        lastPrice: null,
+        lastQuote: "",
+        pipSize: 2,
+    };
 
     const flyoutCopy = {
         "Trade parameters": ["Configure market, contract type, duration, stake, and startup behavior.", "Market > Contract > Stake"],
@@ -29,6 +41,143 @@
         if (!journal) return;
         const stamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
         journal.textContent = `[${stamp}] ${message}\n${journal.textContent}`.slice(0, 4000);
+    }
+
+    function formatPrice(price) {
+        const value = Number(price);
+        if (!Number.isFinite(value)) return "Waiting";
+        const pipSize = Number.isInteger(botMarket.pipSize) ? botMarket.pipSize : 2;
+        return value.toLocaleString(undefined, { minimumFractionDigits: pipSize, maximumFractionDigits: pipSize });
+    }
+
+    function digitFromTick(price, quote, pipSize) {
+        const text = quote
+            ? String(quote)
+            : Number.isFinite(Number(price)) && Number.isInteger(Number(pipSize))
+                ? Number(price).toFixed(Number(pipSize))
+                : String(price);
+        const digits = text.replace(/[^0-9]/g, "");
+        return digits ? Number(digits.charAt(digits.length - 1)) : null;
+    }
+
+    function setConnection(online) {
+        document.querySelectorAll("[data-bot-connection]").forEach((node) => {
+            node.classList.toggle("is-live", online);
+            node.title = online ? "Connected to Deriv live ticks" : "Deriv live ticks reconnecting";
+        });
+    }
+
+    function renderLiveHeader() {
+        document.querySelectorAll("[data-bot-market-name], [data-bot-live-name]").forEach((node) => {
+            node.textContent = botMarket.name;
+        });
+        document.querySelectorAll("[data-bot-live-symbol]").forEach((node) => {
+            node.textContent = botMarket.symbol;
+        });
+        document.querySelectorAll("[data-bot-live-price]").forEach((node) => {
+            node.textContent = botMarket.lastQuote || formatPrice(botMarket.lastPrice);
+        });
+        document.querySelectorAll("[data-bot-live-digit]").forEach((node) => {
+            node.textContent = botMarket.lastDigit === null ? "Digit -" : `Digit ${botMarket.lastDigit}`;
+        });
+    }
+
+    function renderBotChart() {
+        const line = document.querySelector("[data-bot-live-line]");
+        const area = document.querySelector("[data-bot-live-area]");
+        if (!line || !area || botMarket.ticks.length < 2) return;
+        const points = botMarket.ticks.slice(-120);
+        const prices = points.map((tick) => tick.price);
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
+        const span = max - min || Math.max(Math.abs(max) * 0.0001, 1);
+        const width = 900;
+        const height = 460;
+        const padX = 24;
+        const padY = 34;
+        const plotW = width - padX * 2;
+        const plotH = height - padY * 2;
+        const coords = points.map((tick, index) => {
+            const x = padX + (points.length === 1 ? plotW : (index / (points.length - 1)) * plotW);
+            const y = padY + ((max - tick.price) / span) * plotH;
+            return [x, y];
+        });
+        const path = coords.map(([x, y], index) => `${index ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+        const areaPath = `${path} L${coords[coords.length - 1][0].toFixed(1)} ${height - padY} L${coords[0][0].toFixed(1)} ${height - padY} Z`;
+        line.setAttribute("d", path);
+        area.setAttribute("d", areaPath);
+    }
+
+    function renderDigitStats() {
+        const total = botMarket.digits.reduce((sum, count) => sum + count, 0);
+        if (stats.runs) stats.runs.textContent = String(total);
+        if (stats.lost) stats.lost.textContent = botMarket.lastDigit === null ? "0" : String(botMarket.lastDigit);
+        if (stats.won) {
+            const max = Math.max(...botMarket.digits);
+            const hotDigit = max > 0 ? botMarket.digits.findIndex((count) => count === max) : "-";
+            stats.won.textContent = String(hotDigit);
+        }
+        if (stats.stake) stats.stake.textContent = botMarket.lastQuote || formatPrice(botMarket.lastPrice);
+        if (stats.payout) {
+            const count = botMarket.lastDigit === null ? 0 : botMarket.digits[botMarket.lastDigit];
+            const pct = total ? (count / total) * 100 : 0;
+            stats.payout.textContent = `${pct.toFixed(1)}%`;
+        }
+        if (stats.profit) {
+            stats.profit.textContent = "Live only";
+            stats.profit.className = "is-neutral";
+        }
+    }
+
+    function ingestLiveTick(tick) {
+        const price = Number(tick.quote);
+        if (!Number.isFinite(price)) return;
+        botMarket.lastPrice = price;
+        botMarket.lastQuote = String(tick.quote);
+        botMarket.pipSize = Number.isInteger(Number(tick.pip_size)) ? Number(tick.pip_size) : botMarket.pipSize;
+        const digit = digitFromTick(price, botMarket.lastQuote, botMarket.pipSize);
+        if (Number.isInteger(digit) && digit >= 0 && digit <= 9) {
+            botMarket.lastDigit = digit;
+            botMarket.digits[digit] += 1;
+        }
+        botMarket.ticks.push({ price, epoch: Number(tick.epoch) || Date.now() / 1000 });
+        if (botMarket.ticks.length > 500) botMarket.ticks.shift();
+        renderLiveHeader();
+        renderBotChart();
+        renderDigitStats();
+        if (running) {
+            log(`${botMarket.symbol} ${botMarket.lastQuote} live tick${botMarket.lastDigit === null ? "" : `, last digit ${botMarket.lastDigit}`}.`);
+        }
+    }
+
+    function connectDerivTicks() {
+        clearTimeout(botMarket.reconnectTimer);
+        if (botMarket.socket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(botMarket.socket.readyState)) return;
+        const appId = window.PROFITERA_DERIV_APP_ID || "1089";
+        botMarket.socket = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${encodeURIComponent(appId)}`);
+        botMarket.socket.addEventListener("open", () => {
+            setConnection(true);
+            botMarket.socket.send(JSON.stringify({ ticks: botMarket.symbol, subscribe: 1 }));
+            log(`Connected to Deriv live market ${botMarket.symbol}.`);
+        });
+        botMarket.socket.addEventListener("message", (event) => {
+            let payload;
+            try {
+                payload = JSON.parse(event.data);
+            } catch (error) {
+                return;
+            }
+            if (payload.error) {
+                log(`Deriv market error: ${payload.error.message || "Unknown error"}.`);
+                return;
+            }
+            if (payload.tick) ingestLiveTick(payload.tick);
+        });
+        botMarket.socket.addEventListener("close", () => {
+            setConnection(false);
+            botMarket.reconnectTimer = setTimeout(connectDerivTicks, 2500);
+        });
+        botMarket.socket.addEventListener("error", () => setConnection(false));
     }
 
     function setPage(name) {
@@ -61,16 +210,10 @@
         document.querySelector("[data-summary-empty]")?.classList.toggle("is-hidden", running);
         if (running) {
             runCount += 1;
-            if (stats.runs) stats.runs.textContent = String(runCount);
-            if (stats.stake) stats.stake.textContent = `${(runCount * 1).toFixed(2)} USD`;
-            if (stats.payout) stats.payout.textContent = `${(runCount * 1.93).toFixed(2)} USD`;
-            if (stats.profit) {
-                stats.profit.textContent = `${(runCount * 0.37).toFixed(2)} USD`;
-                stats.profit.className = "is-positive";
-            }
-            log("Bot run requested. Backend execution should start from the server-authoritative engine.");
+            renderDigitStats();
+            log(`Bot monitor started on live Deriv market ${botMarket.symbol}. No automatic buy is sent without a completed strategy rule.`);
         } else {
-            log("Bot stopped. Open contracts should be allowed to settle server-side.");
+            log("Bot monitor stopped.");
         }
     }
 
@@ -151,7 +294,13 @@
     function applyQuickTemplate(name) {
         setPage("builder");
         closeModal();
-        log(`Quick strategy loaded: ${name}.`);
+        if (name === "digits") {
+            log("Quick strategy loaded: Digit matcher. It will monitor live last-digit ticks from Deriv.");
+        } else if (name === "rise_fall") {
+            log("Quick strategy loaded: Rise/Fall starter. It will monitor live Deriv tick direction.");
+        } else {
+            log("Quick strategy loaded: Martingale skeleton. Use only with explicit risk limits before live buying.");
+        }
         stage?.querySelectorAll(".dbot-block").forEach((block) => {
             block.animate([{ transform: "scale(0.98)" }, { transform: "scale(1)" }], { duration: 220 });
         });
@@ -237,9 +386,13 @@
             const action = button.dataset.botAction;
             if (action === "reset") {
                 runCount = 0;
-                Object.values(stats).forEach((item) => { if (item) item.textContent = item === stats.profit ? "0.00 USD" : "0"; });
-                if (stats.stake) stats.stake.textContent = "0.00 USD";
-                if (stats.payout) stats.payout.textContent = "0.00 USD";
+                botMarket.ticks = [];
+                botMarket.digits = Array.from({ length: 10 }, () => 0);
+                botMarket.lastDigit = null;
+                botMarket.lastPrice = null;
+                botMarket.lastQuote = "";
+                renderLiveHeader();
+                renderDigitStats();
                 log("Workspace reset requested.");
             }
             if (action === "sort") {
@@ -261,12 +414,9 @@
 
     document.querySelector("[data-reset-stats]")?.addEventListener("click", () => {
         runCount = 0;
-        if (stats.stake) stats.stake.textContent = "0.00 USD";
-        if (stats.payout) stats.payout.textContent = "0.00 USD";
-        if (stats.runs) stats.runs.textContent = "0";
-        if (stats.lost) stats.lost.textContent = "0";
-        if (stats.won) stats.won.textContent = "0";
-        if (stats.profit) stats.profit.textContent = "0.00 USD";
+        botMarket.digits = Array.from({ length: 10 }, () => 0);
+        botMarket.lastDigit = null;
+        renderDigitStats();
         log("Summary stats reset.");
     });
 
@@ -278,4 +428,7 @@
     });
 
     log("Profitera Bot workspace ready.");
+    renderLiveHeader();
+    renderDigitStats();
+    connectDerivTicks();
 })();

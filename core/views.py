@@ -201,6 +201,7 @@ def bot_builder(request):
     active_deriv_account = _active_deriv_account(request)
     return render(request, "core/bot_builder.html", {
         "deriv_session": deriv_session,
+        "deriv_ws_app_id": _deriv_ws_app_id(),
         "real_balance": getattr(active_deriv_account, "balance", "0.00"),
     })
 

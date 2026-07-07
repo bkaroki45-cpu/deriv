@@ -106,7 +106,6 @@
     let activeDigit = 5;
     let lastDigit = null;
     let proposalTimer = null;
-    let localTradeId = 1;
     const localTrades = new Map();
 
     function csrfToken() {
@@ -936,7 +935,7 @@
                     <span>${money(trade.payout || 0)}</span>
                     <small>${escapeHtml(trade.transaction || "Stake reserved")}</small>
                 </article>
-            `).join("") : '<span class="empty-state-inline">Deposits, stakes, and payouts will appear here.</span>';
+            `).join("") : '<span class="empty-state-inline">Stakes, contract results, and payouts will appear here.</span>';
         }
         const totalProfit = closed.reduce((sum, trade) => sum + Number(trade.profit || 0), 0) + open.reduce((sum, trade) => sum + Number(trade.profit || 0), 0);
         const winners = closed.filter((trade) => Number(trade.profit || 0) > 0);
@@ -951,10 +950,16 @@
         if (dashSymbol) dashSymbol.textContent = selectedDerivSymbol();
     }
 
+    function parseVisiblePrice() {
+        return Number(String(byId("active-price")?.textContent || "").replace(/,/g, "")) || 0;
+    }
+
     function addLocalTrade(payload, serverData = {}) {
-        const price = Number(byId("active-price")?.textContent) || 0;
-        const id = serverData.contract_id || `SIM-${localTradeId++}`;
+        const id = serverData.contract_id || serverData.buy?.contract_id || serverData.buy?.transaction_id;
+        if (!id) return;
+        const price = parseVisiblePrice();
         const stake = Number(payload.stake || 0);
+        const payoutValue = Number(serverData.buy?.payout || serverData.payout || 0);
         const trade = {
             id,
             symbol: payload.symbol,
@@ -962,11 +967,11 @@
             stake,
             entry: price,
             current: price,
-            payout: stake * 1.86,
+            payout: Number.isFinite(payoutValue) && payoutValue > 0 ? payoutValue : 0,
             profit: 0,
             status: "open",
-            statusLabel: "12s remaining",
-            transaction: "Stake reserved",
+            statusLabel: "Open on Deriv",
+            transaction: serverData.buy?.transaction_id || "Deriv contract submitted",
             ticks: 0,
         };
         localTrades.set(String(id), trade);
@@ -979,28 +984,6 @@
             profit: 0,
             status: "open",
         });
-        const timer = setInterval(() => {
-            const current = localTrades.get(String(id));
-            if (!current || current.status !== "open") {
-                clearInterval(timer);
-                return;
-            }
-            current.ticks += 1;
-            const livePrice = Number(byId("active-price")?.textContent) || current.current || current.entry;
-            current.current = livePrice;
-            const directionBias = ["rise", "higher", "up", "call"].includes(activeDirection) ? 1 : -1;
-            const drift = current.entry ? ((livePrice - current.entry) / current.entry) * 1000 * directionBias : (Math.random() - 0.45);
-            current.profit = Math.max(-stake, Math.min(stake * 0.9, drift || ((Math.random() - 0.45) * stake)));
-            current.statusLabel = `${Math.max(0, 12 - current.ticks * 2)}s remaining`;
-            if (current.ticks >= 6) {
-                current.status = current.profit >= 0 ? "won" : "lost";
-                current.statusLabel = current.status === "won" ? "Won" : "Lost";
-                current.transaction = current.status === "won" ? "Payout credited" : "Contract expired";
-                window.profiteraChart?.addTradeFlag?.(current.status === "won" ? "win" : "loss", livePrice || current.entry);
-                clearInterval(timer);
-            }
-            renderLocalTrades();
-        }, 2000);
     }
 
     const form = byId("trade-form");
@@ -1041,7 +1024,6 @@
             } catch (error) {
                 if (warning) warning.textContent = error.message;
                 if (status) status.textContent = "Rejected";
-                addLocalTrade(payload, {});
             } finally {
                 if (primary) {
                     primary.classList.remove("is-loading");
@@ -1054,12 +1036,12 @@
     window.addEventListener("profitera:tick", (event) => {
         const price = Number(event.detail.price);
         if (!Number.isFinite(price)) return;
-        const parts = price.toFixed(5).replace(".", "");
-        lastDigit = Number(parts.charAt(parts.length - 1));
+        const digit = Number(event.detail.digit);
+        if (Number.isInteger(digit) && digit >= 0 && digit <= 9) lastDigit = digit;
         renderDigits();
         updateChartOverlay();
         const badge = byId("chart-price-badge");
-        if (badge) badge.textContent = price.toFixed(2);
+        if (badge) badge.textContent = event.detail.quote || String(price);
         scheduleProposal();
     });
 

@@ -37,6 +37,8 @@
             this.connection = document.querySelector('[data-connection="markets"]');
             this.markets = [];
             this.prices = new Map();
+            this.quotes = new Map();
+            this.pipSizes = new Map();
             this.previousPrices = new Map();
             this.favorites = new Set(JSON.parse(localStorage.getItem("profitera:favorites") || "[]"));
             this.recent = JSON.parse(localStorage.getItem("profitera:recent-markets") || "[]");
@@ -119,9 +121,24 @@
         formatPrice(price, symbol = this.activeSymbol) {
             const value = Number(price);
             if (!Number.isFinite(value)) return "-";
+            const pipSize = this.pipSizes.get(symbol);
+            if (Number.isInteger(pipSize) && pipSize >= 0) {
+                return value.toLocaleString(undefined, { minimumFractionDigits: pipSize, maximumFractionDigits: pipSize });
+            }
             const text = String(symbol || "").toLowerCase();
             const decimals = text.startsWith("frx") || value < 10 ? 5 : text.startsWith("cry") ? 2 : 2;
             return value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        }
+
+        digitFromQuote(quote, price, pipSize) {
+            const text = quote
+                ? String(quote)
+                : Number.isFinite(Number(price)) && Number.isInteger(Number(pipSize))
+                    ? Number(price).toFixed(Number(pipSize))
+                    : String(price);
+            const digits = text.replace(/[^0-9]/g, "");
+            if (!digits) return null;
+            return Number(digits.charAt(digits.length - 1));
         }
 
         syntheticFirst(markets) {
@@ -209,7 +226,13 @@
                 if (data.balance) {
                     window.dispatchEvent(new CustomEvent("profitera:account", { detail: data.balance }));
                 }
-                if (data.tick) this.ingestTick({ symbol: data.tick.symbol, price: data.tick.quote, time: data.tick.epoch });
+                if (data.tick) this.ingestTick({
+                    symbol: data.tick.symbol,
+                    price: data.tick.quote,
+                    quote: data.tick.quote,
+                    time: data.tick.epoch,
+                    pipSize: data.tick.pip_size,
+                });
                 if (data.candles && window.profiteraChart) {
                     window.profiteraChart.clear();
                     data.candles.forEach((candle) => window.profiteraChart.upsertCandle({
@@ -226,6 +249,7 @@
                         window.profiteraChart.ingestTick({
                             symbol: this.activeSymbol,
                             price,
+                            quote: String(price),
                             time: data.history.times && data.history.times[index],
                         });
                     });
@@ -335,6 +359,10 @@
             const symbol = tick.symbol;
             const price = Number(tick.price);
             if (!symbol || !Number.isFinite(price)) return;
+            const quote = tick.quote !== undefined && tick.quote !== null ? String(tick.quote) : String(tick.price);
+            const pipSize = Number(tick.pipSize ?? tick.pip_size);
+            if (Number.isInteger(pipSize) && pipSize >= 0) this.pipSizes.set(symbol, pipSize);
+            this.quotes.set(symbol, quote);
             const now = Date.now();
             this.tickWindow = [...this.tickWindow.filter((time) => now - time < 60000), now];
             const previous = this.prices.get(symbol);
@@ -342,6 +370,7 @@
             this.prices.set(symbol, price);
             if (symbol === this.activeSymbol) {
                 if (this.activePrice) this.activePrice.textContent = this.formatPrice(price, symbol);
+                const digit = this.digitFromQuote(quote, price, pipSize);
                 const lastTick = document.getElementById("last-tick-time");
                 const velocity = document.getElementById("tick-velocity");
                 if (lastTick) lastTick.textContent = new Date().toLocaleTimeString();
@@ -352,8 +381,8 @@
                     this.activeChange.className = change > 0 ? "positive" : change < 0 ? "negative" : "neutral";
                 }
                 if (window.profiteraChart) window.profiteraChart.ingestTick(tick);
-                if (window.profiteraDigits) window.profiteraDigits.ingest(price);
-                window.dispatchEvent(new CustomEvent("profitera:tick", { detail: { symbol, price } }));
+                if (window.profiteraDigits) window.profiteraDigits.ingest({ symbol, price, quote, pipSize, digit });
+                window.dispatchEvent(new CustomEvent("profitera:tick", { detail: { symbol, price, quote, pipSize, digit } }));
             }
             this.updatePriceRow(symbol, price, previous);
         }

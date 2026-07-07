@@ -12,6 +12,7 @@ class DerivMarketStream:
 
     def __init__(self):
         self.app_id = os.getenv("DERIV_WS_APP_ID", "1089")
+        self.symbol = os.getenv("DERIV_DEFAULT_SYMBOL", "1HZ100V")
         self.url = f"wss://ws.derivws.com/websockets/v3?app_id={self.app_id}"
 
         # candle storage (1-second aggregation)
@@ -24,7 +25,7 @@ class DerivMarketStream:
         async with websockets.connect(self.url) as ws:
 
             await ws.send(json.dumps({
-                "ticks": "R_100",
+                "ticks": self.symbol,
                 "subscribe": 1
             }))
 
@@ -46,7 +47,7 @@ class DerivMarketStream:
 
             tick = data["tick"]
 
-            symbol = tick.get("symbol", "R_100")
+            symbol = tick.get("symbol", self.symbol)
             price = float(tick.get("quote"))
             epoch = tick.get("epoch")
 

@@ -35,8 +35,8 @@
             } else {
                 this.operator.value = ">";
                 this.threshold.value = "";
-                this.action.value = Math.random() > 0.5 ? "BUY" : "SELL";
-                this.log("Random tick template loaded.");
+                this.action.value = "BUY";
+                this.log("Digit tick template loaded. Signals will use live Deriv ticks.");
             }
         }
 

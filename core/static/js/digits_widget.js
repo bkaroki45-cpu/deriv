@@ -25,11 +25,23 @@
             }
         }
 
-        ingest(price) {
-            const text = String(price);
-            const match = text.match(/\d(?=\D*$)/);
-            if (!match) return;
-            const digit = Number(match[0]);
+        digitFromTick(tick) {
+            if (tick && Number.isInteger(Number(tick.digit))) return Number(tick.digit);
+            const price = tick && typeof tick === "object" ? tick.price : tick;
+            const quote = tick && typeof tick === "object" ? tick.quote : "";
+            const pipSize = Number(tick && typeof tick === "object" ? tick.pipSize ?? tick.pip_size : NaN);
+            const text = quote
+                ? String(quote)
+                : Number.isFinite(Number(price)) && Number.isInteger(pipSize)
+                    ? Number(price).toFixed(pipSize)
+                    : String(price);
+            const match = text.replace(/[^0-9]/g, "").match(/\d$/);
+            return match ? Number(match[0]) : null;
+        }
+
+        ingest(tick) {
+            const digit = this.digitFromTick(tick);
+            if (!Number.isInteger(digit) || digit < 0 || digit > 9) return;
             this.counts[digit] += 1;
             this.total += 1;
             if (this.lastDigitEl) this.lastDigitEl.textContent = String(digit);

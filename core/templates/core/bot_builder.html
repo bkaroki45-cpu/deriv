@@ -24,7 +24,7 @@
             </nav>
 
             <section class="dbot-actions" aria-label="Bot controls">
-                <span class="dbot-connection is-live" title="Connection live"></span>
+                <span class="dbot-connection" data-bot-connection title="Deriv market connection"></span>
                 <button class="dbot-info" type="button" aria-label="Information">i</button>
                 <button class="dbot-run" type="button" data-bot-run><span aria-hidden="true">&gt;</span>Run</button>
                 <button class="dbot-stop" type="button" data-bot-stop hidden>Stop</button>
@@ -124,7 +124,7 @@
                             <div class="dbot-stage" id="builder-stage" aria-label="Blockly workspace">
                                 <article class="dbot-block block-large" data-block-label="Trade parameters">
                                     <h3>1. Trade parameters</h3>
-                                    <p>Market: <span>Derived</span> <span>Continuous Indices</span> <span>Volatility 10 (1s) Index</span></p>
+                                    <p>Market: <span>Deriv</span> <span>Synthetic Indices</span> <span data-bot-market-name>Volatility 10 (1s) Index</span></p>
                                     <p>Trade Type: <span>Up/Down</span> <span>Rise/Fall</span></p>
                                     <p>Contract Type: <span>Both</span></p>
                                     <p>Default Candle Interval: <span>1 minute</span></p>
@@ -158,11 +158,11 @@
                             <button type="button" title="Draw">D</button>
                             <button type="button" title="Download">DL</button>
                         </div>
-                        <button class="dbot-symbol-picker" type="button"><strong>Volatility 10 (1s) Index</strong><small>1HZ10V / Waiting / 0.00%</small></button>
+                        <button class="dbot-symbol-picker" type="button"><strong data-bot-live-name>Volatility 10 (1s) Index</strong><small><span data-bot-live-symbol>1HZ10V</span> / <span data-bot-live-price>Waiting</span> / <span data-bot-live-digit>-</span></small></button>
                         <div class="dbot-chart-canvas">
-                            <svg viewBox="0 0 900 460" role="img" aria-label="Live price chart preview">
-                                <path d="M0 360 C80 280 120 310 180 210 S280 120 340 170 430 300 500 230 620 80 720 130 800 250 900 190" fill="none" stroke="#00d4aa" stroke-width="4"/>
-                                <path d="M0 360 C80 280 120 310 180 210 S280 120 340 170 430 300 500 230 620 80 720 130 800 250 900 190 L900 460 L0 460Z" fill="rgba(0,212,170,.09)"/>
+                            <svg viewBox="0 0 900 460" role="img" aria-label="Live Deriv price chart preview">
+                                <path data-bot-live-area d="" fill="rgba(0,212,170,.09)"/>
+                                <path data-bot-live-line d="" fill="none" stroke="#00d4aa" stroke-width="4"/>
                             </svg>
                         </div>
                     </section>
@@ -192,19 +192,19 @@
                 <section class="dbot-monitor-panel is-active" data-monitor-panel="summary">
                     <div class="dbot-summary-empty" data-summary-empty>When you're ready to trade, hit Run.<br>You'll be able to track your bot's performance here.</div>
                     <div class="dbot-stat-grid">
-                        <span>Total stake<strong data-stat="stake">0.00 USD</strong></span>
-                        <span>Total payout<strong data-stat="payout">0.00 USD</strong></span>
-                        <span>No. of runs<strong data-stat="runs">0</strong></span>
-                        <span>Contracts lost<strong data-stat="lost">0</strong></span>
-                        <span>Contracts won<strong data-stat="won">0</strong></span>
-                        <span>Total profit/loss<strong class="is-neutral" data-stat="profit">0.00 USD</strong></span>
+                        <span>Live price<strong data-stat="stake">Waiting</strong></span>
+                        <span>Last digit share<strong data-stat="payout">0.0%</strong></span>
+                        <span>Live ticks<strong data-stat="runs">0</strong></span>
+                        <span>Last digit<strong data-stat="lost">0</strong></span>
+                        <span>Hot digit<strong data-stat="won">0</strong></span>
+                        <span>Bot mode<strong class="is-neutral" data-stat="profit">Live only</strong></span>
                     </div>
                     <button class="dbot-reset-stats" type="button" data-reset-stats>Reset</button>
                 </section>
                 <section class="dbot-monitor-panel" data-monitor-panel="transactions">
                     <div class="dbot-table">
-                        <span>Time</span><span>Contract</span><span>Entry</span><span>Stake</span><span>P/L</span>
-                        <small class="empty-row">No transactions yet.</small>
+                        <span>Time</span><span>Market</span><span>Quote</span><span>Digit</span><span>Signal</span>
+                        <small class="empty-row">Live Deriv signals will appear after a strategy rule is running.</small>
                     </div>
                 </section>
                 <section class="dbot-monitor-panel" data-monitor-panel="journal">
@@ -249,6 +249,16 @@
             </section>
         </div>
     </main>
-    <script src="{% static 'js/bot_builder.js' %}?v=bot-shell-20260702-1"></script>
+    <script>
+        window.PROFITERA_DERIV_APP_ID = "{{ deriv_ws_app_id|default:'1089'|escapejs }}";
+        window.PROFITERA_DERIV_SESSION = {
+            token: "{{ deriv_session.token|default:''|escapejs }}",
+            accountId: "{{ deriv_session.account_id|default:''|escapejs }}",
+            currency: "{{ deriv_session.currency|default:'USD'|escapejs }}",
+            accountType: "{{ deriv_session.account_type|default:'real'|escapejs }}",
+            connected: {% if deriv_session.is_connected %}true{% else %}false{% endif %}
+        };
+    </script>
+    <script src="{% static 'js/bot_builder.js' %}?v=deriv-live-20260707-1"></script>
 </body>
 </html>

@@ -27,6 +27,8 @@ class MarketConsumer(AsyncWebsocketConsumer):
             "type": "tick",
             "symbol": tick.get("symbol"),
             "price": tick.get("quote"),
+            "quote": tick.get("quote"),
+            "pip_size": tick.get("pip_size"),
             "time": tick.get("epoch"),
         }))
 
