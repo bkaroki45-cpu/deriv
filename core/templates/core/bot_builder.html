@@ -191,6 +191,12 @@
                 </nav>
                 <section class="dbot-monitor-panel is-active" data-monitor-panel="summary">
                     <div class="dbot-summary-empty" data-summary-empty>When you're ready to trade, hit Run.<br>You'll be able to track your bot's performance here.</div>
+                    <div class="dbot-risk-controls" aria-label="Auto-buy controls">
+                        <label>Stake<input type="number" min="0.35" step="0.01" value="1" data-bot-stake></label>
+                        <label>Duration<input type="number" min="1" max="10" step="1" value="1" data-bot-duration></label>
+                        <label>Max buys<input type="number" min="1" max="20" step="1" value="3" data-bot-max-buys></label>
+                        <label>Cooldown<input type="number" min="3" max="120" step="1" value="8" data-bot-cooldown></label>
+                    </div>
                     <div class="dbot-stat-grid">
                         <span>Live price<strong data-stat="stake">Waiting</strong></span>
                         <span>Last digit share<strong data-stat="payout">0.0%</strong></span>
@@ -203,7 +209,7 @@
                 </section>
                 <section class="dbot-monitor-panel" data-monitor-panel="transactions">
                     <div class="dbot-table">
-                        <span>Time</span><span>Market</span><span>Quote</span><span>Digit</span><span>Signal</span>
+                        <span>Time</span><span>Market</span><span>Quote</span><span>Digit</span><span>Signal</span><span>Status</span>
                         <small class="empty-row">Live Deriv signals will appear after a strategy rule is running.</small>
                     </div>
                 </section>
@@ -259,6 +265,6 @@
             connected: {% if deriv_session.is_connected %}true{% else %}false{% endif %}
         };
     </script>
-    <script src="{% static 'js/bot_builder.js' %}?v=deriv-live-20260707-1"></script>
+    <script src="{% static 'js/bot_builder.js' %}?v=deriv-autobuy-20260707-1"></script>
 </body>
 </html>

@@ -4375,6 +4375,33 @@ body.bot-shell-page {
     gap: 10px;
 }
 
+.dbot-risk-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.dbot-risk-controls label {
+    display: grid;
+    gap: 5px;
+    color: var(--dbot-muted);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.dbot-risk-controls input {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    border: 1px solid var(--dbot-line);
+    border-radius: 8px;
+    padding: 6px 8px;
+    color: var(--dbot-text);
+    background: #fff;
+    font-weight: 850;
+}
+
 .dbot-stat-grid span {
     display: grid;
     gap: 4px;
@@ -4400,15 +4427,38 @@ body.bot-shell-page {
 
 .dbot-table {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: .8fr .9fr 1fr .7fr 1.2fr 1fr;
     gap: 1px;
     overflow: auto;
     font-size: 12px;
 }
 
-.dbot-table span {
+.dbot-table span,
+.dbot-table small:not(.empty-row) {
     background: #eef1f4;
     padding: 8px;
+}
+
+.dbot-table span {
+    font-weight: 850;
+}
+
+.dbot-table small:not(.empty-row) {
+    color: var(--dbot-muted);
+}
+
+.dbot-table small.is-success {
+    color: #087f5b;
+    font-weight: 850;
+}
+
+.dbot-table small.is-pending {
+    color: #9a6700;
+    font-weight: 850;
+}
+
+.dbot-table small.is-error {
+    color: #d92d20;
     font-weight: 850;
 }
 

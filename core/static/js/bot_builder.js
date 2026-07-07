@@ -11,10 +11,23 @@
         won: document.querySelector('[data-stat="won"]'),
         profit: document.querySelector('[data-stat="profit"]'),
     };
+    const controls = {
+        stake: document.querySelector("[data-bot-stake]"),
+        duration: document.querySelector("[data-bot-duration]"),
+        maxBuys: document.querySelector("[data-bot-max-buys]"),
+        cooldown: document.querySelector("[data-bot-cooldown]"),
+    };
 
     let running = false;
     let runCount = 0;
     let zoom = 1;
+    let botStrategy = "rise_fall";
+    const autoBuy = {
+        inFlight: false,
+        buys: 0,
+        cooldownUntil: 0,
+        lastSignalKey: "",
+    };
     const botMarket = {
         symbol: "1HZ10V",
         name: "Volatility 10 (1s) Index",
@@ -41,6 +54,30 @@
         if (!journal) return;
         const stamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
         journal.textContent = `[${stamp}] ${message}\n${journal.textContent}`.slice(0, 4000);
+    }
+
+    function csrfToken() {
+        const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : "";
+    }
+
+    function numericControl(node, fallback, min, max) {
+        const value = Number(node?.value);
+        if (!Number.isFinite(value)) return fallback;
+        return Math.min(max, Math.max(min, value));
+    }
+
+    function autoSettings() {
+        return {
+            stake: numericControl(controls.stake, 1, 0.35, 1000),
+            duration: Math.round(numericControl(controls.duration, 1, 1, 10)),
+            maxBuys: Math.round(numericControl(controls.maxBuys, 3, 1, 20)),
+            cooldownMs: Math.round(numericControl(controls.cooldown, 8, 3, 120)) * 1000,
+        };
+    }
+
+    function sessionConnected() {
+        return Boolean(window.PROFITERA_DERIV_SESSION && window.PROFITERA_DERIV_SESSION.connected);
     }
 
     function formatPrice(price) {
@@ -124,9 +161,128 @@
             stats.payout.textContent = `${pct.toFixed(1)}%`;
         }
         if (stats.profit) {
-            stats.profit.textContent = "Live only";
+            stats.profit.textContent = running ? `Auto ${autoBuy.buys}` : "Ready";
             stats.profit.className = "is-neutral";
         }
+    }
+
+    function addTransaction(signal, status, message) {
+        const table = document.querySelector(".dbot-table");
+        if (!table) return;
+        table.querySelector(".empty-row")?.remove();
+        const cells = [
+            new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+            botMarket.symbol,
+            botMarket.lastQuote || formatPrice(botMarket.lastPrice),
+            botMarket.lastDigit === null ? "-" : String(botMarket.lastDigit),
+            signal?.label || signal?.contract_type || "-",
+            message || status,
+        ];
+        cells.forEach((text, index) => {
+            const cell = document.createElement("small");
+            cell.textContent = text;
+            if (index === 5) cell.className = status === "executed" ? "is-success" : status === "pending" ? "is-pending" : "is-error";
+            table.appendChild(cell);
+        });
+    }
+
+    function signalFromLiveMarket() {
+        const latest = botMarket.ticks[botMarket.ticks.length - 1];
+        const previous = botMarket.ticks[botMarket.ticks.length - 2];
+        if (!latest) return null;
+
+        if (botStrategy === "digits") {
+            const total = botMarket.digits.reduce((sum, count) => sum + count, 0);
+            if (total < 10 || botMarket.lastDigit === null) return null;
+            return {
+                direction: "differs",
+                contract_type: "DIGITDIFF",
+                barrier: String(botMarket.lastDigit),
+                duration: 1,
+                label: `Digit differs ${botMarket.lastDigit}`,
+                key: `${latest.epoch}:DIGITDIFF:${botMarket.lastDigit}`,
+            };
+        }
+
+        if (botStrategy === "rise_fall") {
+            if (!previous || latest.price === previous.price) return null;
+            const rising = latest.price > previous.price;
+            return {
+                direction: rising ? "rise" : "fall",
+                contract_type: rising ? "CALL" : "PUT",
+                label: rising ? "Rise from tick" : "Fall from tick",
+                key: `${latest.epoch}:${rising ? "CALL" : "PUT"}`,
+            };
+        }
+
+        return null;
+    }
+
+    async function placeAutoBuy(signal) {
+        const settings = autoSettings();
+        if (autoBuy.buys >= settings.maxBuys) {
+            updateRunningState(false);
+            log(`Auto-buy stopped after reaching ${settings.maxBuys} buys.`);
+            return;
+        }
+        autoBuy.inFlight = true;
+        addTransaction(signal, "pending", "Sending");
+        const payload = {
+            symbol: botMarket.symbol,
+            direction: signal.direction,
+            contract_type: signal.contract_type,
+            stake: String(settings.stake),
+            duration: String(signal.duration || settings.duration),
+            duration_unit: "t",
+        };
+        if (signal.barrier !== undefined) payload.barrier = signal.barrier;
+
+        try {
+            const response = await fetch("/api/trading/", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken(),
+                },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.error) {
+                throw new Error(data.error || `Trade request failed with ${response.status}`);
+            }
+            autoBuy.buys += 1;
+            const contractId = data.contract_id || data.deriv_response?.buy?.contract_id || "accepted";
+            addTransaction(signal, "executed", String(contractId));
+            log(`Auto-buy executed: ${signal.label}, stake ${settings.stake}, contract ${contractId}.`);
+        } catch (error) {
+            addTransaction(signal, "error", error.message || "Rejected");
+            log(`Auto-buy rejected: ${error.message || "Unknown Deriv error"}.`);
+        } finally {
+            const lockMs = Math.max(settings.cooldownMs, (Number(signal.duration || settings.duration) + 1) * 1200);
+            autoBuy.cooldownUntil = Date.now() + lockMs;
+            autoBuy.inFlight = false;
+            renderDigitStats();
+        }
+    }
+
+    function maybeAutoBuy() {
+        if (!running || autoBuy.inFlight) return;
+        if (!sessionConnected()) {
+            updateRunningState(false);
+            log("Login with Deriv before running auto-buy.");
+            return;
+        }
+        if (botStrategy === "martingale") {
+            updateRunningState(false);
+            log("Martingale auto-buy is disabled until exact loss limits and recovery rules are configured.");
+            return;
+        }
+        if (Date.now() < autoBuy.cooldownUntil) return;
+        const signal = signalFromLiveMarket();
+        if (!signal || signal.key === autoBuy.lastSignalKey) return;
+        autoBuy.lastSignalKey = signal.key;
+        placeAutoBuy(signal);
     }
 
     function ingestLiveTick(tick) {
@@ -147,6 +303,7 @@
         renderDigitStats();
         if (running) {
             log(`${botMarket.symbol} ${botMarket.lastQuote} live tick${botMarket.lastDigit === null ? "" : `, last digit ${botMarket.lastDigit}`}.`);
+            maybeAutoBuy();
         }
     }
 
@@ -210,8 +367,13 @@
         document.querySelector("[data-summary-empty]")?.classList.toggle("is-hidden", running);
         if (running) {
             runCount += 1;
+            autoBuy.inFlight = false;
+            autoBuy.buys = 0;
+            autoBuy.cooldownUntil = 0;
+            autoBuy.lastSignalKey = "";
             renderDigitStats();
-            log(`Bot monitor started on live Deriv market ${botMarket.symbol}. No automatic buy is sent without a completed strategy rule.`);
+            log(`Auto-buy started on ${botMarket.symbol} using ${botStrategy.replace("_", "/")} strategy.`);
+            maybeAutoBuy();
         } else {
             log("Bot monitor stopped.");
         }
@@ -294,12 +456,13 @@
     function applyQuickTemplate(name) {
         setPage("builder");
         closeModal();
+        botStrategy = name;
         if (name === "digits") {
-            log("Quick strategy loaded: Digit matcher. It will monitor live last-digit ticks from Deriv.");
+            log("Quick strategy loaded: Digit matcher. Run will buy DIGITDIFF from live Deriv last digits.");
         } else if (name === "rise_fall") {
-            log("Quick strategy loaded: Rise/Fall starter. It will monitor live Deriv tick direction.");
+            log("Quick strategy loaded: Rise/Fall starter. Run will buy CALL or PUT from the latest live tick direction.");
         } else {
-            log("Quick strategy loaded: Martingale skeleton. Use only with explicit risk limits before live buying.");
+            log("Quick strategy loaded: Martingale skeleton. Auto-buy stays disabled until explicit loss limits are configured.");
         }
         stage?.querySelectorAll(".dbot-block").forEach((block) => {
             block.animate([{ transform: "scale(0.98)" }, { transform: "scale(1)" }], { duration: 220 });
