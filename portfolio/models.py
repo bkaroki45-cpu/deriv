@@ -86,6 +86,9 @@ class Trade(models.Model):
         blank=True,
         null=True
     )
+    contract_type = models.CharField(max_length=40, blank=True)
+    duration = models.PositiveIntegerField(null=True, blank=True)
+    duration_unit = models.CharField(max_length=10, blank=True)
 
     # =========================
     # STATUS

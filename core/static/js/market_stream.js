@@ -42,10 +42,11 @@
             this.previousPrices = new Map();
             this.favorites = new Set(JSON.parse(localStorage.getItem("profitera:favorites") || "[]"));
             this.recent = JSON.parse(localStorage.getItem("profitera:recent-markets") || "[]");
-            this.activeSymbol = new URLSearchParams(window.location.search).get("symbol") || "1HZ100V";
+            this.activeSymbol = new URLSearchParams(window.location.search).get("symbol")
+                || localStorage.getItem("profitera:active-symbol")
+                || "1HZ100V";
             this.filter = "all";
             this.derivSocket = null;
-            this.localSocket = null;
             this.reconnectTimer = null;
             this.pending = new Map();
             this.requestId = 100;
@@ -53,7 +54,6 @@
             this.tickWindow = [];
             this.bind();
             this.loadSymbols();
-            this.connectLocal();
             this.connectDeriv();
         }
 
@@ -92,13 +92,17 @@
                 || this.exactSymbol("1HZ100V")
                 || (this.markets[0] && this.markets[0].symbol)
                 || this.activeSymbol;
+            localStorage.setItem("profitera:active-symbol", this.activeSymbol);
             this.syncActiveSymbolUi();
             this.render();
-            this.subscribeVisibleRows();
+            if (this.derivSocket && this.derivSocket.readyState === WebSocket.OPEN) this.subscribeActive();
+            else this.subscribeVisibleRows();
         }
 
         normalizeMarket(item) {
             const symbol = String(item.symbol || "").trim();
+            const pipSize = this.pipSizeFromPip(item.pip);
+            if (symbol && Number.isInteger(pipSize)) this.pipSizes.set(symbol, pipSize);
             return {
                 ...item,
                 symbol,
@@ -106,6 +110,14 @@
                 market: item.market || "",
                 market_display_name: item.market_display_name || item.market || "Market",
             };
+        }
+
+        pipSizeFromPip(pip) {
+            if (pip === undefined || pip === null || pip === "") return null;
+            const text = String(pip);
+            if (text.includes("e-")) return Number(text.split("e-").pop());
+            const decimal = text.split(".")[1];
+            return decimal ? decimal.replace(/0+$/, "").length || decimal.length : 0;
         }
 
         exactSymbol(symbol) {
@@ -243,16 +255,23 @@
                         time: candle.epoch,
                     }));
                 }
-                if (data.history && Array.isArray(data.history.prices) && window.profiteraChart) {
-                    window.profiteraChart.clear();
-                    data.history.prices.forEach((price, index) => {
-                        window.profiteraChart.ingestTick({
-                            symbol: this.activeSymbol,
-                            price,
-                            quote: String(price),
-                            time: data.history.times && data.history.times[index],
-                        });
-                    });
+                if (data.history && Array.isArray(data.history.prices)) {
+                    const symbol = data.echo_req?.ticks_history || this.activeSymbol;
+                    const historyPipSize = Number(data.pip_size);
+                    const pipSize = Number.isInteger(historyPipSize) ? historyPipSize : this.pipSizes.get(symbol);
+                    if (Number.isInteger(pipSize)) this.pipSizes.set(symbol, pipSize);
+                    const ticks = data.history.prices.map((price, index) => ({
+                        symbol,
+                        price,
+                        quote: Number.isFinite(Number(price)) && Number.isInteger(pipSize) ? Number(price).toFixed(pipSize) : String(price),
+                        pipSize,
+                        time: data.history.times && data.history.times[index],
+                    }));
+                    if (symbol === this.activeSymbol && window.profiteraDigits) window.profiteraDigits.seed(ticks);
+                    if (symbol === this.activeSymbol && window.profiteraChart && window.profiteraChart.mode === "ticks") {
+                        window.profiteraChart.clear();
+                        ticks.forEach((tick) => window.profiteraChart.ingestTick(tick));
+                    }
                 }
             };
             this.derivSocket.onclose = () => {
@@ -276,30 +295,30 @@
             this.derivSocket.send(JSON.stringify({ balance: 1, subscribe: 1, req_id: this.requestId += 1 }));
         }
 
-        connectLocal() {
-            const scheme = window.location.protocol === "https:" ? "wss" : "ws";
-            this.localSocket = new WebSocket(`${scheme}://${window.location.host}/ws/markets/`);
-            this.localSocket.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                if (data.type === "tick") this.ingestTick(data);
-            };
-            this.localSocket.onclose = () => setTimeout(() => this.connectLocal(), 3000);
-        }
-
         subscribeActive() {
             if (!this.derivSocket || this.derivSocket.readyState !== WebSocket.OPEN) return;
             this.subscribeVisibleRows();
             const interval = window.profiteraChart ? Number(window.profiteraChart.interval || 60) : 60;
             const chartMode = window.profiteraChart ? window.profiteraChart.mode : "line";
-            const payload = {
+            if (window.profiteraDigits) window.profiteraDigits.reset();
+            this.tickWindow = [];
+            this.derivSocket.send(JSON.stringify({
                 ticks_history: this.activeSymbol,
                 end: "latest",
-                count: 5000,
-                style: chartMode === "ticks" ? "ticks" : "candles",
-                req_id: 22,
-            };
-            if (payload.style === "candles") payload.granularity = Math.max(60, interval);
-            this.derivSocket.send(JSON.stringify(payload));
+                count: 1000,
+                style: "ticks",
+                req_id: this.requestId += 1,
+            }));
+            if (chartMode !== "ticks") {
+                this.derivSocket.send(JSON.stringify({
+                    ticks_history: this.activeSymbol,
+                    end: "latest",
+                    count: 5000,
+                    style: "candles",
+                    granularity: Math.max(60, interval),
+                    req_id: this.requestId += 1,
+                }));
+            }
         }
 
         subscribeVisibleRows() {
@@ -344,6 +363,7 @@
             this.activeSymbol = exact;
             const market = this.activeMarket();
             this.syncActiveSymbolUi();
+            localStorage.setItem("profitera:active-symbol", exact);
             this.rememberSymbol(exact);
             const popover = document.getElementById("markets-popover");
             if (popover) popover.hidden = true;
@@ -361,7 +381,8 @@
             if (!symbol || !Number.isFinite(price)) return;
             const quote = tick.quote !== undefined && tick.quote !== null ? String(tick.quote) : String(tick.price);
             const pipSize = Number(tick.pipSize ?? tick.pip_size);
-            if (Number.isInteger(pipSize) && pipSize >= 0) this.pipSizes.set(symbol, pipSize);
+            const knownPipSize = Number.isInteger(pipSize) && pipSize >= 0 ? pipSize : this.pipSizes.get(symbol);
+            if (Number.isInteger(knownPipSize) && knownPipSize >= 0) this.pipSizes.set(symbol, knownPipSize);
             this.quotes.set(symbol, quote);
             const now = Date.now();
             this.tickWindow = [...this.tickWindow.filter((time) => now - time < 60000), now];
@@ -370,7 +391,7 @@
             this.prices.set(symbol, price);
             if (symbol === this.activeSymbol) {
                 if (this.activePrice) this.activePrice.textContent = this.formatPrice(price, symbol);
-                const digit = this.digitFromQuote(quote, price, pipSize);
+                const digit = this.digitFromQuote(quote, price, knownPipSize);
                 const lastTick = document.getElementById("last-tick-time");
                 const velocity = document.getElementById("tick-velocity");
                 if (lastTick) lastTick.textContent = new Date().toLocaleTimeString();
@@ -381,8 +402,8 @@
                     this.activeChange.className = change > 0 ? "positive" : change < 0 ? "negative" : "neutral";
                 }
                 if (window.profiteraChart) window.profiteraChart.ingestTick(tick);
-                if (window.profiteraDigits) window.profiteraDigits.ingest({ symbol, price, quote, pipSize, digit });
-                window.dispatchEvent(new CustomEvent("profitera:tick", { detail: { symbol, price, quote, pipSize, digit } }));
+                if (window.profiteraDigits) window.profiteraDigits.ingest({ symbol, price, quote, pipSize: knownPipSize, digit });
+                window.dispatchEvent(new CustomEvent("profitera:tick", { detail: { symbol, price, quote, pipSize: knownPipSize, digit } }));
             }
             this.updatePriceRow(symbol, price, previous);
         }

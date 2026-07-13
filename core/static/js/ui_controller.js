@@ -805,7 +805,28 @@
         });
     }
     document.querySelectorAll("[data-account-type]").forEach((button) => {
-        button.addEventListener("click", () => {
+        button.addEventListener("click", async () => {
+            const accountId = button.dataset.accountId;
+            if (accountId && accountId !== window.PROFITERA_DERIV_SESSION?.accountId) {
+                button.disabled = true;
+                try {
+                    const response = await fetch("/api/trading/accounts/switch/", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+                        credentials: "same-origin",
+                        body: JSON.stringify({ account_id: accountId }),
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || "Could not switch Deriv account");
+                    window.location.reload();
+                    return;
+                } catch (error) {
+                    const warning = byId("risk-warning");
+                    if (warning) warning.textContent = error.message;
+                    button.disabled = false;
+                    return;
+                }
+            }
             window.profiteraAccountType = button.dataset.accountType;
             if (accountLabel) accountLabel.textContent = button.dataset.label;
             if (accountBalance) {
@@ -818,13 +839,6 @@
             if (wrapper) wrapper.classList.remove("is-open");
         });
     });
-    const resetDemo = byId("reset-demo-balance");
-    if (resetDemo) {
-        resetDemo.addEventListener("click", () => {
-            localStorage.setItem("profitera:demo-balance", "10000");
-            if (accountBalance && window.profiteraAccountType !== "real") accountBalance.textContent = "10,000.00 USD";
-        });
-    }
 
     ["trade-stake", "trade-duration", "trade-barrier", "growth-rate"].forEach((id) => {
         const input = byId(id);
@@ -984,6 +998,38 @@
             profit: 0,
             status: "open",
         });
+        watchContract(String(id));
+    }
+
+    function watchContract(contractId) {
+        let attempts = 0;
+        const poll = async () => {
+            const current = localTrades.get(contractId);
+            if (!current || current.status !== "open" || attempts++ >= 180) return;
+            try {
+                const response = await fetch(`/api/trading/stream/contract/?contract_id=${encodeURIComponent(contractId)}`, { credentials: "same-origin" });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || "Contract status unavailable");
+                const contract = data.proposal_open_contract || {};
+                current.profit = Number(contract.profit || 0);
+                current.payout = Number(contract.payout || current.payout || 0);
+                if (contract.is_sold || contract.is_expired) {
+                    current.status = Number(contract.profit || 0) > 0 ? "won" : "lost";
+                    current.statusLabel = current.status === "won" ? "Profit" : "Loss";
+                    current.transaction = `${current.statusLabel}: ${money(current.profit)}`;
+                } else {
+                    current.statusLabel = "Open on Deriv";
+                }
+                localTrades.set(contractId, current);
+                renderLocalTrades();
+                if (current.status !== "open") return;
+            } catch (error) {
+                // A temporary status request failure must not mark a live
+                // contract as a loss. The next polling cycle retries it.
+            }
+            window.setTimeout(poll, 1500);
+        };
+        window.setTimeout(poll, 800);
     }
 
     const form = byId("trade-form");

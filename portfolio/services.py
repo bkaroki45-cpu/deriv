@@ -1,13 +1,17 @@
 from .models import Trade
 
 
-def create_trade(user, symbol, direction, stake, entry_price=None):
+def create_trade(user, symbol, direction, stake, entry_price=None, **details):
     return Trade.objects.create(
         user=user,
         symbol=symbol,
         direction=direction,
         stake=stake,
         entry_price=entry_price,
+        contract_type=details.get("contract_type", ""),
+        duration=details.get("duration"),
+        duration_unit=details.get("duration_unit", ""),
+        take_profit=details.get("take_profit"),
         status="open"
     )
 

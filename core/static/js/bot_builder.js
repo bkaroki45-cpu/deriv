@@ -22,6 +22,9 @@
     let runCount = 0;
     let zoom = 1;
     let botStrategy = "rise_fall";
+    const initialSymbol = new URLSearchParams(window.location.search).get("symbol")
+        || localStorage.getItem("profitera:active-symbol")
+        || "1HZ100V";
     const autoBuy = {
         inFlight: false,
         buys: 0,
@@ -29,11 +32,13 @@
         lastSignalKey: "",
     };
     const botMarket = {
-        symbol: "1HZ10V",
-        name: "Volatility 10 (1s) Index",
+        symbol: initialSymbol,
+        name: initialSymbol,
         socket: null,
         reconnectTimer: null,
         ticks: [],
+        digitWindow: [],
+        maxDigitWindow: 1000,
         digits: Array.from({ length: 10 }, () => 0),
         lastDigit: null,
         lastPrice: null,
@@ -97,6 +102,42 @@
         return digits ? Number(digits.charAt(digits.length - 1)) : null;
     }
 
+    function pipSizeFromPip(pip) {
+        if (pip === undefined || pip === null || pip === "") return null;
+        const text = String(pip);
+        if (text.includes("e-")) return Number(text.split("e-").pop());
+        const decimal = text.split(".")[1];
+        return decimal ? decimal.replace(/0+$/, "").length || decimal.length : 0;
+    }
+
+    function quoteFromPrice(price) {
+        return Number.isFinite(Number(price)) && Number.isInteger(botMarket.pipSize)
+            ? Number(price).toFixed(botMarket.pipSize)
+            : String(price);
+    }
+
+    function resetBotMarket(keepSymbol = true) {
+        botMarket.ticks = [];
+        botMarket.digitWindow = [];
+        botMarket.digits = Array.from({ length: 10 }, () => 0);
+        botMarket.lastDigit = null;
+        botMarket.lastPrice = null;
+        botMarket.lastQuote = "";
+        if (!keepSymbol) botMarket.name = botMarket.symbol;
+        renderLiveHeader();
+        renderBotChart();
+        renderDigitStats();
+    }
+
+    function applySymbolDetails(symbol, name, pip) {
+        botMarket.symbol = symbol || botMarket.symbol;
+        botMarket.name = name || botMarket.symbol;
+        const pipSize = pipSizeFromPip(pip);
+        if (Number.isInteger(pipSize)) botMarket.pipSize = pipSize;
+        localStorage.setItem("profitera:active-symbol", botMarket.symbol);
+        renderLiveHeader();
+    }
+
     function setConnection(online) {
         document.querySelectorAll("[data-bot-connection]").forEach((node) => {
             node.classList.toggle("is-live", online);
@@ -122,7 +163,12 @@
     function renderBotChart() {
         const line = document.querySelector("[data-bot-live-line]");
         const area = document.querySelector("[data-bot-live-area]");
-        if (!line || !area || botMarket.ticks.length < 2) return;
+        if (!line || !area) return;
+        if (botMarket.ticks.length < 2) {
+            line.setAttribute("d", "");
+            area.setAttribute("d", "");
+            return;
+        }
         const points = botMarket.ticks.slice(-120);
         const prices = points.map((tick) => tick.price);
         const min = Math.min(...prices);
@@ -146,7 +192,7 @@
     }
 
     function renderDigitStats() {
-        const total = botMarket.digits.reduce((sum, count) => sum + count, 0);
+        const total = botMarket.digitWindow.length || botMarket.digits.reduce((sum, count) => sum + count, 0);
         if (stats.runs) stats.runs.textContent = String(total);
         if (stats.lost) stats.lost.textContent = botMarket.lastDigit === null ? "0" : String(botMarket.lastDigit);
         if (stats.won) {
@@ -216,6 +262,41 @@
         }
 
         return null;
+    }
+
+    function addDigit(digit) {
+        if (!Number.isInteger(digit) || digit < 0 || digit > 9) return;
+        botMarket.digitWindow.push(digit);
+        if (botMarket.digitWindow.length > botMarket.maxDigitWindow) {
+            const removed = botMarket.digitWindow.shift();
+            if (Number.isInteger(removed)) botMarket.digits[removed] = Math.max(0, botMarket.digits[removed] - 1);
+        }
+        botMarket.digits[digit] += 1;
+        botMarket.lastDigit = digit;
+    }
+
+    function seedHistory(payload) {
+        const history = payload && payload.history;
+        if (!history || !Array.isArray(history.prices)) return;
+        const historyPipSize = Number(payload.pip_size);
+        if (Number.isInteger(historyPipSize)) botMarket.pipSize = historyPipSize;
+        resetBotMarket();
+        const prices = history.prices.slice(-botMarket.maxDigitWindow);
+        const offset = history.prices.length - prices.length;
+        prices.forEach((rawPrice, index) => {
+            const price = Number(rawPrice);
+            if (!Number.isFinite(price)) return;
+            const quote = quoteFromPrice(price);
+            const digit = digitFromTick(price, quote, botMarket.pipSize);
+            addDigit(digit);
+            botMarket.lastPrice = price;
+            botMarket.lastQuote = quote;
+            botMarket.ticks.push({ price, epoch: Number(history.times && history.times[index + offset]) || Date.now() / 1000 });
+        });
+        renderLiveHeader();
+        renderBotChart();
+        renderDigitStats();
+        log(`Seeded ${botMarket.digitWindow.length} recent Deriv ticks for ${botMarket.symbol}.`);
     }
 
     async function placeAutoBuy(signal) {
@@ -292,10 +373,7 @@
         botMarket.lastQuote = String(tick.quote);
         botMarket.pipSize = Number.isInteger(Number(tick.pip_size)) ? Number(tick.pip_size) : botMarket.pipSize;
         const digit = digitFromTick(price, botMarket.lastQuote, botMarket.pipSize);
-        if (Number.isInteger(digit) && digit >= 0 && digit <= 9) {
-            botMarket.lastDigit = digit;
-            botMarket.digits[digit] += 1;
-        }
+        addDigit(digit);
         botMarket.ticks.push({ price, epoch: Number(tick.epoch) || Date.now() / 1000 });
         if (botMarket.ticks.length > 500) botMarket.ticks.shift();
         renderLiveHeader();
@@ -314,6 +392,8 @@
         botMarket.socket = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${encodeURIComponent(appId)}`);
         botMarket.socket.addEventListener("open", () => {
             setConnection(true);
+            botMarket.socket.send(JSON.stringify({ active_symbols: "full", req_id: 1 }));
+            botMarket.socket.send(JSON.stringify({ ticks_history: botMarket.symbol, end: "latest", count: botMarket.maxDigitWindow, style: "ticks", req_id: 2 }));
             botMarket.socket.send(JSON.stringify({ ticks: botMarket.symbol, subscribe: 1 }));
             log(`Connected to Deriv live market ${botMarket.symbol}.`);
         });
@@ -328,6 +408,11 @@
                 log(`Deriv market error: ${payload.error.message || "Unknown error"}.`);
                 return;
             }
+            if (payload.active_symbols) {
+                const market = payload.active_symbols.find((item) => item.symbol === botMarket.symbol);
+                if (market) applySymbolDetails(market.symbol, market.display_name, market.pip);
+            }
+            if (payload.history) seedHistory(payload);
             if (payload.tick) ingestLiveTick(payload.tick);
         });
         botMarket.socket.addEventListener("close", () => {
@@ -373,7 +458,6 @@
             autoBuy.lastSignalKey = "";
             renderDigitStats();
             log(`Auto-buy started on ${botMarket.symbol} using ${botStrategy.replace("_", "/")} strategy.`);
-            maybeAutoBuy();
         } else {
             log("Bot monitor stopped.");
         }
@@ -550,6 +634,7 @@
             if (action === "reset") {
                 runCount = 0;
                 botMarket.ticks = [];
+                botMarket.digitWindow = [];
                 botMarket.digits = Array.from({ length: 10 }, () => 0);
                 botMarket.lastDigit = null;
                 botMarket.lastPrice = null;
@@ -577,10 +662,24 @@
 
     document.querySelector("[data-reset-stats]")?.addEventListener("click", () => {
         runCount = 0;
+        botMarket.digitWindow = [];
         botMarket.digits = Array.from({ length: 10 }, () => 0);
         botMarket.lastDigit = null;
         renderDigitStats();
         log("Summary stats reset.");
+    });
+
+    window.addEventListener("storage", (event) => {
+        if (event.key !== "profitera:active-symbol" || !event.newValue || event.newValue === botMarket.symbol || running) return;
+        botMarket.symbol = event.newValue;
+        resetBotMarket(false);
+        if (botMarket.socket && botMarket.socket.readyState === WebSocket.OPEN) {
+            botMarket.socket.send(JSON.stringify({ forget_all: "ticks" }));
+            botMarket.socket.send(JSON.stringify({ active_symbols: "full", req_id: 1 }));
+            botMarket.socket.send(JSON.stringify({ ticks_history: botMarket.symbol, end: "latest", count: botMarket.maxDigitWindow, style: "ticks", req_id: 2 }));
+            botMarket.socket.send(JSON.stringify({ ticks: botMarket.symbol, subscribe: 1 }));
+            log(`Bot market switched to ${botMarket.symbol}.`);
+        }
     });
 
     document.querySelectorAll("[data-close-help]").forEach((button) => {

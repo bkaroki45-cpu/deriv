@@ -5,6 +5,7 @@ from rest_framework import status
 
 from decimal import Decimal
 import asyncio
+from django.utils import timezone
 
 from accounts.models import ActivityLog, DerivAccount, Referral
 from core.deriv_api import DerivAPIClient, active_token_for_request, set_deriv_session, sync_accounts
@@ -69,6 +70,10 @@ class TradeView(APIView):
                     symbol=symbol,
                     direction=direction.lower(),
                     stake=stake,
+                    contract_type=contract_type,
+                    duration=int(duration),
+                    duration_unit=duration_unit,
+                    take_profit=Decimal(str(request.data.get("take_profit"))) if request.data.get("take_profit") not in (None, "") else None,
                 )
 
             # 🔥 LIVE UPDATE: NEW TRADE CREATED
@@ -103,6 +108,10 @@ class TradeView(APIView):
                     )
                 )
             except Exception as e:
+                # The contract was not bought at Deriv, so do not leave a
+                # misleading local "open" position behind.
+                if trade:
+                    trade.delete()
                 return Response(
                     {"error": f"Deriv execution failed: {str(e)}"},
                     status=status.HTTP_502_BAD_GATEWAY
@@ -115,7 +124,7 @@ class TradeView(APIView):
                 contract_id = result["buy"].get("contract_id")
 
                 trade.contract_id = contract_id
-                trade.save()
+                trade.save(update_fields=["contract_id", "updated_at"])
                 TradingLog.objects.create(
                     user=request.user if request.user.is_authenticated else None,
                     action="buy_contract",
@@ -191,13 +200,20 @@ class SwitchAccountView(DerivBaseAPIView):
         DerivAccount.objects.filter(user=request.user).update(is_active=False)
         account.is_active = True
         account.save(update_fields=["is_active"])
+        # A legacy OAuth callback may include one token per account. Use its
+        # matching token so switching changes the actual trading account too.
+        account_token = request.user.deriv_tokens.filter(active_account=account, is_valid=True).order_by("-updated_at").first()
+        token = active_token_for_request(request)
+        if account_token:
+            from core.deriv_api import unseal_token
+            token = unseal_token(account_token.access_token)
         set_deriv_session(
             request,
-            active_token_for_request(request),
+            token,
             account.account_id,
             account.currency,
             account.account_type,
-            request.session.get("deriv_token_id"),
+            account_token.id if account_token else request.session.get("deriv_token_id"),
         )
         return Response({"success": True, "account_id": account.account_id, "account_type": account.account_type})
 
@@ -288,10 +304,24 @@ class AccountStreamSnapshotView(DerivBaseAPIView):
             "statement": {"statement": 1, "limit": int(request.GET.get("limit", 50))},
             "profit-table": {"profit_table": 1, "limit": int(request.GET.get("limit", 50))},
             "transaction": {"transaction": 1},
+            "contract": {"proposal_open_contract": 1, "contract_id": request.GET.get("contract_id"), "subscribe": 0},
         }
         if resource not in mapping:
             return Response({"error": "Unknown account resource"}, status=status.HTTP_404_NOT_FOUND)
-        return Response(asyncio.run(engine.send_once(mapping[resource], authorize=True)))
+        if resource == "contract" and not request.GET.get("contract_id"):
+            return Response({"error": "contract_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        payload = asyncio.run(engine.send_once(mapping[resource], authorize=True))
+        contract = payload.get("proposal_open_contract", {})
+        contract_id = str(contract.get("contract_id") or request.GET.get("contract_id") or "")
+        if contract_id:
+            trade = Trade.objects.filter(user=request.user, contract_id=contract_id).first()
+            if trade:
+                trade.profit = Decimal(str(contract.get("profit") or 0))
+                if contract.get("is_sold") or contract.get("is_expired"):
+                    trade.status = "closed"
+                    trade.closed_at = timezone.now()
+                trade.save()
+        return Response(payload)
 
 
 class MarkupStatisticsView(DerivBaseAPIView):

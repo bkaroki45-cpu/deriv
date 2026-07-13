@@ -1406,15 +1406,82 @@ body:has(.deriv-terminal) {
 
 .deriv-terminal.theme-light,
 body.theme-light .deriv-terminal {
-    --dt-bg: #f4f5f5;
+    --dt-bg: #f6f8fc;
     --dt-panel: #ffffff;
-    --dt-panel-2: #f2f3f3;
-    --dt-line: #dde0e2;
-    --dt-text: #171b1c;
-    --dt-muted: #61696c;
+    --dt-panel-2: #eef3f8;
+    --dt-line: #c9d5e1;
+    --dt-text: #10233a;
+    --dt-muted: #496176;
     --dt-chart: #ffffff;
-    --dt-chart-line: #111;
+    --dt-chart-line: #153f70;
 }
+
+/* High-contrast light mode: controls, text, and live-state cues remain
+   readable in every panel, including the compact trade ticket. */
+.deriv-terminal.theme-light .trade-topbar,
+.deriv-terminal.theme-light .chart-stage,
+.deriv-terminal.theme-light .bottom-dock,
+.deriv-terminal.theme-light .trade-ticket,
+.deriv-terminal.theme-light .account-strip,
+.deriv-terminal.theme-light .ticket-panel {
+    box-shadow: 0 8px 26px rgba(28, 64, 99, .08);
+}
+
+.deriv-terminal.theme-light input,
+.deriv-terminal.theme-light select,
+.deriv-terminal.theme-light .ticket-field,
+.deriv-terminal.theme-light .choice-pill,
+.deriv-terminal.theme-light .contract-trigger,
+.deriv-terminal.theme-light .terminal-search {
+    color: #10233a;
+    background: #fff;
+    border-color: #b9c9d8;
+}
+
+.deriv-terminal.theme-light .trade-type-tabs button,
+.deriv-terminal.theme-light .header-icon,
+.deriv-terminal.theme-light .tool-icon,
+.deriv-terminal.theme-light .account-current {
+    color: #173451;
+    background: #f8fbff;
+    border-color: #c2d2e1;
+}
+
+.deriv-terminal.theme-light .trade-type-tabs button.is-active,
+.deriv-terminal.theme-light .choice-pill button.is-active {
+    color: #fff;
+    background: #0d6bba;
+    border-color: #0d6bba;
+}
+
+.account-menu [data-account-id] {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    gap: 9px;
+    align-items: center;
+    text-align: left;
+}
+
+.account-menu .account-mode-icon {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    color: #fff;
+    background: #1267b3;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.account-menu [data-account-type="demo"] .account-mode-icon { background: #6d42d8; }
+.account-menu [data-account-id][aria-current="true"] { outline: 2px solid var(--dt-green, #00a982); outline-offset: -2px; }
+.account-menu [data-account-id] em { color: var(--dt-muted); font-size: 11px; font-style: normal; }
+.account-empty { display: block; padding: 12px; color: var(--dt-muted); font-size: 12px; }
+
+.communication-icon { position: relative; }
+.communication-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.communication-icon .notification-dot { position: absolute; top: 8px; right: 8px; }
 
 .deriv-terminal button,
 .deriv-terminal input,

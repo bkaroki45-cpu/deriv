@@ -56,6 +56,8 @@ def unseal_token(value):
 def clear_deriv_session(request):
     for key in SESSION_KEYS:
         request.session.pop(key, None)
+    request.session.pop("deriv_oauth_state", None)
+    request.session.pop("deriv_oauth_verifier", None)
 
 
 def set_deriv_session(request, token, account_id="", currency="USD", account_type="real", token_id=None):
@@ -121,6 +123,7 @@ def authorize_url(request, redirect_uri, signup=False):
     }
     if not signup:
         params["max_age"] = "0"
+        params["force_login"] = "1"
     if signup:
         ref = referral_defaults()
         params.update({

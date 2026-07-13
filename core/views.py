@@ -79,6 +79,7 @@ def _legacy_authorize_url(request, *, signup=False):
     else:
         params["prompt"] = "login"
         params["max_age"] = "0"
+        params["force_login"] = "1"
     return f"https://oauth.deriv.com/oauth2/authorize?{urlencode(params)}"
 
 

@@ -78,7 +78,7 @@
                 <span aria-hidden="true"></span>
                 <input id="terminal-search" type="search" placeholder="Search market">
             </div>
-            <button class="header-icon" type="button" title="Notifications" aria-label="Notifications"><span class="notification-dot"></span></button>
+            <button class="header-icon communication-icon" type="button" title="Messages and trade alerts" aria-label="Messages and trade alerts"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 5.75A2.75 2.75 0 0 1 7.75 3h8.5A2.75 2.75 0 0 1 19 5.75v5.5A2.75 2.75 0 0 1 16.25 14H11l-3.9 3.12A.7.7 0 0 1 6 16.57V14.7A2.75 2.75 0 0 1 5 12.5z"/><path d="M8.5 8.5h7M8.5 11h4.5"/></svg><span class="notification-dot"></span></button>
             <button class="header-icon" type="button" data-theme-toggle title="Settings" aria-label="Settings"><span class="rail-icon icon-theme" aria-hidden="true"></span></button>
             <div class="topbar-health" aria-label="Platform status">
                 <span><i></i><b data-connection="portfolio">offline</b> portfolio</span>
@@ -184,18 +184,17 @@
             <a class="account-link-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}">{% if deriv_session.is_connected %}Account{% else %}Login{% endif %}</a>
             <div class="account-menu" id="account-menu" role="menu">
                 {% if deriv_session.is_connected %}
-                <button type="button" data-account-type="{{ deriv_session.account_type }}" data-label="{{ deriv_session.account_id }}" data-balance="{{ real_balance|default:'0.00' }} {{ deriv_session.currency|default:'USD' }}"><span><small>Deriv Account</small><strong>{{ deriv_session.account_id }}</strong></span></button>
+                {% for account in deriv_accounts %}
+                <button type="button" data-account-id="{{ account.account_id }}" data-account-type="{{ account.account_type }}" data-label="{{ account.account_id }}" data-balance="{{ account.balance }} {{ account.currency }}" {% if account.is_active %}aria-current="true"{% endif %}><span class="account-mode-icon" aria-hidden="true">{% if account.account_type == "real" %}🇺🇸{% else %}D{% endif %}</span><span><small>{% if account.account_type == "real" %}USA · Live account{% else %}Demo account{% endif %}</small><strong>{{ account.account_id }}</strong></span><em>{{ account.balance }} {{ account.currency }}</em></button>
+                {% empty %}
+                <span class="account-empty">No Deriv accounts are available yet.</span>
+                {% endfor %}
                 <a href="{% url 'deriv_logout' %}">Logout</a>
                 {% else %}
                 <a href="{% url 'login' %}">Login with Deriv</a>
                 <a href="{% url 'register' %}">Register with Deriv</a>
                 {% endif %}
-                <button type="button" data-account-type="real" data-label="Real account" data-balance="{{ real_balance|default:'0.00' }} USD"><span><small>Real Account</small><strong>REAL</strong></span></button>
-                <button type="button" data-account-type="demo" data-label="Demo account" data-balance="{{ demo_balance|default:'10000.00' }}"><span><small>Demo Account</small><strong>DEMO</strong></span></button>
-                <button type="button" id="reset-demo-balance">Reset demo balance</button>
             </div>
-            <span id="demo-balance" hidden>{{ demo_balance|default:"10000.00" }}</span>
-            <span id="real-balance" hidden>{{ real_balance|default:"0.00" }}</span>
         </div>
 
         <section class="trade-ticket">

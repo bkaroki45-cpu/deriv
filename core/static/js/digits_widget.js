@@ -3,6 +3,8 @@
         constructor(rootId) {
             this.root = document.getElementById(rootId);
             this.lastDigitEl = document.getElementById("last-digit");
+            this.maxWindow = 1000;
+            this.window = [];
             this.counts = Array.from({ length: 10 }, () => 0);
             this.total = 0;
             if (this.root) this.render();
@@ -42,11 +44,41 @@
         ingest(tick) {
             const digit = this.digitFromTick(tick);
             if (!Number.isInteger(digit) || digit < 0 || digit > 9) return;
+            this.window.push(digit);
+            if (this.window.length > this.maxWindow) {
+                const removed = this.window.shift();
+                if (Number.isInteger(removed)) this.counts[removed] = Math.max(0, this.counts[removed] - 1);
+            }
             this.counts[digit] += 1;
-            this.total += 1;
+            this.total = this.window.length;
             if (this.lastDigitEl) this.lastDigitEl.textContent = String(digit);
             this.update();
             this.pulse(digit);
+        }
+
+        reset() {
+            this.window = [];
+            this.counts = Array.from({ length: 10 }, () => 0);
+            this.total = 0;
+            if (this.lastDigitEl) this.lastDigitEl.textContent = "-";
+            this.update();
+        }
+
+        seed(ticks) {
+            this.reset();
+            const items = Array.isArray(ticks) ? ticks.slice(-this.maxWindow) : [];
+            let lastDigit = null;
+            items.forEach((tick) => {
+                const digit = this.digitFromTick(tick);
+                if (!Number.isInteger(digit) || digit < 0 || digit > 9) return;
+                this.window.push(digit);
+                this.counts[digit] += 1;
+                lastDigit = digit;
+            });
+            this.total = this.window.length;
+            if (this.lastDigitEl) this.lastDigitEl.textContent = lastDigit === null ? "-" : String(lastDigit);
+            this.update();
+            if (lastDigit !== null) this.pulse(lastDigit);
         }
 
         update() {

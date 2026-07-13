@@ -124,7 +124,7 @@
                             <div class="dbot-stage" id="builder-stage" aria-label="Blockly workspace">
                                 <article class="dbot-block block-large" data-block-label="Trade parameters">
                                     <h3>1. Trade parameters</h3>
-                                    <p>Market: <span>Deriv</span> <span>Synthetic Indices</span> <span data-bot-market-name>Volatility 10 (1s) Index</span></p>
+                                    <p>Market: <span>Deriv</span> <span>Synthetic Indices</span> <span data-bot-market-name>Volatility 100 (1s) Index</span></p>
                                     <p>Trade Type: <span>Up/Down</span> <span>Rise/Fall</span></p>
                                     <p>Contract Type: <span>Both</span></p>
                                     <p>Default Candle Interval: <span>1 minute</span></p>
@@ -158,7 +158,7 @@
                             <button type="button" title="Draw">D</button>
                             <button type="button" title="Download">DL</button>
                         </div>
-                        <button class="dbot-symbol-picker" type="button"><strong data-bot-live-name>Volatility 10 (1s) Index</strong><small><span data-bot-live-symbol>1HZ10V</span> / <span data-bot-live-price>Waiting</span> / <span data-bot-live-digit>-</span></small></button>
+                        <button class="dbot-symbol-picker" type="button"><strong data-bot-live-name>Volatility 100 (1s) Index</strong><small><span data-bot-live-symbol>1HZ100V</span> / <span data-bot-live-price>Waiting</span> / <span data-bot-live-digit>-</span></small></button>
                         <div class="dbot-chart-canvas">
                             <svg viewBox="0 0 900 460" role="img" aria-label="Live Deriv price chart preview">
                                 <path data-bot-live-area d="" fill="rgba(0,212,170,.09)"/>
@@ -265,6 +265,6 @@
             connected: {% if deriv_session.is_connected %}true{% else %}false{% endif %}
         };
     </script>
-    <script src="{% static 'js/bot_builder.js' %}?v=deriv-autobuy-20260707-1"></script>
+    <script src="{% static 'js/bot_builder.js' %}?v=deriv-sync-20260707-1"></script>
 </body>
 </html>
