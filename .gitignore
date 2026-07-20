@@ -7,6 +7,7 @@ env/
 # Deriv Bot App Builder (standalone React application)
 bot-app/node_modules/
 bot-app/dist/
+bot-app/out/
 bot-app/.env.production
 tools/
 
