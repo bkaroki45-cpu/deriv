@@ -1,7 +1,42 @@
 # Environment
 .env
+.env.local
 venv/
 env/
+
+# Deriv Bot App Builder (standalone React application)
+bot-app/node_modules/
+bot-app/dist/
+bot-app/.env.production
+tools/
+
+# Deriv App Builder trading interfaces (standalone Next.js applications)
+digits-app/node_modules/
+digits-app/.next/
+digits-app/out/
+digits-app/.env.production
+rise-fall-app/node_modules/
+rise-fall-app/.next/
+rise-fall-app/out/
+rise-fall-app/.env.production
+rise-fall-app/public/assets/
+rise-fall-app/public/chart/
+rise-fall-app/public/*.smartcharts.*
+rise-fall-app/public/*
+!rise-fall-app/public/_headers
+!rise-fall-app/public/app-config.json
+!rise-fall-app/public/icon.svg
+accumulators-app/node_modules/
+accumulators-app/.next/
+accumulators-app/out/
+accumulators-app/.env.production
+accumulators-app/public/assets/
+accumulators-app/public/chart/
+accumulators-app/public/*.smartcharts.*
+accumulators-app/public/*
+!accumulators-app/public/_headers
+!accumulators-app/public/app-config.json
+!accumulators-app/public/icon.svg
 
 # Database
 db.sqlite3

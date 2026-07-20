@@ -1,4 +1,6 @@
 (function () {
+    // Kept as a reference for supported market naming; it is never rendered
+    // in place of Deriv's live active_symbols directory.
     const DEFAULT_MARKETS = [
         { symbol: "1HZ10V", display_name: "Volatility 10 (1s) Index", market: "synthetic_index", market_display_name: "Synthetics" },
         { symbol: "1HZ25V", display_name: "Volatility 25 (1s) Index", market: "synthetic_index", market_display_name: "Synthetics" },
@@ -83,10 +85,11 @@
             try {
                 const response = await this.derivRequest({ active_symbols: "full", req_id: 10 });
                 const remote = Array.isArray(response.active_symbols) ? response.active_symbols : [];
-                this.markets = this.syntheticFirst((remote.length ? remote : DEFAULT_MARKETS).map((item) => this.normalizeMarket(item)));
+                this.markets = this.syntheticFirst(remote.map((item) => this.normalizeMarket(item)));
             } catch (error) {
-                this.markets = this.syntheticFirst(DEFAULT_MARKETS.map((item) => this.normalizeMarket(item)));
-                this.note(`Using local symbol list: ${error.message}`);
+                this.markets = [];
+                this.note(`Deriv market directory unavailable: ${error.message}`);
+                window.setTimeout(() => this.loadSymbols(), 5000);
             }
             this.activeSymbol = this.exactSymbol(this.activeSymbol)
                 || this.exactSymbol("1HZ100V")
@@ -410,6 +413,10 @@
 
         render() {
             if (!this.list) return;
+            if (!this.markets.length) {
+                this.list.innerHTML = '<p class="market-empty">Loading the current market directory from Deriv…</p>';
+                return;
+            }
             const query = (this.search ? this.search.value : "").toLowerCase();
             const rows = this.markets
                 .filter((item) => this.matchesCategory(item, this.filter))

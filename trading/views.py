@@ -3,16 +3,23 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework import status
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import asyncio
 from django.utils import timezone
 
 from accounts.models import ActivityLog, DerivAccount, Referral
-from core.deriv_api import DerivAPIClient, active_token_for_request, set_deriv_session, sync_accounts
+from core.deriv_api import (
+    DerivAPIClient,
+    account_payload_from_snapshot,
+    account_snapshot_from_token,
+    active_token_for_request,
+    set_deriv_session,
+    sync_accounts,
+)
 from portfolio.services import create_trade
 from portfolio.engine import broadcast_portfolio_update
 from portfolio.models import Trade
-from .services.deriv_trade import DerivTradeEngine
+from .services.deriv_trade import DerivTradeEngine, build_proposal_payload
 from .models import Commission, Portfolio, TradingLog, Transaction
 
 
@@ -33,6 +40,9 @@ class TradeView(APIView):
             requested_contract_type = request.data.get("contract_type")
             barrier = request.data.get("barrier")
             growth_rate = request.data.get("growth_rate")
+            multiplier = request.data.get("multiplier")
+            take_profit = request.data.get("take_profit")
+            stop_loss = request.data.get("stop_loss")
             deriv_token = request.session.get("deriv_token")
             currency = request.session.get("deriv_currency", "USD")
 
@@ -59,6 +69,14 @@ class TradeView(APIView):
                 )
 
             contract_type = requested_contract_type or ("CALL" if direction.lower() == "rise" else "PUT")
+            # Reject unsupported or incomplete contracts before a local record
+            # is created. The same builder is used for the eventual Deriv buy.
+            build_proposal_payload(
+                symbol=symbol, contract_type=contract_type, stake=stake,
+                duration=duration, duration_unit=duration_unit, currency=currency,
+                barrier=barrier, growth_rate=growth_rate, multiplier=multiplier,
+                take_profit=take_profit, stop_loss=stop_loss,
+            )
 
             # =========================
             # 2. SAVE TRADE (OPEN)
@@ -73,7 +91,8 @@ class TradeView(APIView):
                     contract_type=contract_type,
                     duration=int(duration),
                     duration_unit=duration_unit,
-                    take_profit=Decimal(str(request.data.get("take_profit"))) if request.data.get("take_profit") not in (None, "") else None,
+                    take_profit=Decimal(str(take_profit)) if take_profit not in (None, "") else None,
+                    stop_loss=Decimal(str(stop_loss)) if stop_loss not in (None, "") else None,
                 )
 
             # 🔥 LIVE UPDATE: NEW TRADE CREATED
@@ -105,6 +124,9 @@ class TradeView(APIView):
                         currency=currency,
                         barrier=barrier,
                         growth_rate=growth_rate,
+                        multiplier=multiplier,
+                        take_profit=take_profit,
+                        stop_loss=stop_loss,
                     )
                 )
             except Exception as e:
@@ -124,7 +146,10 @@ class TradeView(APIView):
                 contract_id = result["buy"].get("contract_id")
 
                 trade.contract_id = contract_id
-                trade.save(update_fields=["contract_id", "updated_at"])
+                buy_price = result["buy"].get("buy_price")
+                if buy_price is not None:
+                    trade.entry_price = Decimal(str(buy_price))
+                trade.save(update_fields=["contract_id", "entry_price", "updated_at"])
                 TradingLog.objects.create(
                     user=request.user if request.user.is_authenticated else None,
                     action="buy_contract",
@@ -142,9 +167,12 @@ class TradeView(APIView):
                 "success": True,
                 "trade_id": trade.id if trade else None,
                 "contract_id": result.get("buy", {}).get("contract_id") if isinstance(result, dict) else None,
+                "buy": result.get("buy", {}) if isinstance(result, dict) else {},
                 "deriv_response": result
             })
 
+        except (ValueError, InvalidOperation) as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response(
                 {"error": str(e)},
@@ -164,9 +192,24 @@ class DerivBaseAPIView(APIView):
 
 class AccountOverviewView(DerivBaseAPIView):
     def get(self, request):
-        client = self.client(request)
-        payload = client.accounts()
-        accounts = sync_accounts(request.user, payload, request.session.get("deriv_account_id", ""))
+        token = active_token_for_request(request)
+        authorize, balance = account_snapshot_from_token(token)
+        active_payload = account_payload_from_snapshot(authorize, balance)
+        active_account_id = active_payload["account_id"] or request.session.get("deriv_account_id", "")
+        payload = {"accounts": [active_payload]}
+        try:
+            remote = self.client(request).accounts()
+            remote_accounts = remote.get("accounts") if isinstance(remote, dict) else remote
+            if isinstance(remote_accounts, list):
+                payload = {"accounts": [*remote_accounts, active_payload]}
+        except Exception:
+            # The live WebSocket snapshot is sufficient to keep the selected
+            # Deriv account in sync when the optional REST listing is absent.
+            pass
+        accounts = sync_accounts(request.user, payload, active_account_id)
+        active = next((item for item in accounts if item.account_id == active_account_id), None)
+        if active:
+            set_deriv_session(request, token, active.account_id, active.currency, active.account_type, request.session.get("deriv_token_id"))
         return Response({
             "accounts": [
                 {
@@ -272,9 +315,19 @@ class ProposalView(DerivBaseAPIView):
     def post(self, request):
         token = active_token_for_request(request)
         engine = DerivTradeEngine(token=token)
-        payload = dict(request.data)
-        payload.setdefault("proposal", 1)
-        payload.setdefault("basis", "stake")
+        payload = build_proposal_payload(
+            symbol=request.data.get("symbol"),
+            contract_type=request.data.get("contract_type"),
+            stake=request.data.get("stake") or request.data.get("amount"),
+            duration=request.data.get("duration"),
+            duration_unit=request.data.get("duration_unit"),
+            currency=request.session.get("deriv_currency", "USD"),
+            barrier=request.data.get("barrier"),
+            growth_rate=request.data.get("growth_rate"),
+            multiplier=request.data.get("multiplier"),
+            take_profit=request.data.get("take_profit"),
+            stop_loss=request.data.get("stop_loss"),
+        )
         return Response(asyncio.run(engine.send_once(payload, authorize=bool(token))))
 
 
@@ -320,7 +373,10 @@ class AccountStreamSnapshotView(DerivBaseAPIView):
                 if contract.get("is_sold") or contract.get("is_expired"):
                     trade.status = "closed"
                     trade.closed_at = timezone.now()
-                trade.save()
+                    exit_price = contract.get("exit_spot") or contract.get("sell_spot") or contract.get("bid_price")
+                    if exit_price not in (None, ""):
+                        trade.exit_price = Decimal(str(exit_price))
+                trade.save(update_fields=["profit", "status", "closed_at", "exit_price", "updated_at"])
         return Response(payload)
 
 

@@ -5,7 +5,7 @@
             contract: "CALL",
             choices: ["Rise", "Fall"],
             fields: ["duration", "stake"],
-            payout: "19.25 USD",
+            payout: "",
             duration: "5",
             unit: "t",
             terms: [],
@@ -17,9 +17,6 @@
             fields: ["growth", "stake", "takeProfit"],
             payout: "",
             terms: [
-                ["Max. payout", "6,000.00 USD"],
-                ["Barrier", '<span data-accumulator-barrier>+/- 0.03780%</span>'],
-                ["Max. duration", "85 ticks"],
             ],
         },
         multiplier: {
@@ -29,7 +26,7 @@
             actionLabels: ["Buy Up", "Buy Down"],
             fields: ["stake", "multiplier", "risk"],
             payout: "",
-            terms: [["Multiplier", "x100"], ["Stop out", "10.00 USD"], ["Commission", "0.15 USD"]],
+            terms: [],
         },
         turbos: {
             title: "Turbos",
@@ -39,7 +36,7 @@
             payout: "",
             duration: "5",
             unit: "t",
-            terms: [["Payout per point", "2.4 USD"], ["Barrier", "-4.02"]],
+            terms: [],
         },
         vanillas: {
             title: "Vanillas",
@@ -47,14 +44,14 @@
             choices: ["Call", "Put"],
             fields: ["duration", "barrier", "stake"],
             payout: "",
-            terms: [["Payout per point", "9.659166 USD"]],
+            terms: [],
         },
         high_low: {
             title: "Higher/Lower",
             contract: "CALL",
             choices: ["Higher", "Lower"],
             fields: ["duration", "barrier", "stake"],
-            payout: "22.91 USD",
+            payout: "",
             duration: "5",
             unit: "m",
             terms: [],
@@ -64,7 +61,7 @@
             contract: "ONETOUCH",
             choices: ["Touch", "No Touch"],
             fields: ["duration", "barrier", "stake"],
-            payout: "17.21 USD",
+            payout: "",
             duration: "5",
             unit: "m",
             terms: [],
@@ -74,7 +71,7 @@
             contract: "DIGITMATCH",
             choices: ["Matches", "Differs"],
             fields: ["digits", "duration", "stake"],
-            payout: "89.29 USD",
+            payout: "",
             duration: "5",
             unit: "t",
             terms: [],
@@ -84,7 +81,7 @@
             contract: "DIGITOVER",
             choices: ["Over", "Under"],
             fields: ["digits", "duration", "stake"],
-            payout: "16.88 USD",
+            payout: "",
             duration: "5",
             unit: "t",
             terms: [],
@@ -94,7 +91,7 @@
             contract: "DIGITEVEN",
             choices: ["Even", "Odd"],
             fields: ["digits", "duration", "stake"],
-            payout: "19.53 USD",
+            payout: "",
             duration: "5",
             unit: "t",
             terms: [],
@@ -445,6 +442,9 @@
         if (["match_diff", "over_under"].includes(activeTradeType)) payload.barrier = String(activeDigit);
         else if (byId("barrier-field") && !byId("barrier-field").hidden && byId("trade-barrier")?.value) payload.barrier = byId("trade-barrier").value;
         if (activeTradeType === "accumulator") payload.growth_rate = Number(byId("growth-rate")?.value || 0.03);
+        if (activeTradeType === "multiplier") payload.multiplier = Number(byId("trade-multiplier")?.value || 0);
+        if (!byId("take-profit-field")?.hidden && byId("take-profit")?.value) payload.take_profit = byId("take-profit").value;
+        if (!byId("risk-field")?.hidden && byId("stop-out")?.value) payload.stop_loss = byId("stop-out").value;
         return payload;
     }
 
@@ -474,7 +474,17 @@
         updateRiskPreview();
         const payload = proposalPayload();
         if (!Number.isFinite(payload.amount) || payload.amount <= 0) return;
-        window.profiteraMarkets.sendDeriv(payload, "proposal")
+        fetch("/api/trading/proposal/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+            credentials: "same-origin",
+            body: JSON.stringify(payload),
+        })
+            .then(async (response) => {
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || "Proposal unavailable");
+                return data;
+            })
             .then((data) => {
                 if (!data.proposal) return;
                 const ask = Number(data.proposal.ask_price || payload.amount);
@@ -971,7 +981,7 @@
     function addLocalTrade(payload, serverData = {}) {
         const id = serverData.contract_id || serverData.buy?.contract_id || serverData.buy?.transaction_id;
         if (!id) return;
-        const price = parseVisiblePrice();
+        const price = Number(serverData.buy?.buy_price || parseVisiblePrice());
         const stake = Number(payload.stake || 0);
         const payoutValue = Number(serverData.buy?.payout || serverData.payout || 0);
         const trade = {
@@ -1047,6 +1057,7 @@
                 growth_rate: (byId("growth-rate") || {}).value || undefined,
                 multiplier: (byId("trade-multiplier") || {}).value || undefined,
                 take_profit: (byId("take-profit") || {}).value || undefined,
+                stop_loss: (byId("stop-out") || {}).value || undefined,
             };
             const warning = byId("risk-warning");
             const status = byId("contract-status");

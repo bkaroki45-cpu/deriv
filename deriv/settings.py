@@ -46,6 +46,12 @@ CSRF_TRUSTED_ORIGINS = env_list(
 SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", not DEBUG)
 SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", not DEBUG)
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", not DEBUG)
+# Deriv returns to the configured canonical domain.  Sharing the session
+# cookie across www and the apex domain keeps the OAuth PKCE state intact when
+# a visitor starts on www.profiteraa.com and returns to profiteraa.com.
+SESSION_COOKIE_DOMAIN = os.getenv("SESSION_COOKIE_DOMAIN") or (".profiteraa.com" if not DEBUG else None)
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_AGE = int(os.getenv("SESSION_COOKIE_AGE", str(60 * 60 * 24 * 14)))
 SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000" if not DEBUG else "0"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", not DEBUG)
 SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", not DEBUG)
@@ -217,6 +223,22 @@ DERIV_UTM_SOURCE = os.getenv("DERIV_UTM_SOURCE", "profiteraa")
 DERIV_UTM_CAMPAIGN = os.getenv("DERIV_UTM_CAMPAIGN", "profiteraa_partner")
 DERIV_UTM_MEDIUM = os.getenv("DERIV_UTM_MEDIUM", "affiliate")
 PROFITERA_MARKUP_PERCENT = os.getenv("PROFITERA_MARKUP_PERCENT", "3")
+# The App Builder export is a standalone SPA.  Keep this blank until its static
+# site has been deployed (normally at https://bot.profiteraa.com).
+PROFITERA_BOT_URL = os.getenv(
+    "PROFITERA_BOT_URL", "http://127.0.0.1:4003" if DEBUG else ""
+).strip()
+# Each App Builder trade interface is deployed as a static application.  URLs
+# stay empty until the corresponding application has been built and hosted.
+PROFITERA_DIGITS_URL = os.getenv(
+    "PROFITERA_DIGITS_URL", "http://127.0.0.1:3001/trade/digits/" if DEBUG else ""
+).strip()
+PROFITERA_RISE_FALL_URL = os.getenv(
+    "PROFITERA_RISE_FALL_URL", "http://127.0.0.1:3002/trade/rise-fall/" if DEBUG else ""
+).strip()
+PROFITERA_ACCUMULATORS_URL = os.getenv(
+    "PROFITERA_ACCUMULATORS_URL", "http://127.0.0.1:3003/trade/accumulators/" if DEBUG else ""
+).strip()
 
 
 # ---- CACHE (disabled for now but ready) ----

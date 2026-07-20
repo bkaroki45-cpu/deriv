@@ -1,0 +1,34 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Profitera Trade</title>
+    <style>
+        :root { color-scheme: dark; --page:#0d111b; --panel:#161d2d; --line:#2a354d; --muted:#9ba8be; --accent:#fc4b63; }
+        * { box-sizing:border-box; } body { margin:0; min-height:100vh; background:radial-gradient(circle at 15% 0,#202a40 0,transparent 35%),var(--page); color:#f5f7fb; font:15px Inter,Arial,sans-serif; }
+        header { height:66px; padding:0 clamp(20px,5vw,72px); border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; }
+        .brand { color:#fff; font-size:21px; font-weight:800; text-decoration:none; } .brand span { color:var(--accent); }
+        .back { color:#cdd5e4; text-decoration:none; } main { max-width:1120px; margin:0 auto; padding:76px 28px; }
+        h1 { margin:0; font-size:clamp(30px,4vw,46px); letter-spacing:-1.5px; } .lead { color:var(--muted); max-width:690px; font-size:17px; line-height:1.65; margin:16px 0 42px; }
+        .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; } .card { background:linear-gradient(145deg,#1b2437,#121927); border:1px solid var(--line); border-radius:18px; padding:28px; min-height:265px; display:flex; flex-direction:column; }
+        .tag { color:#ff9ba8; text-transform:uppercase; letter-spacing:1.3px; font-weight:700; font-size:11px; } h2 { font-size:25px; margin:16px 0 10px; } .card p { color:var(--muted); line-height:1.55; margin:0; }
+        .action { margin-top:auto; padding-top:28px; } .button { display:block; border-radius:9px; padding:13px 16px; text-align:center; font-weight:700; text-decoration:none; background:var(--accent); color:white; } .button.disabled { background:#293449; color:#91a0ba; cursor:not-allowed; }
+        .notice { margin-top:32px; border-left:3px solid #fc4b63; padding:14px 17px; background:#171e2d; color:#c7d0df; line-height:1.55; } @media(max-width:760px){ main{padding:50px 20px}.grid{grid-template-columns:1fr;} }
+    </style>
+</head>
+<body>
+<header><a class="brand" href="/">Profit<span>era</span></a><a class="back" href="/dashboard/">Dashboard</a></header>
+<main>
+    <h1>Choose a market contract</h1>
+    <p class="lead">Use the dedicated Deriv-powered interface for each contract family. Quotes, availability, contract rules, balances, and final settlement are supplied by Deriv.</p>
+    <section class="grid" aria-label="Trading contract types">
+        <article class="card"><span class="tag">Digits</span><h2>Digits</h2><p>Matches/Differs, Over/Under, and Even/Odd with live tick data and digit statistics.</p><div class="action">{% if digits_url %}<a class="button" href="{{ digits_url }}">Open Digits</a>{% else %}<span class="button disabled">Deployment pending</span>{% endif %}</div></article>
+        <article class="card"><span class="tag">Rise / Fall</span><h2>Rise/Fall</h2><p>Call and Put contracts with live price streaming, charting, open positions, and reports.</p><div class="action">{% if rise_fall_url %}<a class="button" href="{{ rise_fall_url }}">Open Rise/Fall</a>{% else %}<span class="button disabled">Deployment pending</span>{% endif %}</div></article>
+        <article class="card"><span class="tag">Accumulator</span><h2>Accumulators</h2><p>Growth-rate accumulator contracts with live position management and Deriv settlement.</p><div class="action">{% if accumulators_url %}<a class="button" href="{{ accumulators_url }}">Open Accumulators</a>{% else %}<span class="button disabled">Deployment pending</span>{% endif %}</div></article>
+    </section>
+    <p class="notice">Trade on demo first. Any partner markup must be configured and approved by Deriv for the exact App ID used by these interfaces; it is not calculated or guaranteed by this page.</p>
+</main>
+</body>
+</html>

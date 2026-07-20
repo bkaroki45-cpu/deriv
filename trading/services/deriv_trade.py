@@ -1,5 +1,74 @@
 import json
 import os
+from decimal import Decimal, InvalidOperation
+
+
+SUPPORTED_CONTRACT_TYPES = {
+    "ACCU", "CALL", "DIGITDIFF", "DIGITEVEN", "DIGITMATCH", "DIGITODD",
+    "DIGITOVER", "DIGITUNDER", "HIGHER", "LOWER", "MULTDOWN", "MULTUP",
+    "NOTOUCH", "ONETOUCH", "PUT", "TURBOSLONG", "TURBOSSHORT",
+    "VANILLALONGCALL", "VANILLALONGPUT",
+}
+LIMIT_ORDER_CONTRACT_TYPES = {"ACCU", "MULTDOWN", "MULTUP"}
+MULTIPLIER_CONTRACT_TYPES = {"MULTDOWN", "MULTUP"}
+
+
+def _positive_decimal(value, label):
+    try:
+        result = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError(f"{label} must be a number.") from exc
+    if result <= 0:
+        raise ValueError(f"{label} must be greater than zero.")
+    return result
+
+
+def build_proposal_payload(*, symbol, contract_type, stake, duration, duration_unit, currency, barrier=None,
+                           growth_rate=None, multiplier=None, take_profit=None, stop_loss=None):
+    """Build only a Deriv-supported proposal; Deriv remains the rule engine."""
+    contract_type = str(contract_type or "").upper()
+    if contract_type not in SUPPORTED_CONTRACT_TYPES:
+        raise ValueError("This contract type is not available for execution.")
+    if not symbol or not str(symbol).replace("_", "").isalnum():
+        raise ValueError("Select a valid Deriv market.")
+    if duration_unit not in {"s", "m", "h", "d", "t"}:
+        raise ValueError("Select a valid Deriv duration unit.")
+    try:
+        duration = int(duration)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Duration must be a whole number.") from exc
+    if duration <= 0:
+        raise ValueError("Duration must be greater than zero.")
+
+    payload = {
+        "proposal": 1,
+        "amount": float(_positive_decimal(stake, "Stake")),
+        "basis": "stake",
+        "contract_type": contract_type,
+        "currency": str(currency or "USD").upper(),
+        "duration": duration,
+        "duration_unit": duration_unit,
+        "symbol": str(symbol),
+    }
+    if barrier not in (None, ""):
+        payload["barrier"] = str(barrier)
+    if growth_rate not in (None, ""):
+        payload["growth_rate"] = float(_positive_decimal(growth_rate, "Growth rate"))
+    if multiplier not in (None, ""):
+        if contract_type not in MULTIPLIER_CONTRACT_TYPES:
+            raise ValueError("Multiplier is only available for multiplier contracts.")
+        payload["multiplier"] = float(_positive_decimal(multiplier, "Multiplier"))
+
+    limits = {}
+    if take_profit not in (None, ""):
+        limits["take_profit"] = float(_positive_decimal(take_profit, "Take profit"))
+    if stop_loss not in (None, ""):
+        limits["stop_loss"] = float(_positive_decimal(stop_loss, "Stop loss"))
+    if limits:
+        if contract_type not in LIMIT_ORDER_CONTRACT_TYPES:
+            raise ValueError("Take profit and stop loss are not supported for this contract type.")
+        payload["limit_order"] = limits
+    return payload
 
 
 class DerivTradeEngine:
@@ -38,6 +107,9 @@ class DerivTradeEngine:
         currency="USD",
         barrier=None,
         growth_rate=None,
+        multiplier=None,
+        take_profit=None,
+        stop_loss=None,
     ):
         try:
             import websockets
@@ -53,20 +125,12 @@ class DerivTradeEngine:
             if auth.get("error"):
                 raise RuntimeError(auth["error"]["message"])
 
-            proposal_payload = {
-                "proposal": 1,
-                "amount": float(stake),
-                "basis": "stake",
-                "contract_type": contract_type,
-                "currency": currency,
-                "duration": int(duration),
-                "duration_unit": duration_unit,
-                "symbol": symbol,
-            }
-            if barrier not in (None, ""):
-                proposal_payload["barrier"] = str(barrier)
-            if growth_rate not in (None, ""):
-                proposal_payload["growth_rate"] = float(growth_rate)
+            proposal_payload = build_proposal_payload(
+                symbol=symbol, contract_type=contract_type, stake=stake,
+                duration=duration, duration_unit=duration_unit, currency=currency,
+                barrier=barrier, growth_rate=growth_rate, multiplier=multiplier,
+                take_profit=take_profit, stop_loss=stop_loss,
+            )
             await ws.send(json.dumps(proposal_payload))
             proposal = json.loads(await ws.recv())
             if proposal.get("error"):

@@ -198,12 +198,27 @@ def dashboard(request):
 
 
 def bot_builder(request):
+    # The current Deriv App Builder export owns its own OAuth and bot-runtime
+    # session.  Once deployed, send all legacy Bot entry points to that app;
+    # retain the local page as a safe fallback while no host is configured.
+    if settings.PROFITERA_BOT_URL:
+        return redirect(settings.PROFITERA_BOT_URL)
+
     deriv_session = _deriv_session(request)
     active_deriv_account = _active_deriv_account(request)
     return render(request, "core/bot_builder.html", {
         "deriv_session": deriv_session,
         "deriv_ws_app_id": _deriv_ws_app_id(),
         "real_balance": getattr(active_deriv_account, "balance", "0.00"),
+    })
+
+
+def trade_hub(request):
+    """One entry point for the contract-specific Deriv App Builder interfaces."""
+    return render(request, "core/trade_hub.html", {
+        "digits_url": settings.PROFITERA_DIGITS_URL,
+        "rise_fall_url": settings.PROFITERA_RISE_FALL_URL,
+        "accumulators_url": settings.PROFITERA_ACCUMULATORS_URL,
     })
 
 

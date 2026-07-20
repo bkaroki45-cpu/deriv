@@ -9,12 +9,13 @@ from .views import (
     deriv_register,
     deriv_register_page,
     home,
+    trade_hub,
 )
 
 urlpatterns = [
     path('', home, name="home"),
     path('dashboard/', dashboard, name="dashboard"),
-    path('trade/', dashboard, name="trade"),
+    path('trade/', trade_hub, name="trade"),
     path('analytics/', dashboard, name="analytics"),
     path('account/', dashboard, name="account"),
     path('bot-dashboard/', dashboard, name="bot_dashboard"),

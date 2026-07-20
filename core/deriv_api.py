@@ -9,6 +9,7 @@ import requests
 from django.conf import settings
 from django.core import signing
 from django.utils import timezone
+from datetime import timedelta
 
 from accounts.models import ActivityLog, DerivAccount, OAuthToken, Referral
 
@@ -227,6 +228,29 @@ def _ws_authorize(token):
     return auth.get("authorize", {}), balance.get("balance", {})
 
 
+def account_snapshot_from_token(token):
+    """Return the account Deriv has authorised for this token.
+
+    The WebSocket API is the authoritative source for the account behind an
+    OAuth token.  In particular, an OAuth token can be valid for trading while
+    the optional REST accounts endpoint is unavailable to the application.
+    """
+    return _ws_authorize(token)
+
+
+def account_payload_from_snapshot(authorize, balance):
+    account_id = str(authorize.get("loginid") or balance.get("loginid") or "")
+    return {
+        "account_id": account_id,
+        "loginid": account_id,
+        "account_type": "demo" if authorize.get("is_virtual") or account_id.upper().startswith("VRTC") else "real",
+        "currency": balance.get("currency") or authorize.get("currency") or "USD",
+        "balance": balance.get("balance") or 0,
+        "raw_authorize": authorize,
+        "raw_balance": balance,
+    }
+
+
 def _first_account(data):
     accounts = data.get("accounts") if isinstance(data, dict) else data
     if isinstance(accounts, dict):
@@ -347,17 +371,41 @@ def sync_legacy_oauth_tokens(request, user, credentials):
 
 
 def validate_and_store_token(request, user, token, token_type="oauth", token_payload=None):
-    client = DerivAPIClient(token)
-    accounts_payload = client.accounts()
-    first = _first_account(accounts_payload)
-    account_id = str(first.get("account_id") or first.get("loginid") or first.get("id") or request.session.get("deriv_account_id", ""))
+    # Verify the token and collect the live balance through the same Deriv
+    # WebSocket API used for market data and trade execution.  Do this before
+    # the REST account-list call: a REST permission/configuration issue must
+    # never make a successful Deriv sign-in look like an expired session.
+    authorize, balance = account_snapshot_from_token(token)
+    active_payload = account_payload_from_snapshot(authorize, balance)
+    account_id = active_payload["account_id"] or request.session.get("deriv_account_id", "")
+    accounts_payload = {"accounts": [active_payload]}
+
+    # REST may return additional linked accounts. It is an enhancement only;
+    # the WebSocket snapshot above remains enough to connect and synchronise
+    # the account actually selected at Deriv.
+    try:
+        remote_accounts = DerivAPIClient(token).accounts()
+        remote_list = remote_accounts.get("accounts") if isinstance(remote_accounts, dict) else remote_accounts
+        if isinstance(remote_list, list):
+            accounts_payload = {"accounts": [*remote_list, active_payload]}
+    except Exception:
+        pass
+
     accounts = sync_accounts(user, accounts_payload, account_id)
     active = next((account for account in accounts if account.account_id == account_id), accounts[0] if accounts else None)
+    expires_at = None
+    expires_in = (token_payload or {}).get("expires_in")
+    if expires_in not in (None, ""):
+        try:
+            expires_at = timezone.now() + timedelta(seconds=int(expires_in))
+        except (TypeError, ValueError):
+            pass
     oauth_token = OAuthToken.objects.create(
         user=user,
         token_type=token_type,
         access_token=seal_token(token),
         refresh_token=seal_token((token_payload or {}).get("refresh_token", "")),
+        expires_at=expires_at,
         scope=(token_payload or {}).get("scope", ""),
         active_account=active,
         is_valid=True,

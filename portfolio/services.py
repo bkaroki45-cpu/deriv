@@ -12,6 +12,7 @@ def create_trade(user, symbol, direction, stake, entry_price=None, **details):
         duration=details.get("duration"),
         duration_unit=details.get("duration_unit", ""),
         take_profit=details.get("take_profit"),
+        stop_loss=details.get("stop_loss"),
         status="open"
     )
 
