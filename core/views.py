@@ -1,13 +1,17 @@
 import os
 import secrets
+from decimal import Decimal
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import get_user_model, login
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from .deriv_api import (
     authorize_url,
@@ -17,6 +21,7 @@ from .deriv_api import (
     exchange_code,
     get_session,
     active_token_for_request,
+    DerivAPIClient,
     set_deriv_session,
     sync_legacy_oauth_tokens,
     validate_and_store_token,
@@ -210,6 +215,28 @@ def dashboard(request):
         "accumulators_url": settings.PROFITERA_ACCUMULATORS_URL,
         "bot_url": settings.PROFITERA_BOT_URL,
     })
+
+
+@login_required
+@require_POST
+def reset_demo_balance(request):
+    """Reset only the connected user's active Deriv demo account."""
+    account = _active_deriv_account(request)
+    token = active_token_for_request(request)
+    if not account or account.account_type != "demo":
+        messages.error(request, "Select a demo account before resetting its balance.")
+        return redirect("dashboard")
+    if not token:
+        messages.error(request, "Connect your Deriv account again before resetting the demo balance.")
+        return redirect("login")
+    try:
+        DerivAPIClient(token).reset_demo_balance(account.account_id)
+        account.balance = Decimal("10000.00")
+        account.save(update_fields=["balance", "updated_at"])
+        messages.success(request, "Your Deriv demo balance was reset to 10,000 USD.")
+    except Exception as exc:
+        messages.error(request, f"Deriv could not reset the demo balance: {str(exc)[:180]}")
+    return redirect("dashboard")
 
 
 def bot_builder(request):
