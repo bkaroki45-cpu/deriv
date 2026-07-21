@@ -64,6 +64,18 @@ export default defineConfig({
       '@/stores': path.resolve(__dirname, './src/stores'),
     },
   },
+  // react-virtualized imports the named `polyfill` export. Its ESM entry can
+  // be empty in the packaged App Builder dependency tree, producing
+  // `(0, v.polyfill) is not a function` at page startup. The CommonJS entry
+  // ships the same library with the export intact.
+  resolve: {
+    alias: {
+      'react-lifecycles-compat': path.resolve(
+        __dirname,
+        './node_modules/react-lifecycles-compat/react-lifecycles-compat.cjs.js'
+      ),
+    },
+  },
   output: {
     assetPrefix: isStaticBuild ? '/bot/preview/' : '/',
     distPath: {
