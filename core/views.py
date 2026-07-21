@@ -1,11 +1,12 @@
 import os
 import secrets
+from datetime import timedelta
 from decimal import Decimal
 from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import get_user_model, login
+from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
@@ -118,6 +119,14 @@ def _exchange_oauth_code(request, code):
     return data
 
 
+def _oauth_expiry_seconds(payload):
+    """Return a conservative OAuth expiry when Deriv omits/invalidates it."""
+    try:
+        return max(1, int((payload or {}).get("expires_in") or 3600))
+    except (TypeError, ValueError):
+        return 3600
+
+
 def _ensure_deriv_user(request, account_id=""):
     if request.user.is_authenticated:
         return request.user
@@ -199,6 +208,7 @@ def home(request):
     return render(request, "core/home.html")
 
 
+@login_required(login_url="login")
 def dashboard(request):
     wallet = getattr(request.user, "wallet", None) if request.user.is_authenticated else None
     deriv_session = _deriv_session(request)
@@ -332,6 +342,7 @@ def deriv_oauth_callback(request):
                     token_type="oauth",
                     access_token=seal_token(data["access_token"]),
                     refresh_token=seal_token(data.get("refresh_token", "")),
+                    expires_at=timezone.now() + timedelta(seconds=_oauth_expiry_seconds(data)),
                     scope=data.get("scope", ""),
                     is_valid=True,
                     last_validated_at=timezone.now(),
@@ -406,6 +417,9 @@ def app_session(request):
 
 def deriv_logout(request):
     _clear_deriv_session(request)
-    return redirect("trade")
+    # End both the Deriv-token session and Django's authenticated session so
+    # the next Login with Deriv action can use a different Deriv account.
+    logout(request)
+    return redirect("home")
     if _safe_post_login_path(request):
         request.session["deriv_post_login_path"] = _safe_post_login_path(request)

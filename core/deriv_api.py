@@ -424,16 +424,30 @@ def validate_and_store_token(request, user, token, token_type="oauth", token_pay
 
 
 def active_token_for_request(request):
-    token = request.session.get("deriv_token")
-    if token:
-        return token
     token_id = request.session.get("deriv_token_id")
     if token_id and request.user.is_authenticated:
         stored = OAuthToken.objects.filter(id=token_id, user=request.user, is_valid=True).first()
         if stored:
+            if stored.expires_at and stored.expires_at <= timezone.now():
+                stored.is_valid = False
+                stored.save(update_fields=["is_valid", "updated_at"])
+                clear_deriv_session(request)
+                return ""
             return unseal_token(stored.access_token)
+
+    # Older sessions may not have a persisted OAuthToken. Keep them working,
+    # but never let them bypass expiry checks when a persisted token exists.
+    token = request.session.get("deriv_token")
+    if token:
+        return token
+
     if request.user.is_authenticated:
         stored = request.user.deriv_tokens.filter(is_valid=True).order_by("-updated_at").first()
         if stored:
+            if stored.expires_at and stored.expires_at <= timezone.now():
+                stored.is_valid = False
+                stored.save(update_fields=["is_valid", "updated_at"])
+                clear_deriv_session(request)
+                return ""
             return unseal_token(stored.access_token)
     return ""
