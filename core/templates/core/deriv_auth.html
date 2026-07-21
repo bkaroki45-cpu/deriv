@@ -158,10 +158,11 @@
                 </div>
                 {% else %}
                 <h1>Login with Deriv</h1>
-                <p>Continue only when you are ready to enter your Deriv details. We request a fresh Deriv sign-in so you can choose the account you intend to use.</p>
+                <p>Continue to Deriv’s secure sign-in page. To use a different Deriv email, sign out of Deriv first, then return here and continue.</p>
                 {% if error %}<strong class="auth-error">{{ error }}</strong>{% endif %}
                 <div class="auth-actions">
                     <a class="auth-primary" href="{% url 'deriv_login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Continue to Deriv</a>
+                    <a class="auth-secondary" href="https://app.deriv.com/account/logout" target="_blank" rel="noopener">Use a different Deriv account</a>
                     <a class="auth-secondary" href="{% url 'register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Create a Deriv account</a>
                 </div>
                 {% endif %}
