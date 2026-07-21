@@ -243,6 +243,9 @@ const AppHeader = observer(() => {
                     <a href='https://profiteraa.com/dashboard/' style={{ color: 'inherit', fontWeight: 700, textDecoration: 'none', marginLeft: 12 }}>
                         Home
                     </a>
+                    <a href='https://profiteraa.com/dashboard/' aria-label='Account details' title='Account details' style={{ color: 'inherit', fontSize: 18, textDecoration: 'none', marginLeft: 10 }}>
+                        ◉
+                    </a>
                     {isDesktop ? <MenuItems /> : renderAccountSection('left')}
                 </Wrapper>
                 <Wrapper variant='right'>
