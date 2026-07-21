@@ -45,12 +45,6 @@ async function buildPkceParams(config: AuthConfig): Promise<URLSearchParams> {
 export async function buildAuthorizationUrl(config: AuthConfig): Promise<string> {
   const params = await buildPkceParams(config);
 
-  // A partner workspace must not silently reopen the previous Deriv identity
-  // after the user has logged out. Requesting a fresh authentication screen
-  // lets the trader select a different Deriv account on the next sign-in.
-  params.set('prompt', 'login');
-  params.set('max_age', '0');
-
   if (config.affiliateToken) {
     const tokenParam = config.affiliateTokenParam ?? 't';
     params.set(tokenParam, config.affiliateToken);

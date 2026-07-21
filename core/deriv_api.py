@@ -120,12 +120,9 @@ def authorize_url(request, redirect_uri, signup=False):
         "state": state,
         "code_challenge": challenge,
         "code_challenge_method": "S256",
-        "prompt": "registration" if signup else "login",
     }
-    if not signup:
-        params["max_age"] = "0"
-        params["force_login"] = "1"
     if signup:
+        params["prompt"] = "registration"
         ref = referral_defaults()
         params.update({
             "t": ref["affiliate_token"],
