@@ -368,25 +368,26 @@ def sync_legacy_oauth_tokens(request, user, credentials):
 
 
 def validate_and_store_token(request, user, token, token_type="oauth", token_payload=None):
-    # Verify the token and collect the live balance through the same Deriv
-    # WebSocket API used for market data and trade execution.  Do this before
-    # the REST account-list call: a REST permission/configuration issue must
-    # never make a successful Deriv sign-in look like an expired session.
-    authorize, balance = account_snapshot_from_token(token)
-    active_payload = account_payload_from_snapshot(authorize, balance)
-    account_id = active_payload["account_id"] or request.session.get("deriv_account_id", "")
-    accounts_payload = {"accounts": [active_payload]}
+    # OAuth2 tokens issued by auth.deriv.com are validated through the current
+    # Options Accounts API. Do not send them to the legacy WebSocket
+    # `authorize` endpoint: that endpoint can reject a valid OAuth2 token with
+    # "Input validation failed: authorize" and turn a successful login into a
+    # false failure.
+    remote_accounts = DerivAPIClient(token).accounts()
+    if isinstance(remote_accounts, dict):
+        remote_list = remote_accounts.get("data") or remote_accounts.get("accounts") or []
+    else:
+        remote_list = remote_accounts
+    if not isinstance(remote_list, list) or not remote_list:
+        raise RuntimeError("Deriv did not return a trading account for this login.")
 
-    # REST may return additional linked accounts. It is an enhancement only;
-    # the WebSocket snapshot above remains enough to connect and synchronise
-    # the account actually selected at Deriv.
-    try:
-        remote_accounts = DerivAPIClient(token).accounts()
-        remote_list = remote_accounts.get("accounts") if isinstance(remote_accounts, dict) else remote_accounts
-        if isinstance(remote_list, list):
-            accounts_payload = {"accounts": [*remote_list, active_payload]}
-    except Exception:
-        pass
+    accounts_payload = {"accounts": remote_list}
+    account_id = str(
+        request.session.get("deriv_account_id", "")
+        or remote_list[0].get("account_id")
+        or remote_list[0].get("loginid")
+        or ""
+    )
 
     accounts = sync_accounts(user, accounts_payload, account_id)
     active = next((account for account in accounts if account.account_id == account_id), accounts[0] if accounts else None)
