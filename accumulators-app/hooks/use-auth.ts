@@ -269,12 +269,14 @@ export function useAuth(): UseAuthReturn {
   // Phase 1: Initiate login — includes partner attribution params, resolving a
   // fresh per-user Scaleo token via the BFF proxy when needed (non-blocking).
   const login = useCallback(async () => {
-    await initiateLogin(await getAuthConfigWithReferral());
+    const next = `${window.location.pathname}${window.location.search}`;
+    window.location.assign(`/login/?next=${encodeURIComponent(next)}`);
   }, []);
 
   // Initiate sign-up — adds prompt=registration and partner attribution params
   const signUp = useCallback(async () => {
-    await initiateSignUp(await getAuthConfigWithReferral());
+    const next = `${window.location.pathname}${window.location.search}`;
+    window.location.assign(`/register/?next=${encodeURIComponent(next)}`);
   }, []);
 
   // Logout: close WS (handled by useDerivWS cleanup), clear storage, reset state
@@ -285,6 +287,7 @@ export function useAuth(): UseAuthReturn {
     setWsUrl(undefined);
     setAuthState('unauthenticated');
     setError(null);
+    window.location.assign('/auth/deriv/logout/');
   }, []);
 
   // Account switch: fetch new OTP first, then update accountId and wsUrl together
