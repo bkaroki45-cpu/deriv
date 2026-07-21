@@ -153,16 +153,16 @@
                 <p>Register on Deriv, approve Profiteraa, and return here with your trading account connected.</p>
                 {% if error %}<strong class="auth-error">{{ error }}</strong>{% endif %}
                 <div class="auth-actions">
-                    <a class="auth-primary" href="{% url 'deriv_register' %}">Register with Deriv</a>
-                    <a class="auth-secondary" href="{% url 'login' %}">I already have a Deriv account</a>
+                    <a class="auth-primary" href="{% url 'deriv_register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Register with Deriv</a>
+                    <a class="auth-secondary" href="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">I already have a Deriv account</a>
                 </div>
                 {% else %}
                 <h1>Login with Deriv</h1>
                 <p>Continue only when you are ready to enter your Deriv details. We request a fresh Deriv sign-in so you can choose the account you intend to use.</p>
                 {% if error %}<strong class="auth-error">{{ error }}</strong>{% endif %}
                 <div class="auth-actions">
-                    <a class="auth-primary" href="{% url 'deriv_login' %}">Continue to Deriv</a>
-                    <a class="auth-secondary" href="{% url 'register' %}">Create a Deriv account</a>
+                    <a class="auth-primary" href="{% url 'deriv_login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Continue to Deriv</a>
+                    <a class="auth-secondary" href="{% url 'register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Create a Deriv account</a>
                 </div>
                 {% endif %}
                 <small class="auth-note">App ID {{ deriv_app_id }}. Your password is entered only on Deriv, never on Profiteraa. If Deriv still shows an already signed-in account, sign out on Deriv first, then return here.</small>

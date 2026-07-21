@@ -27,6 +27,7 @@ rise-fall-app/public/*
 !rise-fall-app/public/_headers
 !rise-fall-app/public/app-config.json
 !rise-fall-app/public/icon.svg
+!rise-fall-app/public/profitera-session.js
 accumulators-app/node_modules/
 accumulators-app/.next/
 accumulators-app/out/
@@ -38,6 +39,7 @@ accumulators-app/public/*
 !accumulators-app/public/_headers
 !accumulators-app/public/app-config.json
 !accumulators-app/public/icon.svg
+!accumulators-app/public/profitera-session.js
 
 # Database
 db.sqlite3

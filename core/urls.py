@@ -10,6 +10,7 @@ from .views import (
     deriv_register_page,
     home,
     trade_hub,
+    app_session,
 )
 
 urlpatterns = [
@@ -23,6 +24,7 @@ urlpatterns = [
     path('automatic-trade/', bot_builder, name="automatic_trade"),
     path('build-bot/', bot_builder, name="build_bot"),
     path('bot-builder/', bot_builder, name="bot_builder"),
+    path('api/deriv/app-session/', app_session, name="app_session"),
     path('login/', deriv_login_page, name="login"),
     path('register/', deriv_register_page, name="register"),
     path('auth/deriv/login/', deriv_login, name="deriv_login"),

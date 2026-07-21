@@ -4,8 +4,10 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 
 from .deriv_api import (
     authorize_url,
@@ -14,10 +16,19 @@ from .deriv_api import (
     deriv_app_id,
     exchange_code,
     get_session,
+    active_token_for_request,
     set_deriv_session,
     sync_legacy_oauth_tokens,
     validate_and_store_token,
 )
+
+
+def _safe_post_login_path(request):
+    """Keep OAuth returns on Profitera and only for app/dashboard routes."""
+    candidate = (request.GET.get("next") or request.session.get("deriv_post_login_path") or "").strip()
+    if candidate.startswith(("/trade/", "/dashboard/", "/automatic-trade/", "/bot-builder/")):
+        return candidate
+    return ""
 
 
 def _deriv_app_id():
@@ -185,7 +196,7 @@ def dashboard(request):
     deriv_session = _deriv_session(request)
     deriv_accounts = request.user.deriv_accounts.all() if request.user.is_authenticated else []
     active_deriv_account = _active_deriv_account(request)
-    return render(request, "core/dashboard.html", {
+    return render(request, "core/dashboard_overview.html", {
         "wallet": wallet,
         "demo_balance": "10000.00",
         "real_balance": getattr(active_deriv_account, "balance", getattr(wallet, "balance", "0.00") if wallet else "0.00"),
@@ -194,6 +205,10 @@ def dashboard(request):
         "deriv_session": deriv_session,
         "deriv_accounts": deriv_accounts,
         "profitera_markup_percent": settings.PROFITERA_MARKUP_PERCENT,
+        "digits_url": settings.PROFITERA_DIGITS_URL,
+        "rise_fall_url": settings.PROFITERA_RISE_FALL_URL,
+        "accumulators_url": settings.PROFITERA_ACCUMULATORS_URL,
+        "bot_url": settings.PROFITERA_BOT_URL,
     })
 
 
@@ -228,6 +243,7 @@ def deriv_login_page(request):
         "mode": "login",
         "deriv_app_id": _deriv_app_id(),
         "error": error,
+        "next": _safe_post_login_path(request),
     })
 
 
@@ -238,10 +254,13 @@ def deriv_register_page(request):
         "mode": "register",
         "deriv_app_id": _deriv_app_id(),
         "error": error,
+        "next": _safe_post_login_path(request),
     })
 
 
 def deriv_login(request):
+    if _safe_post_login_path(request):
+        request.session["deriv_post_login_path"] = _safe_post_login_path(request)
     _clear_deriv_session(request)
     if _use_pkce_oauth():
         return redirect(_oauth_authorize_url(request))
@@ -275,7 +294,7 @@ def deriv_oauth_callback(request):
         except Exception as exc:
             request.session["deriv_oauth_error"] = str(exc)
             return redirect("login")
-        return redirect("trade")
+        return redirect(request.session.pop("deriv_post_login_path", "") or "trade")
 
     credentials = _callback_credentials(request.GET)
     if credentials:
@@ -292,9 +311,53 @@ def deriv_oauth_callback(request):
                 first.get("account_id", ""),
                 first.get("currency", "USD"),
             )
-    return redirect("trade")
+    return redirect(request.session.pop("deriv_post_login_path", "") or "trade")
+
+
+def app_session(request):
+    """Expose the active Deriv session to same-origin App Builder front ends.
+
+    The access token is already required in the browser by Deriv's client-side
+    SDK.  This endpoint never accepts a token from the browser and only returns
+    the authenticated user's currently active server-held token.
+    """
+    next_path = _safe_post_login_path(request)
+    token = active_token_for_request(request)
+    if not request.user.is_authenticated or not token:
+        login_url = reverse("login")
+        if next_path:
+            login_url = f"{login_url}?{urlencode({'next': next_path})}"
+        return JsonResponse({"login_url": login_url}, status=401)
+
+    stored = request.user.deriv_tokens.filter(is_valid=True).order_by("-updated_at").first()
+    expires_at = int(stored.expires_at.timestamp()) if stored and stored.expires_at else int(timezone.now().timestamp()) + 900
+    accounts = [
+        {
+            "account_id": account.account_id,
+            "account_type": account.account_type,
+            "currency": account.currency,
+            "balance": str(account.balance),
+            "group": (account.raw or {}).get("group", ""),
+            "status": (account.raw or {}).get("status", ""),
+        }
+        for account in request.user.deriv_accounts.all()
+    ]
+    return JsonResponse({
+        "auth_info": {
+            "access_token": token,
+            "token_type": "Bearer",
+            "expires_in": max(0, expires_at - int(timezone.now().timestamp())),
+            "expires_at": expires_at,
+            "scope": stored.scope if stored else "trade account_manage",
+            "refresh_token": "",
+        },
+        "accounts": accounts,
+        "active_account_id": request.session.get("deriv_account_id", ""),
+    })
 
 
 def deriv_logout(request):
     _clear_deriv_session(request)
     return redirect("trade")
+    if _safe_post_login_path(request):
+        request.session["deriv_post_login_path"] = _safe_post_login_path(request)
