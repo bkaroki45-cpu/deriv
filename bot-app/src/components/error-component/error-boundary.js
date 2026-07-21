@@ -11,13 +11,27 @@ class ErrorBoundary extends React.Component {
     componentDidCatch = (error, info) => {
         if (window.TrackJS) window.TrackJS.console.log(this.props.root_store);
 
+        // Keep the production recovery screen useful. The upstream template
+        // discarded the exception, which made a real configuration or loading
+        // failure indistinguishable from a temporary interruption.
+        console.error('Profitera Bot startup error:', error, info);
+
         this.setState({
             hasError: true,
             error,
             info,
         });
     };
-    render = () => (this.state.hasError ? <ErrorComponent should_show_refresh={true} /> : this.props.children);
+    render = () =>
+        this.state.hasError ? (
+            <ErrorComponent
+                should_show_refresh={true}
+                header='Profitera Bot could not start'
+                message={this.state.error?.message || 'Please refresh the page. If this continues, send this message to support.'}
+            />
+        ) : (
+            this.props.children
+        );
 }
 
 ErrorBoundary.propTypes = {
