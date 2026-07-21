@@ -240,6 +240,9 @@ const AppHeader = observer(() => {
                 <Wrapper variant='left'>
                     <MobileMenu onLogout={handleLogout} />
                     <AppLogo />
+                    <a href='https://profiteraa.com/dashboard/' style={{ color: 'inherit', fontWeight: 700, textDecoration: 'none', marginLeft: 12 }}>
+                        Home
+                    </a>
                     {isDesktop ? <MenuItems /> : renderAccountSection('left')}
                 </Wrapper>
                 <Wrapper variant='right'>

@@ -1,4 +1,8 @@
 (() => {
+  const home = document.createElement('a');
+  home.href = '/'; home.textContent = 'Profitera Home';
+  home.style.cssText = 'position:fixed;z-index:9999;top:12px;left:12px;padding:9px 12px;border-radius:8px;background:#17233a;color:#fff;font:700 13px Arial;text-decoration:none;border:1px solid #425777';
+  document.addEventListener('DOMContentLoaded', () => document.body.appendChild(home), { once: true });
   const sessionUrl = `/api/deriv/app-session/?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
   fetch(sessionUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
     .then(async response => ({ ok: response.ok, body: await response.json() }))

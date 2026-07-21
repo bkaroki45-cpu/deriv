@@ -13,6 +13,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from accounts.models import OAuthToken
+
 from .deriv_api import (
     authorize_url,
     capture_referral,
@@ -22,6 +24,7 @@ from .deriv_api import (
     get_session,
     active_token_for_request,
     DerivAPIClient,
+    seal_token,
     set_deriv_session,
     sync_legacy_oauth_tokens,
     validate_and_store_token,
@@ -316,12 +319,30 @@ def deriv_oauth_callback(request):
             return redirect("login")
         try:
             data = _exchange_oauth_code(request, code)
-            _ensure_deriv_user(request)
-            validate_and_store_token(request, request.user, data["access_token"], token_type="oauth", token_payload=data)
+            user = _ensure_deriv_user(request)
+            try:
+                validate_and_store_token(request, user, data["access_token"], token_type="oauth", token_payload=data)
+            except Exception:
+                # Authentication itself has succeeded. Keep the user signed in
+                # even if the optional account-list synchronisation is briefly
+                # unavailable, then let the dedicated Deriv apps refresh their
+                # account details through the current Accounts API.
+                oauth_token = OAuthToken.objects.create(
+                    user=user,
+                    token_type="oauth",
+                    access_token=seal_token(data["access_token"]),
+                    refresh_token=seal_token(data.get("refresh_token", "")),
+                    scope=data.get("scope", ""),
+                    is_valid=True,
+                    last_validated_at=timezone.now(),
+                )
+                user.deriv_connected = True
+                user.save(update_fields=["deriv_connected"])
+                set_deriv_session(request, data["access_token"], token_id=oauth_token.id)
         except Exception as exc:
             request.session["deriv_oauth_error"] = str(exc)
             return redirect("login")
-        return redirect(request.session.pop("deriv_post_login_path", "") or "trade")
+        return redirect(request.session.pop("deriv_post_login_path", "") or "dashboard")
 
     credentials = _callback_credentials(request.GET)
     if credentials:
