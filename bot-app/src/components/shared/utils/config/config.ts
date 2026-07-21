@@ -26,8 +26,8 @@ export const STAGING_DOMAINS = {
 
 // WebSocket server URLs
 export const WS_SERVERS = {
-    STAGING: `${brandConfig.platform.derivws.url.staging}options/ws/public`,
-    PRODUCTION: `${brandConfig.platform.derivws.url.production}options/ws/public`,
+    STAGING: `wss://staging-api.derivws.com/trading/v1/options/ws/public?app_id=${process.env.NEXT_PUBLIC_DERIV_WS_APP_ID || '1089'}`,
+    PRODUCTION: `wss://api.derivws.com/trading/v1/options/ws/public?app_id=${process.env.NEXT_PUBLIC_DERIV_WS_APP_ID || '1089'}`,
 } as const;
 
 // =============================================================================

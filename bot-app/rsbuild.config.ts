@@ -42,6 +42,9 @@ export default defineConfig({
         // Partner app name. The BFF writes this into .env.production at deploy time; the header
         // logo+name mark and the document title read it (with brand.config / default fallback).
         NEXT_PUBLIC_DERIV_APP_NAME: JSON.stringify(process.env.NEXT_PUBLIC_DERIV_APP_NAME ?? ''),
+        // Numeric Deriv WebSocket app id for the unauthenticated public feed.
+        // OAuth client IDs are opaque strings and cannot be used in this URL.
+        NEXT_PUBLIC_DERIV_WS_APP_ID: JSON.stringify(process.env.NEXT_PUBLIC_DERIV_WS_APP_ID ?? '1089'),
         // Marks the static preview build (served under /bot/preview); drives the
         // router basename so React Router resolves under that path prefix.
         NEXT_PUBLIC_APP_BUILD: JSON.stringify(process.env.NEXT_PUBLIC_APP_BUILD ?? ''),

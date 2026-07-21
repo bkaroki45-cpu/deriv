@@ -14,14 +14,14 @@
     <section class="grid">
       <article class="card"><small>Active balance</small><strong>{{ real_balance }} {{ deriv_session.currency }}</strong></article>
       <article class="card"><small>Connected account</small><strong>{{ deriv_session.account_id|default:"Not connected" }}</strong></article>
-      <article class="card"><small>Registered app markup</small><strong>{{ profitera_markup_percent }}%</strong></article>
+      <article class="card"><small>Trading workspaces</small><strong>4 available</strong></article>
     </section>
     <section class="apps">
       <article class="app"><h2>Digits</h2><p>Matches/Differs, Over/Under, and Even/Odd with live Deriv ticks.</p><a class="button" href="{{ digits_url|default:'/trade/' }}">Open Digits</a></article>
       <article class="app"><h2>Rise/Fall</h2><p>Call and Put contracts with live charts and positions.</p><a class="button" href="{{ rise_fall_url|default:'/trade/' }}">Open Rise/Fall</a></article>
       <article class="app"><h2>Accumulators</h2><p>Growth-rate accumulator contracts and position management.</p><a class="button" href="{{ accumulators_url|default:'/trade/' }}">Open Accumulators</a></article>
     </section>
-    <p class="notice">The Bot workspace includes XML import, strategy blocks, trading journal, and a dedicated Charts tab. Use a demo account first when testing a new strategy.</p>
+    <p class="notice">The Bot workspace includes XML import, strategy blocks, a trading journal, and charts. Use a demo account first when testing a new strategy.</p>
   </main>
 </body>
 </html>
