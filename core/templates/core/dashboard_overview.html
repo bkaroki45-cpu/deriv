@@ -1,30 +1,41 @@
+{% load static %}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Profitera Dashboard</title>
-  <style>
-    :root{color-scheme:dark;--bg:#0d111b;--panel:#161d2d;--line:#2b3851;--muted:#9eabc0;--accent:#fc4b63}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 10% 0,#222d45,transparent 36%),var(--bg);color:#f7f8fb;font:15px Inter,Arial,sans-serif}.nav{height:68px;padding:0 clamp(20px,5vw,72px);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.brand{font-size:21px;font-weight:800;text-decoration:none;color:white}.brand span{color:var(--accent)}.nav a{color:#dce4f1;text-decoration:none;margin-left:22px}.wrap{max-width:1280px;margin:auto;padding:46px 24px}.eyebrow{color:#ff9ba8;text-transform:uppercase;letter-spacing:1.2px;font-size:11px;font-weight:800}h1{font-size:38px;margin:10px 0}.lead{color:var(--muted);max-width:700px;line-height:1.6}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:34px 0}.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}.card small{color:var(--muted)}.card strong{display:block;font-size:27px;margin-top:9px}.apps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.app{padding:22px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,#1a2438,#121927)}.app.bot{border-color:#7040a4;background:linear-gradient(145deg,#2b1b42,#121927)}.app h2{margin:0 0 10px}.app p{color:var(--muted);line-height:1.5;min-height:48px}.button{display:block;width:100%;border:0;text-align:center;text-decoration:none;font-weight:800;border-radius:8px;padding:12px;background:var(--accent);color:#fff;margin-top:16px;cursor:pointer}.bot .button{background:#7c3aed}.notice,.message{margin-top:26px;padding:14px 17px;border-left:3px solid var(--accent);background:#171e2d;color:#cbd5e3;line-height:1.5}.message.success{border-color:#36d59b}.account-details{margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}.account-details summary{font-weight:800;cursor:pointer}.account-details dl{display:grid;grid-template-columns:160px 1fr;gap:12px;margin:18px 0 0}.account-details dt{color:var(--muted)}.account-details dd{margin:0}@media(max-width:980px){.apps{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.grid,.apps{grid-template-columns:1fr}.wrap{padding:40px 18px}.account-details dl{grid-template-columns:1fr;gap:4px}}
-  </style>
+  <title>Dashboard · Profitera</title>
+  <link rel="stylesheet" href="{% static 'css/dashboard_overview.css' %}?v=20260722">
 </head>
 <body>
-  <nav class="nav"><a class="brand" href="/">Profit<span>era</span></a><span><a href="/trade/">Trade</a><a href="/automatic-trade/">Bot</a>{% if deriv_session.is_connected %}<a href="/auth/deriv/logout/">Logout</a>{% else %}<a href="/login/">Login</a>{% endif %}</span></nav>
-  <main class="wrap">
-    <span class="eyebrow">Deriv account overview</span><h1>Your Profitera dashboard</h1><p class="lead">Your balance and connected account are synced from your Deriv session. Choose a contract family below to trade using its dedicated Deriv-powered workspace.</p>
-    {% for message in messages %}<p class="message {{ message.tags }}">{{ message }}</p>{% endfor %}
-    <section class="grid">
-      <article class="card"><small>Active balance</small><strong>{{ real_balance }} {{ deriv_session.currency }}</strong></article>
-      <article class="card"><small>Connected account</small><strong>{{ deriv_session.account_id|default:"Not connected" }}</strong></article>
-      <article class="card"><small>Demo balance</small><strong>{% if deriv_session.account_type == 'demo' %}10,000 USD{% else %}Select a demo account{% endif %}</strong>{% if deriv_session.account_type == 'demo' %}<form method="post" action="{% url 'reset_demo_balance' %}">{% csrf_token %}<button class="button" type="submit">Reset demo balance</button></form>{% endif %}</article>
+  <aside class="sidebar">
+    <a class="logo" href="/">Profit<span>era</span></a>
+    <nav>
+      <a class="active" href="/dashboard/"><i>⌂</i>Dashboard</a><a href="/trade/"><i>⌁</i>Trade</a>
+      <a href="/automatic-trade/"><i>♙</i>Bots</a><a href="/portfolio/view/"><i>▧</i>Reports</a>
+      <a href="/trade/"><i>⌁</i>Market</a><a href="/account/"><i>▣</i>Billing</a>
+      <a href="/account/"><i>⚙</i>Settings</a><a href="/help/"><i>?</i>Help &amp; Support</a>
+    </nav>
+    <a class="profile" href="/account/"><b>{{ user.username|first|upper }}</b><span>{{ user.get_full_name|default:user.username }}<small>Real Account</small></span><em>›</em></a>
+  </aside>
+  <main>
+    <header><button class="menu" aria-label="Open menu">☰</button><div class="head-actions"><button id="theme-toggle" aria-label="Toggle colour theme">☼</button><button aria-label="Notifications">♧<sup>2</sup></button><a href="/auth/deriv/logout/">Logout</a></div></header>
+    <section class="content">
+      <div class="welcome"><div><h1>Welcome back, {{ user.first_name|default:user.username|capfirst }}! 👋</h1><p>Here's what's happening with your Deriv account.</p></div><div class="connection"><b><i></i><span id="connection-text">Connected to Deriv</span></b><small id="server-time">Syncing account data…</small></div></div>
+      <section class="summary">
+        <article><div class="round pink">▰</div><div><small>Active balance</small><strong id="active-balance">{{ real_balance }} {{ deriv_session.currency }}</strong><p>Account balance</p></div></article>
+        <article><div class="round green">✓</div><div><small>Connected account</small><strong id="account-id">{{ deriv_session.account_id|default:'Not connected' }}</strong><p id="account-kind">Real account</p></div></article>
+        <article><div class="round purple">♟</div><div><small>Demo balance</small><strong>Select a demo account</strong><p>Start practicing risk-free</p></div></article>
+      </section>
+      <section class="dashboard-grid">
+        <article class="account-card"><h2>Account overview</h2><div class="account-inner"><dl><dt>Deriv account</dt><dd id="details-id">{{ deriv_session.account_id|default:'Not connected' }}</dd><dt>Account type</dt><dd id="details-type">{{ deriv_session.account_type|default:'real'|title }}</dd><dt>Currency</dt><dd id="details-currency">{{ deriv_session.currency|default:'USD' }}</dd><dt>Connected email</dt><dd>{% if user.email and '@profiteraa.local' not in user.email %}{{ user.email }}{% else %}Protected by Deriv OAuth{% endif %}</dd></dl><div class="secure"><div>♥</div><span><b>Your account is secure</b><p>We use Deriv OAuth 2.0 to keep your account safe and connected.</p></span></div></div></article>
+        <article class="chart-card performance"><div class="card-title"><h2>Account performance</h2><button data-range="30">This month⌄</button></div><small>Total P&amp;L</small><strong id="pnl">0.00 USD</strong><b id="pnl-change">↗ 0.00% vs last month</b><svg class="chart" id="performance-chart" viewBox="0 0 520 190" preserveAspectRatio="none" aria-label="Account performance graph"></svg><div class="axis"><span>Jun 21</span><span>Jun 28</span><span>Jul 05</span><span>Jul 12</span><span>Jul 19</span></div></article>
+        <section class="product-cards"><a class="product" href="{{ digits_url|default:'/trade/' }}"><span class="prod-icon blue">01</span><b>Digits</b><p>Trade synthetic indices like Matches/Differs, Over/Under, and more.</p><em>Open Digits</em></a><a class="product" href="{{ rise_fall_url|default:'/trade/' }}"><span class="prod-icon mint">⌁</span><b>Rise/Fall</b><p>Predict market direction with Rise/Fall contracts and options.</p><em>Open Rise/Fall</em></a><a class="product" href="{{ accumulators_url|default:'/trade/' }}"><span class="prod-icon violet">☷</span><b>Accumulators</b><p>Build or trade accumulator strategies with advanced position management.</p><em>Open Accumulators</em></a></section>
+        <article class="activity"><h2>Recent activity</h2><div id="activity-list"><p class="empty">Your connected account activity will appear here.</p></div></article>
+        <article class="chart-card balance-history"><div class="card-title"><h2>Balance history</h2><button>This month⌄</button></div><strong id="history-balance">{{ real_balance }} {{ deriv_session.currency }}</strong><small>Current balance</small><svg class="chart" id="balance-chart" viewBox="0 0 520 125" preserveAspectRatio="none" aria-label="Balance history graph"></svg><div class="axis"><span>Jun 21</span><span>Jun 28</span><span>Jul 05</span><span>Jul 12</span><span>Jul 19</span></div></article>
+      </section>
+      <footer>ⓘ &nbsp; The Bot workspace includes XML import, strategy blocks, a trading journal, and charts. Use a demo account first when testing a new strategy. <a href="{{ bot_url|default:'/automatic-trade/' }}">Learn more →</a></footer>
     </section>
-    <details class="account-details"><summary>Account details</summary><dl><dt>Deriv account</dt><dd>{{ deriv_session.account_id|default:"Not connected" }}</dd><dt>Account type</dt><dd>{{ deriv_session.account_type|title }}</dd><dt>Currency</dt><dd>{{ deriv_session.currency }}</dd><dt>Connected email</dt><dd>{% if user.email and '@profiteraa.local' not in user.email %}{{ user.email }}{% else %}Protected by Deriv OAuth{% endif %}</dd></dl></details>
-    <section class="apps">
-      <article class="app"><h2>Digits</h2><p>Matches/Differs, Over/Under, and Even/Odd with live Deriv ticks.</p><a class="button" href="{{ digits_url|default:'/trade/' }}">Open Digits</a></article>
-      <article class="app"><h2>Rise/Fall</h2><p>Call and Put contracts with live charts and positions.</p><a class="button" href="{{ rise_fall_url|default:'/trade/' }}">Open Rise/Fall</a></article>
-      <article class="app"><h2>Accumulators</h2><p>Growth-rate accumulator contracts and position management.</p><a class="button" href="{{ accumulators_url|default:'/trade/' }}">Open Accumulators</a></article>
-      <article class="app bot"><h2>Profiteraa Bot</h2><p>Import XML strategies, build rules with blocks, run them, and review charts and the journal.</p><a class="button" href="{{ bot_url|default:'/automatic-trade/' }}">Open Bot</a></article>
-    </section>
-    <p class="notice">The Bot workspace includes XML import, strategy blocks, a trading journal, and charts. Use a demo account first when testing a new strategy.</p>
   </main>
-</body>
-</html>
+  <nav class="mobile-nav"><a class="active" href="/dashboard/">⌂<small>Dashboard</small></a><a href="/trade/">⌁<small>Trade</small></a><a href="/automatic-trade/">♙<small>Bots</small></a><a href="/portfolio/view/">▧<small>Reports</small></a><a href="/account/">•••<small>More</small></a></nav>
+  <script src="{% static 'js/dashboard_overview.js' %}?v=20260722"></script>
+</body></html>

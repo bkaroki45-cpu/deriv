@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     bot_builder,
     dashboard,
+    dashboard_data,
     deriv_login,
     deriv_login_page,
     deriv_logout,
@@ -17,6 +18,7 @@ from .views import (
 urlpatterns = [
     path('', home, name="home"),
     path('dashboard/', dashboard, name="dashboard"),
+    path('api/dashboard/', dashboard_data, name="dashboard_data"),
     path('trade/', trade_hub, name="trade"),
     path('analytics/', dashboard, name="analytics"),
     path('account/', dashboard, name="account"),

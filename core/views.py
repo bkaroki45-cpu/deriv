@@ -237,6 +237,50 @@ def dashboard(request):
     })
 
 
+@login_required(login_url="login")
+def dashboard_data(request):
+    """Small same-origin dashboard feed sourced from the user's stored Deriv data."""
+    from accounts.models import ActivityLog
+    from trading.models import Portfolio, Transaction, TradingLog
+
+    account = _active_deriv_account(request)
+    session = _deriv_session(request)
+    currency = getattr(account, "currency", "") or session.get("currency", "USD")
+    balance = Decimal(str(getattr(account, "balance", getattr(getattr(request.user, "wallet", None), "balance", 0))))
+    now = timezone.localtime()
+    month_start = now - timedelta(days=30)
+    transactions = list(Transaction.objects.filter(user=request.user, created_at__gte=month_start).order_by("created_at"))
+    pnl = sum((item.amount for item in transactions), Decimal("0"))
+    prior = balance - pnl
+    percent = (pnl / abs(prior) * Decimal("100")) if prior else Decimal("0")
+    # Reconstruct an account history from actual settlement transactions.  It stays
+    # flat when no settlements have been recorded, rather than inventing market data.
+    running = prior
+    history = []
+    for day in range(30):
+        date = (now - timedelta(days=29 - day)).date()
+        for item in transactions:
+            if timezone.localtime(item.created_at).date() == date:
+                running += item.amount
+        history.append({"date": date.isoformat(), "value": float(running)})
+    activities = []
+    for item in list(TradingLog.objects.filter(user=request.user)[:5]) + list(ActivityLog.objects.filter(user=request.user)[:5]):
+        created = getattr(item, "created_at", now)
+        activities.append({"action": item.action.replace("_", " ").capitalize(), "time": timezone.localtime(created).strftime("%I:%M %p"), "created": created})
+    activities.sort(key=lambda item: item["created"], reverse=True)
+    open_positions = Portfolio.objects.filter(user=request.user, status__iexact="open").count()
+    return JsonResponse({
+        "connected": bool(account or session.get("is_connected")),
+        "account_id": getattr(account, "account_id", "") or session.get("account_id", ""),
+        "account_type": getattr(account, "account_type", "") or session.get("account_type", "real"),
+        "currency": currency,
+        "balance": f"{balance:.2f}",
+        "pnl": f"{pnl:.2f}", "pnl_percent": f"{percent:.2f}",
+        "history": history, "activities": activities[:5], "open_positions": open_positions,
+        "server_time": now.strftime("%d %b %Y, %I:%M %p %Z"),
+    })
+
+
 @login_required
 @require_POST
 def reset_demo_balance(request):

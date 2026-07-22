@@ -52,6 +52,9 @@ __pycache__/
 static/
 staticfiles/
 media/
+!core/static/
+!core/static/**
+core/static/js/deriv_ws_manager.js
 
 # IDE
 .vscode/
