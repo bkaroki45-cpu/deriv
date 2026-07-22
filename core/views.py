@@ -205,7 +205,7 @@ def home(request):
     capture_referral(request, request.user)
     if any(key in request.GET for key in ("code", "token1", "token", "error")):
         return deriv_oauth_callback(request)
-    return render(request, "core/home.html")
+    return render(request, "core/home.html", {"is_connected": request.user.is_authenticated})
 
 
 @login_required(login_url="login")
@@ -299,9 +299,15 @@ def deriv_register_page(request):
 
 
 def deriv_login(request):
-    if _safe_post_login_path(request):
-        request.session["deriv_post_login_path"] = _safe_post_login_path(request)
+    post_login_path = _safe_post_login_path(request)
+    # A deliberate Login with Deriv action starts a fresh Profiteraa identity
+    # mapping. Otherwise Django would retain the previous local user even
+    # after Deriv authorised a different account.
+    if request.user.is_authenticated:
+        logout(request)
     _clear_deriv_session(request)
+    if post_login_path:
+        request.session["deriv_post_login_path"] = post_login_path
     if _use_pkce_oauth():
         return redirect(_oauth_authorize_url(request))
     return redirect(_legacy_authorize_url(request))
