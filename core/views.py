@@ -490,7 +490,8 @@ def app_session(request):
         login_url = reverse("login")
         if next_path:
             login_url = f"{login_url}?{urlencode({'next': next_path})}"
-        return JsonResponse({"login_url": login_url}, status=401)
+        response = JsonResponse({"login_url": login_url}, status=401)
+        return _allow_bot_origin(request, response)
 
     stored = request.user.deriv_tokens.filter(is_valid=True).order_by("-updated_at").first()
     expires_at = int(stored.expires_at.timestamp()) if stored and stored.expires_at else int(timezone.now().timestamp()) + 900
@@ -505,7 +506,10 @@ def app_session(request):
         }
         for account in request.user.deriv_accounts.all()
     ]
-    return JsonResponse({
+    # Mark the session modified so the browser receives the shared-domain
+    # cookie after a main-site login and Bot can use the same Deriv session.
+    request.session.modified = True
+    response = JsonResponse({
         "auth_info": {
             "access_token": token,
             "token_type": "Bearer",
@@ -517,6 +521,17 @@ def app_session(request):
         "accounts": accounts,
         "active_account_id": request.session.get("deriv_account_id", ""),
     })
+    return _allow_bot_origin(request, response)
+
+
+def _allow_bot_origin(request, response):
+    """Allow only the Profitera Bot subdomain to read the session bridge."""
+    origin = request.headers.get("Origin", "")
+    if origin in {"https://bot.profiteraa.com", "https://staging-bot.profiteraa.com"}:
+        response["Access-Control-Allow-Origin"] = origin
+        response["Access-Control-Allow-Credentials"] = "true"
+        response["Vary"] = "Origin"
+    return response
 
 
 def deriv_logout(request):
