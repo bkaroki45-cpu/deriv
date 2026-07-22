@@ -205,7 +205,10 @@ def home(request):
     capture_referral(request, request.user)
     if any(key in request.GET for key in ("code", "token1", "token", "error")):
         return deriv_oauth_callback(request)
-    return render(request, "core/home.html", {"is_connected": request.user.is_authenticated})
+    return render(request, "core/home.html", {
+        "is_connected": request.user.is_authenticated,
+        "account_email": request.user.email if request.user.is_authenticated else "",
+    })
 
 
 @login_required(login_url="login")
@@ -422,6 +425,11 @@ def app_session(request):
 
 
 def deriv_logout(request):
+    if request.user.is_authenticated:
+        # Deriv's OAuth documentation does not expose an RP-initiated browser
+        # logout endpoint. Invalidate this application's stored grants so the
+        # token cannot be reused by Profiteraa after a local sign-out.
+        request.user.deriv_tokens.filter(is_valid=True).update(is_valid=False)
     _clear_deriv_session(request)
     # End both the Deriv-token session and Django's authenticated session so
     # the next Login with Deriv action can use a different Deriv account.
