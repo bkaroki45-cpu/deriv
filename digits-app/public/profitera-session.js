@@ -40,7 +40,7 @@
   const home = document.createElement('a');
   home.href = '/'; home.textContent = 'Profitera Home';
   home.style.cssText = 'position:fixed;z-index:9999;top:12px;left:12px;padding:9px 12px;border-radius:8px;background:#17233a;color:#fff;font:700 13px Arial;text-decoration:none;border:1px solid #425777';
-  const mountChrome = () => { document.body.appendChild(home); injectMobileChrome(); };
+  const mountChrome = () => { const hide = document.createElement('style'); hide.textContent = '@media(min-width:801px){.profitera-desktop-sidebar{display:none!important}}'; document.head.appendChild(hide); document.body.appendChild(home); injectMobileChrome(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountChrome, { once: true }); else mountChrome();
   const sessionUrl = `/api/deriv/app-session/?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
   fetch(sessionUrl, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
