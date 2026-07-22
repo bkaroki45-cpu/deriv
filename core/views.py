@@ -205,6 +205,10 @@ def home(request):
     capture_referral(request, request.user)
     if any(key in request.GET for key in ("code", "token1", "token", "error")):
         return deriv_oauth_callback(request)
+    # Signed-in visitors land on the account dashboard while `/` remains the
+    # polished public entry page for visitors who have not connected Deriv.
+    if request.user.is_authenticated:
+        return dashboard(request)
     return render(request, "core/home.html", {
         "is_connected": request.user.is_authenticated,
         "account_email": request.user.email if request.user.is_authenticated else "",
