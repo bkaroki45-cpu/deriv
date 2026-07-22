@@ -22,7 +22,29 @@
     const list = document.getElementById('activity-list'); if (list) list.innerHTML = data.activities?.length ? data.activities.map(a => `<div class="activity-row"><i>✓</i><span>${a.action}</span><time>${a.time}</time></div>`).join('') : '<p class="empty">No recent activity yet.</p>';
   };
   const load = async () => { try { const response = await fetch('/api/dashboard/', { credentials: 'same-origin' }); if (response.ok) fill(await response.json()); } catch (_) {} };
+  // A subscribed balance feed lets the displayed balance change as soon as a
+  // Deriv contract settles; the regular feed also persists/refreshes it server-side.
+  const connectLiveBalance = async () => {
+    try {
+      const session = await fetch('/api/deriv/app-session/', { credentials: 'same-origin' });
+      const payload = await session.json(); const token = payload?.auth_info?.access_token;
+      if (!token) return;
+      const appId = document.body.dataset.derivAppId || '1089';
+      const socket = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${encodeURIComponent(appId)}`);
+      socket.onopen = () => socket.send(JSON.stringify({ authorize: token }));
+      socket.onmessage = ({ data }) => {
+        const message = JSON.parse(data);
+        if (message.authorize) socket.send(JSON.stringify({ balance: 1, subscribe: 1 }));
+        if (message.balance) {
+          const balance = message.balance.balance, currency = message.balance.currency || 'USD';
+          set('active-balance', money(balance, currency)); set('history-balance', money(balance, currency));
+          set('server-time', 'Live balance update from Deriv');
+        }
+      };
+      socket.onclose = () => window.setTimeout(connectLiveBalance, 5000);
+    } catch (_) { window.setTimeout(connectLiveBalance, 10000); }
+  };
   document.getElementById('theme-toggle')?.addEventListener('click', () => document.body.classList.toggle('dark'));
   document.querySelector('.menu')?.addEventListener('click', () => document.querySelector('.mobile-nav')?.classList.toggle('open'));
-  load(); window.setInterval(load, 30000);
+  load(); connectLiveBalance(); window.setInterval(load, 10000);
 })();

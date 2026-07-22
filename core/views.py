@@ -24,6 +24,8 @@ from .deriv_api import (
     exchange_code,
     get_session,
     active_token_for_request,
+    account_snapshot_from_token,
+    account_payload_from_snapshot,
     DerivAPIClient,
     seal_token,
     set_deriv_session,
@@ -245,6 +247,23 @@ def dashboard_data(request):
 
     account = _active_deriv_account(request)
     session = _deriv_session(request)
+    # Refresh from Deriv before returning the dashboard feed. This means a
+    # completed trade is reflected in Profitera even when it was placed in a
+    # separate contract workspace.
+    token = active_token_for_request(request)
+    if account and token:
+        try:
+            authorize, live_balance = account_snapshot_from_token(token)
+            live = account_payload_from_snapshot(authorize, live_balance)
+            if live.get("account_id") == account.account_id:
+                account.balance = Decimal(str(live.get("balance") or 0))
+                account.currency = live.get("currency") or account.currency
+                account.raw = {**(account.raw or {}), "authorize": authorize, "balance": live_balance}
+                account.save(update_fields=["balance", "currency", "raw", "updated_at"])
+        except Exception:
+            # The stored balance remains available if Deriv is temporarily
+            # unreachable; the browser will retry on its next refresh.
+            pass
     currency = getattr(account, "currency", "") or session.get("currency", "USD")
     balance = Decimal(str(getattr(account, "balance", getattr(getattr(request.user, "wallet", None), "balance", 0))))
     now = timezone.localtime()
