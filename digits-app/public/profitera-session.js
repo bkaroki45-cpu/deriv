@@ -13,6 +13,9 @@
     item.textContent = win ? `Win! +${Number(profit).toFixed(2)} ${currency || 'USD'}` : `Loss: ${Number(profit).toFixed(2)} ${currency || 'USD'}`;
     document.body.appendChild(item); setTimeout(() => item.remove(), 6000);
   };
+  const publishBalanceFromMessage = event => { try { const m = JSON.parse(event.data); const b = m.balance?.balance ?? m.buy?.balance_after ?? m.sell?.balance_after; if (b === undefined) return; const currency = m.balance?.currency || m.buy?.currency || m.sell?.currency || 'USD'; const live = { balance: b, currency, account_id: localStorage.getItem('active_loginid') || '', at: Date.now() }; localStorage.setItem('profitera:live-balance', JSON.stringify(live)); fetch('/api/dashboard/live-balance/', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(live) }).catch(() => {}); } catch (_) {} };
+  const onmessageDescriptor = Object.getOwnPropertyDescriptor(WebSocket.prototype, 'onmessage');
+  if (onmessageDescriptor?.set) Object.defineProperty(WebSocket.prototype, 'onmessage', { configurable: true, get: onmessageDescriptor.get, set(handler) { onmessageDescriptor.set.call(this, function(event) { publishBalanceFromMessage(event); return handler?.call(this, event); }); } });
   const startBalanceFeed = (authInfo, accountId) => {
     const token = authInfo?.access_token;
     if (!token || window.__profiteraBalanceFeed) return;
