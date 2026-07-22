@@ -22,6 +22,16 @@
     const list = document.getElementById('activity-list'); if (list) list.innerHTML = data.activities?.length ? data.activities.map(a => `<div class="activity-row"><i>✓</i><span>${a.action}</span><time>${a.time}</time></div>`).join('') : '<p class="empty">No recent activity yet.</p>';
   };
   const load = async () => { try { const response = await fetch('/api/dashboard/', { credentials: 'same-origin' }); if (response.ok) fill(await response.json()); } catch (_) {} };
+  const applyLiveBalance = (balance, currency) => {
+    if (balance === undefined || balance === null) return;
+    set('active-balance', money(balance, currency)); set('history-balance', money(balance, currency));
+    set('server-time', 'Live balance update from Deriv');
+  };
+  try { const saved = JSON.parse(localStorage.getItem('profitera:live-balance') || 'null'); if (saved) applyLiveBalance(saved.balance, saved.currency); } catch (_) {}
+  window.addEventListener('storage', ({ key, newValue }) => {
+    if (key !== 'profitera:live-balance' || !newValue) return;
+    try { const live = JSON.parse(newValue); applyLiveBalance(live.balance, live.currency); } catch (_) {}
+  });
   // A subscribed balance feed lets the displayed balance change as soon as a
   // Deriv contract settles; the regular feed also persists/refreshes it server-side.
   const connectLiveBalance = async () => {
@@ -37,8 +47,9 @@
         if (message.authorize) socket.send(JSON.stringify({ balance: 1, subscribe: 1 }));
         if (message.balance) {
           const balance = message.balance.balance, currency = message.balance.currency || 'USD';
-          set('active-balance', money(balance, currency)); set('history-balance', money(balance, currency));
-          set('server-time', 'Live balance update from Deriv');
+          applyLiveBalance(balance, currency);
+          localStorage.setItem('profitera:live-balance', JSON.stringify({ balance, currency, at: Date.now() }));
+          fetch('/api/dashboard/live-balance/', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ balance, currency }) }).catch(() => {});
         }
       };
       socket.onclose = () => window.setTimeout(connectLiveBalance, 5000);

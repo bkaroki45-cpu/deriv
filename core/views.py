@@ -12,6 +12,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from accounts.models import OAuthToken
@@ -298,6 +299,33 @@ def dashboard_data(request):
         "history": history, "activities": activities[:5], "open_positions": open_positions,
         "server_time": now.strftime("%d %b %Y, %I:%M %p %Z"),
     })
+
+
+@csrf_exempt
+@login_required(login_url="login")
+@require_POST
+def live_balance_update(request):
+    """Persist the authenticated Deriv WebSocket balance as soon as it changes.
+
+    The value originates in Deriv's authorised `balance` subscription within a
+    same-origin Profitera trading workspace. The next dashboard API request
+    independently reconciles it with Deriv again.
+    """
+    import json
+
+    try:
+        payload = json.loads(request.body or "{}")
+        balance = Decimal(str(payload.get("balance")))
+    except Exception:
+        return JsonResponse({"detail": "A valid balance is required."}, status=400)
+    account = _active_deriv_account(request)
+    account_id = str(payload.get("account_id") or "")
+    if not account or (account_id and account_id != account.account_id):
+        return JsonResponse({"detail": "Active account not found."}, status=404)
+    account.balance = balance
+    account.currency = str(payload.get("currency") or account.currency).upper()[:10]
+    account.save(update_fields=["balance", "currency", "updated_at"])
+    return JsonResponse({"balance": f"{balance:.2f}", "currency": account.currency})
 
 
 @login_required
