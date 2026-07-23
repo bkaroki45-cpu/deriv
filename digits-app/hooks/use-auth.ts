@@ -14,6 +14,7 @@ import {
   getActiveLoginId,
   setActiveLoginId,
   setAccountType,
+  storeDerivAccounts,
   clearAllAuthData,
   parseReferralLink,
   parseLandingParams,
@@ -106,6 +107,7 @@ export interface UseAuthReturn {
   signUp: () => Promise<void>;
   logout: () => void;
   switchAccount: (accountId: string) => Promise<void>;
+  updateBalance: (balance: string | number, accountId?: string, currency?: string) => void;
   error: string | null;
 }
 
@@ -312,6 +314,26 @@ export function useAuth(): UseAuthReturn {
     [fetchOTPUrl, accounts]
   );
 
+  // The Deriv balance stream is authoritative after purchases and settlements.
+  // Keep React state and stored accounts in sync so every view and account picker
+  // reflects the new balance immediately.
+  const updateBalance = useCallback(
+    (balance: string | number, accountId?: string, currency?: string) => {
+      const targetAccountId = accountId || activeAccountId;
+      if (!targetAccountId) return;
+      setAccounts(current => {
+        const updated = current.map(account =>
+          account.account_id === targetAccountId
+            ? { ...account, balance: String(balance), currency: currency || account.currency }
+            : account
+        );
+        storeDerivAccounts(updated);
+        return updated;
+      });
+    },
+    [activeAccountId]
+  );
+
   const activeAccount =
     accounts.find(acc => acc.account_id === activeAccountId) ?? accounts[0] ?? null;
 
@@ -325,6 +347,7 @@ export function useAuth(): UseAuthReturn {
     signUp,
     logout,
     switchAccount,
+    updateBalance,
     error,
   };
 }

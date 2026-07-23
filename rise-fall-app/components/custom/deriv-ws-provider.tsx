@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 import { useDerivWS } from '@deriv/core';
 import { useAuth } from '@/hooks/use-auth';
 import type { DerivWS } from '@deriv/core';
@@ -26,6 +26,26 @@ export function DerivWSProvider({ children }: { children: React.ReactNode }) {
     url: auth.wsUrl,
     accountId: auth.activeAccountId ?? undefined,
   });
+
+  useEffect(() => {
+    if (!ws || !isConnected || auth.authState !== 'authenticated') return;
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+
+    ws.subscribe({ balance: 1 }, data => {
+      const update = data.balance as { balance?: string | number; loginid?: string; account_id?: string; currency?: string } | undefined;
+      if (!cancelled && update?.balance != null) {
+        auth.updateBalance(update.balance, update.loginid || update.account_id, update.currency);
+      }
+    }).then(subscription => {
+      unsubscribe = subscription.unsubscribe;
+    }).catch(() => {});
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [ws, isConnected, auth.authState, auth.updateBalance]);
 
   return (
     <DerivWSContext.Provider value={{ ws, isConnected, isExhausted, auth }}>
