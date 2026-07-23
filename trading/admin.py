@@ -1,6 +1,22 @@
 from django.contrib import admin
 
-from .models import Commission, Portfolio, TradingLog, Transaction
+from .models import AutomationBot, AutomationRun, AutomationTrade, Commission, Portfolio, TradingLog, Transaction
+
+@admin.register(AutomationBot)
+class AutomationBotAdmin(admin.ModelAdmin):
+    list_display = ("name", "enabled", "demo_only", "max_stake", "max_daily_loss", "max_trades_per_day")
+    list_editable = ("enabled",)
+
+@admin.register(AutomationRun)
+class AutomationRunAdmin(admin.ModelAdmin):
+    list_display = ("user", "bot", "account", "strategy", "status", "selected_symbol", "updated_at")
+    list_filter = ("status", "strategy", "bot")
+    readonly_fields = ("stats", "active_contract_id", "error_message")
+
+@admin.register(AutomationTrade)
+class AutomationTradeAdmin(admin.ModelAdmin):
+    list_display = ("run", "symbol", "strategy", "trigger_digit", "contract_id", "stake", "status", "profit", "opened_at")
+    list_filter = ("status", "strategy")
 
 
 @admin.register(Transaction)

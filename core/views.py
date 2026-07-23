@@ -376,6 +376,11 @@ def trade_hub(request):
     })
 
 
+@login_required(login_url="login")
+def automation_dashboard(request):
+    return render(request, "core/automation_dashboard.html", {"demo_accounts": request.user.deriv_accounts.filter(account_type="demo")})
+
+
 def deriv_login_page(request):
     error = request.session.pop("deriv_oauth_error", "")
     return render(request, "core/deriv_auth.html", {

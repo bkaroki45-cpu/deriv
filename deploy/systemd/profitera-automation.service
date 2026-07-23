@@ -1,0 +1,14 @@
+[Unit]
+Description=Profitera demo automation worker
+After=network.target profitera-daphne.service
+
+[Service]
+User=root
+Group=www-data
+WorkingDirectory=/var/www/deriv
+ExecStart=/var/www/deriv/venv/bin/python manage.py run_automation_worker
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

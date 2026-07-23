@@ -20,7 +20,7 @@ from portfolio.services import create_trade
 from portfolio.engine import broadcast_portfolio_update
 from portfolio.models import Trade
 from .services.deriv_trade import DerivTradeEngine, build_proposal_payload
-from .models import Commission, Portfolio, TradingLog, Transaction
+from .models import AutomationBot, AutomationRun, AutomationTrade, Commission, Portfolio, TradingLog, Transaction
 
 
 class TradeView(APIView):
@@ -427,3 +427,39 @@ class AdminDashboardDataView(APIView):
             "system_logs": ActivityLog.objects.count(),
             "trading_logs": TradingLog.objects.count(),
         })
+
+
+class AutomationBotsView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        return Response({"bots": [{"id": bot.id, "name": bot.name, "description": bot.description, "enabled": bot.enabled, "demo_only": True} for bot in AutomationBot.objects.filter(enabled=True)]})
+
+
+class AutomationRunView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, bot_id):
+        run = AutomationRun.objects.filter(user=request.user, bot_id=bot_id).first()
+        if not run: return Response({"status": "stopped", "trades": [], "stats": {}})
+        trades = list(run.trades.order_by("-opened_at")[:30].values("symbol", "strategy", "trigger_digit", "contract_id", "stake", "status", "profit", "opened_at", "settled_at"))
+        closed = [item for item in trades if item["status"] in {"won", "lost"}]
+        return Response({"id": run.id, "status": run.status, "symbols": run.symbols, "strategy": run.strategy, "stake": str(run.stake), "tick_window": run.tick_window, "digit_threshold": str(run.digit_threshold), "selected_symbol": run.selected_symbol, "waiting_for": run.waiting_for, "active_contract_id": run.active_contract_id, "stats": run.stats, "error": run.error_message, "profit_loss": str(sum((item["profit"] for item in trades), Decimal("0"))), "win_rate": round(100 * sum(1 for item in closed if item["profit"] > 0) / len(closed), 2) if closed else 0, "trades": trades})
+
+    def post(self, request, bot_id):
+        bot = AutomationBot.objects.filter(pk=bot_id, enabled=True).first()
+        if not bot: return Response({"error": "This bot is not enabled by the administrator."}, status=404)
+        account = request.user.deriv_accounts.filter(account_id=request.data.get("account_id"), account_type="demo").first()
+        if not account: return Response({"error": "Select one of your linked demo accounts."}, status=400)
+        symbols = [str(symbol) for symbol in request.data.get("symbols", []) if str(symbol)]
+        if not symbols: return Response({"error": "Select at least one Volatility Index."}, status=400)
+        stake = Decimal(str(request.data.get("stake", "0.35")))
+        if stake < Decimal("0.35"): return Response({"error": "Minimum stake is 0.35."}, status=400)
+        if bot.max_stake and stake > bot.max_stake: return Response({"error": "Stake exceeds this bot's administrator limit."}, status=400)
+        strategy = request.data.get("strategy", "over_2")
+        if strategy not in {"over_2", "under_7"}: return Response({"error": "Unsupported strategy."}, status=400)
+        run, _ = AutomationRun.objects.update_or_create(user=request.user, bot=bot, defaults={"account": account, "symbols": symbols, "strategy": strategy, "tick_window": max(20, min(int(request.data.get("tick_window", 100)), 5000)), "digit_threshold": Decimal(str(request.data.get("digit_threshold", "8"))), "stake": stake, "max_daily_loss": Decimal(str(request.data["max_daily_loss"])) if request.data.get("max_daily_loss") else bot.max_daily_loss, "max_trades_per_day": int(request.data["max_trades_per_day"]) if request.data.get("max_trades_per_day") else bot.max_trades_per_day, "status": "running", "error_message": "", "started_at": timezone.now(), "stopped_at": None})
+        return Response({"id": run.id, "status": run.status})
+
+    def delete(self, request, bot_id):
+        run = AutomationRun.objects.filter(user=request.user, bot_id=bot_id, status="running").first()
+        if run: run.status = "stopping"; run.save(update_fields=["status", "updated_at"])
+        return Response({"status": "stopping" if run else "stopped"})
