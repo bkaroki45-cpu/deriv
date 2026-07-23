@@ -456,7 +456,15 @@ class AutomationRunView(APIView):
         if bot.max_stake and stake > bot.max_stake: return Response({"error": "Stake exceeds this bot's administrator limit."}, status=400)
         strategy = request.data.get("strategy", "over_2")
         if strategy not in {"over_2", "under_7"}: return Response({"error": "Unsupported strategy."}, status=400)
-        run, _ = AutomationRun.objects.update_or_create(user=request.user, bot=bot, defaults={"account": account, "symbols": symbols, "strategy": strategy, "tick_window": max(20, min(int(request.data.get("tick_window", 100)), 5000)), "digit_threshold": Decimal(str(request.data.get("digit_threshold", "8"))), "stake": stake, "max_daily_loss": Decimal(str(request.data["max_daily_loss"])) if request.data.get("max_daily_loss") else bot.max_daily_loss, "max_trades_per_day": int(request.data["max_trades_per_day"]) if request.data.get("max_trades_per_day") else bot.max_trades_per_day, "status": "running", "error_message": "", "started_at": timezone.now(), "stopped_at": None})
+        trigger_digits = {"over_2": {"0", "1", "2"}, "under_7": {"7", "8", "9"}}[strategy]
+        supplied = request.data.get("digit_thresholds") or {}
+        try:
+            thresholds = {digit: float(supplied.get(digit, request.data.get("digit_threshold", 8))) for digit in trigger_digits}
+        except (TypeError, ValueError):
+            return Response({"error": "Each digit threshold must be a percentage."}, status=400)
+        if any(value <= 0 or value > 100 for value in thresholds.values()):
+            return Response({"error": "Digit thresholds must be between 0 and 100."}, status=400)
+        run, _ = AutomationRun.objects.update_or_create(user=request.user, bot=bot, defaults={"account": account, "symbols": symbols, "strategy": strategy, "tick_window": max(20, min(int(request.data.get("tick_window", 100)), 5000)), "digit_threshold": Decimal(str(request.data.get("digit_threshold", "8"))), "digit_thresholds": thresholds, "stake": stake, "max_daily_loss": Decimal(str(request.data["max_daily_loss"])) if request.data.get("max_daily_loss") else bot.max_daily_loss, "max_trades_per_day": int(request.data["max_trades_per_day"]) if request.data.get("max_trades_per_day") else bot.max_trades_per_day, "status": "running", "error_message": "", "started_at": timezone.now(), "stopped_at": None})
         return Response({"id": run.id, "status": run.status})
 
     def delete(self, request, bot_id):

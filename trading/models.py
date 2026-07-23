@@ -86,6 +86,7 @@ class AutomationRun(models.Model):
     strategy = models.CharField(max_length=12, choices=STRATEGIES, default="over_2")
     tick_window = models.PositiveIntegerField(default=100)
     digit_threshold = models.DecimalField(max_digits=5, decimal_places=2, default=8)
+    digit_thresholds = models.JSONField(default=dict, blank=True)
     stake = models.DecimalField(max_digits=12, decimal_places=2, default="0.35", validators=[MinValueValidator("0.35")])
     max_daily_loss = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Optional user limit; leave blank to run until stopped.")
     max_trades_per_day = models.PositiveIntegerField(null=True, blank=True, help_text="Optional user limit; leave blank to run until stopped.")

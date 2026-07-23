@@ -23,7 +23,7 @@ def last_digit(quote):
     return int(digits[-1]) if digits else 0
 
 
-def analyse(history, strategy, threshold):
+def analyse(history, strategy, threshold, thresholds=None):
     if not history:
         return None
     counts = [history.count(digit) for digit in range(10)]
@@ -31,11 +31,13 @@ def analyse(history, strategy, threshold):
     lower, upper = sum(pct[:5]), sum(pct[5:])
     triggers = (0, 1, 2) if strategy == "over_2" else (7, 8, 9)
     required_group = lower > upper if strategy == "over_2" else upper > lower
-    if not required_group or not all(pct[digit] < float(threshold) for digit in triggers):
+    thresholds = thresholds or {}
+    limits = {digit: float(thresholds.get(str(digit), threshold)) for digit in triggers}
+    if not required_group or not all(pct[digit] < limits[digit] for digit in triggers):
         return None
     imbalance = abs(lower - upper)
-    rarity = sum(max(0, float(threshold) - pct[digit]) for digit in triggers)
-    return {"digits": pct, "lower": lower, "upper": upper, "score": round(imbalance * 2 + rarity, 4), "triggers": triggers}
+    rarity = sum(max(0, limits[digit] - pct[digit]) for digit in triggers)
+    return {"digits": pct, "lower": lower, "upper": upper, "score": round(imbalance * 2 + rarity, 4), "triggers": triggers, "thresholds": limits}
 
 
 class AutomationWorker:
@@ -87,7 +89,7 @@ class AutomationWorker:
                         symbol = tick.get("symbol")
                         if symbol not in run.symbols: continue
                         histories[symbol].append(last_digit(tick.get("quote")))
-                        candidates = {key: analyse(list(value), run.strategy, run.digit_threshold) for key, value in histories.items() if len(value) >= run.tick_window}
+                        candidates = {key: analyse(list(value), run.strategy, run.digit_threshold, run.digit_thresholds) for key, value in histories.items() if len(value) >= run.tick_window}
                         candidates = {key: value for key, value in candidates.items() if value}
                         selected = max(candidates, key=lambda key: candidates[key]["score"]) if candidates and not active_contract else ""
                         snapshot = {key: {"digits": [round(v, 2) for v in value["digits"]], "lower": round(value["lower"], 2), "upper": round(value["upper"], 2), "score": value["score"]} for key, value in candidates.items()}
