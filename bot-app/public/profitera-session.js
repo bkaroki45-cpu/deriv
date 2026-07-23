@@ -6,11 +6,23 @@
     .then(({ ok, body }) => {
       if (!ok || !body.auth_info) return;
       const next = JSON.stringify(body.auth_info);
-      if (localStorage.getItem('auth_info') === next) return;
+      const snapshot = JSON.stringify({ auth_info: body.auth_info, accounts: body.accounts || [], active_account_id: body.active_account_id || '' });
+      if (localStorage.getItem('profitera_session_snapshot') === snapshot) return;
+      localStorage.setItem('profitera_session_snapshot', snapshot);
       localStorage.setItem('auth_info', next);
       localStorage.setItem('accountsList', JSON.stringify(body.accounts || []));
       localStorage.setItem('clientAccounts', JSON.stringify(body.accounts || []));
-      if (body.active_account_id) localStorage.setItem('active_loginid', body.active_account_id);
+      // Bot's authenticated WebSocket bootstrap reads its accounts from this
+      // session cache. Replace it on every shared-session account change so
+      // it never attempts to reconnect through the previous account list.
+      sessionStorage.setItem('deriv_accounts', JSON.stringify(body.accounts || []));
+      if (body.active_account_id) {
+        localStorage.setItem('active_loginid', body.active_account_id);
+        localStorage.setItem('account_type', body.active_account_id.toUpperCase().startsWith('VRT') ? 'demo' : 'real');
+      } else {
+        localStorage.removeItem('active_loginid');
+        localStorage.removeItem('account_type');
+      }
       window.location.reload();
     })
     .catch(() => {});
