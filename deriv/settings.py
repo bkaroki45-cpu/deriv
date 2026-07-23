@@ -172,6 +172,8 @@ USE_TZ = True
 # =========================
 STATIC_URL = os.getenv("STATIC_URL", "/static/")
 STATIC_ROOT = os.getenv("STATIC_ROOT", BASE_DIR / "static")
+MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
+MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", BASE_DIR / "media"))
 
 
 # =========================

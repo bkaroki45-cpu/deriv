@@ -14,6 +14,8 @@ from .views import (
     trade_hub,
     app_session,
     reset_demo_balance,
+    bot_catalog,
+    bot_strategy,
 )
 
 urlpatterns = [
@@ -30,6 +32,8 @@ urlpatterns = [
     path('build-bot/', bot_builder, name="build_bot"),
     path('bot-builder/', bot_builder, name="bot_builder"),
     path('api/deriv/app-session/', app_session, name="app_session"),
+    path('api/bots/', bot_catalog, name="bot_catalog"),
+    path('api/bots/<slug:slug>/strategy/', bot_strategy, name="bot_strategy"),
     path('account/reset-demo-balance/', reset_demo_balance, name="reset_demo_balance"),
     path('login/', deriv_login_page, name="login"),
     path('register/', deriv_register_page, name="register"),

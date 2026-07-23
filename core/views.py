@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -16,6 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from accounts.models import OAuthToken
+from .models import BotTemplate
 
 from .deriv_api import (
     authorize_url,
@@ -532,6 +533,39 @@ def _allow_bot_origin(request, response):
         response["Access-Control-Allow-Credentials"] = "true"
         response["Vary"] = "Origin"
     return response
+
+
+@login_required(login_url="login")
+def bot_catalog(request):
+    """Return the cards shown by the standalone Bot app."""
+    bots = []
+    for bot in BotTemplate.objects.filter(is_published=True):
+        bots.append({
+            "slug": bot.slug,
+            "title": bot.title,
+            "kind": bot.kind,
+            "description": bot.short_description,
+            "market": bot.market,
+            "risk_level": bot.risk_level,
+            "minimum_stake": str(bot.minimum_stake) if bot.minimum_stake is not None else "",
+            "tags": [tag.strip() for tag in bot.tags.split(",") if tag.strip()],
+            "ai_summary": bot.ai_summary,
+            "has_strategy": bool(bot.strategy_file),
+            "featured": bot.is_featured,
+            "cover_image": request.build_absolute_uri(bot.cover_image.url) if bot.cover_image else "",
+        })
+    return _allow_bot_origin(request, JsonResponse({"bots": bots}))
+
+
+@login_required(login_url="login")
+def bot_strategy(request, slug):
+    """Serve an approved XML strategy only to a signed-in Bot visitor."""
+    bot = BotTemplate.objects.filter(slug=slug, is_published=True).first()
+    if not bot or not bot.strategy_file:
+        raise Http404("This bot strategy is unavailable.")
+    response = FileResponse(bot.strategy_file.open("rb"), content_type="application/xml")
+    response["Content-Disposition"] = f'inline; filename="{bot.slug}.xml"'
+    return _allow_bot_origin(request, response)
 
 
 def deriv_logout(request):
