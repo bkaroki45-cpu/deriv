@@ -127,8 +127,8 @@ class AutomationWorker:
                 if not run.bot.enabled:
                     await self.stop(run_id, "Disabled by administrator.")
                     return
-                if run.account.account_type != "demo":
-                    await self.fail(run_id, "Automation is available only on a linked demo account.")
+                if run.account.account_type not in {"demo", "real"} or (run.account.account_type == "real" and (not run.bot.live_trading_enabled or not run.live_trading_confirmed_at)):
+                    await self.fail(run_id, "This account is not authorised for this automation mode.")
                     return
                 token = await self.token_for(run)
                 if not token:
@@ -213,7 +213,7 @@ class AutomationWorker:
                 await router.close()
 
     async def entry_allowed(self, run):
-        return run.status == "running" and run.bot.enabled and run.account.account_type == "demo" and not run.active_contract_id and bool(await self.token_for(run))
+        return run.status == "running" and run.bot.enabled and run.account.account_type in {"demo", "real"} and (run.account.account_type == "demo" or (run.bot.live_trading_enabled and run.live_trading_confirmed_at)) and not run.active_contract_id and bool(await self.token_for(run))
 
     async def token_for(self, run):
         token = await sync_to_async(lambda: OAuthToken.objects.filter(user=run.user, active_account=run.account, is_valid=True).order_by("-updated_at").first())()

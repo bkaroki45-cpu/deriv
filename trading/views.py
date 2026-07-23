@@ -432,7 +432,7 @@ class AdminDashboardDataView(APIView):
 class AutomationBotsView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
-        return Response({"bots": [{"id": bot.id, "name": bot.name, "description": bot.description, "enabled": bot.enabled, "demo_only": True} for bot in AutomationBot.objects.filter(enabled=True)]})
+        return Response({"bots": [{"id": bot.id, "name": bot.name, "description": bot.description, "enabled": bot.enabled, "live_trading_enabled": bot.live_trading_enabled} for bot in AutomationBot.objects.filter(enabled=True)]})
 
 
 class AutomationRunView(APIView):
@@ -451,8 +451,12 @@ class AutomationRunView(APIView):
     def post(self, request, bot_id):
         bot = AutomationBot.objects.filter(pk=bot_id, enabled=True).first()
         if not bot: return Response({"error": "This bot is not enabled by the administrator."}, status=404)
-        account = request.user.deriv_accounts.filter(account_id=request.data.get("account_id"), account_type="demo").first()
-        if not account: return Response({"error": "Select one of your linked demo accounts."}, status=400)
+        account = request.user.deriv_accounts.filter(account_id=request.data.get("account_id")).first()
+        if not account: return Response({"error": "Select one of your linked accounts."}, status=400)
+        if account.account_type == "real" and not bot.live_trading_enabled:
+            return Response({"error": "The administrator has not enabled live automation for this bot."}, status=400)
+        if account.account_type == "real" and request.data.get("confirm_live_trading") is not True:
+            return Response({"error": "Confirm live automation before using a real account."}, status=400)
         symbols = [str(symbol) for symbol in request.data.get("symbols", []) if str(symbol)]
         if not symbols: return Response({"error": "Select at least one Volatility Index."}, status=400)
         try:
@@ -476,7 +480,7 @@ class AutomationRunView(APIView):
             return Response({"error": "Each digit threshold must be a percentage."}, status=400)
         if any(value <= 0 or value > 100 for value in thresholds.values()):
             return Response({"error": "Digit thresholds must be between 0 and 100."}, status=400)
-        run, _ = AutomationRun.objects.update_or_create(user=request.user, bot=bot, defaults={"account": account, "symbols": symbols, "strategy": strategy, "tick_window": window, "digit_threshold": Decimal(str(request.data.get("digit_threshold", "8"))), "digit_thresholds": thresholds, "stake": stake, "max_daily_loss": daily_loss, "max_trades_per_day": trade_limit, "status": "running", "active_contract_id": "", "error_message": "", "started_at": timezone.now(), "stopped_at": None})
+        run, _ = AutomationRun.objects.update_or_create(user=request.user, bot=bot, defaults={"account": account, "symbols": symbols, "strategy": strategy, "tick_window": window, "digit_threshold": Decimal(str(request.data.get("digit_threshold", "8"))), "digit_thresholds": thresholds, "stake": stake, "max_daily_loss": daily_loss, "max_trades_per_day": trade_limit, "live_trading_confirmed_at": timezone.now() if account.account_type == "real" else None, "status": "running", "active_contract_id": "", "error_message": "", "started_at": timezone.now(), "stopped_at": None})
         return Response({"id": run.id, "status": run.status})
 
     def delete(self, request, bot_id):

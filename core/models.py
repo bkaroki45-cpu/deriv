@@ -20,6 +20,7 @@ class BotTemplate(models.Model):
     tags = models.CharField(max_length=180, blank=True, help_text="Comma-separated labels shown on the card.")
     ai_summary = models.TextField(blank=True, help_text="What the AI analyses and how it supports this strategy.")
     execution_notes = models.TextField(blank=True, help_text="Required safeguards, limits, and execution notes.")
+    launch_url = models.CharField(max_length=240, blank=True, help_text="Optional internal destination, for example /automation/ for a managed bot.")
     is_published = models.BooleanField(default=False)
     is_featured = models.BooleanField(default=False)
     display_order = models.PositiveIntegerField(default=0)

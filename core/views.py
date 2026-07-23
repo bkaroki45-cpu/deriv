@@ -378,7 +378,7 @@ def trade_hub(request):
 
 @login_required(login_url="login")
 def automation_dashboard(request):
-    return render(request, "core/automation_dashboard.html", {"demo_accounts": request.user.deriv_accounts.filter(account_type="demo")})
+    return render(request, "core/automation_dashboard.html", {"automation_accounts": request.user.deriv_accounts.all()})
 
 
 def deriv_login_page(request):
@@ -555,6 +555,7 @@ def bot_catalog(request):
             "minimum_stake": str(bot.minimum_stake) if bot.minimum_stake is not None else "",
             "tags": [tag.strip() for tag in bot.tags.split(",") if tag.strip()],
             "ai_summary": bot.ai_summary,
+            "launch_url": bot.launch_url,
             "has_strategy": bool(bot.strategy_file),
             "featured": bot.is_featured,
             "cover_image": request.build_absolute_uri(bot.cover_image.url) if bot.cover_image else "",

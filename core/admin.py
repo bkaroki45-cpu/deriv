@@ -11,6 +11,6 @@ class BotTemplateAdmin(admin.ModelAdmin):
     list_editable = ("is_published", "is_featured", "display_order")
     fieldsets = (
         ("Card", {"fields": ("title", "slug", "kind", "short_description", "description", "cover_image", "market", "risk_level", "minimum_stake", "tags")}),
-        ("Strategy", {"fields": ("strategy_file", "ai_summary", "execution_notes")}),
+        ("Strategy", {"fields": ("strategy_file", "ai_summary", "execution_notes", "launch_url")}),
         ("Publishing", {"fields": ("is_published", "is_featured", "display_order")}),
     )
