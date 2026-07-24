@@ -45,6 +45,21 @@ def analyse(history, strategy, threshold, thresholds=None):
     }
 
 
+def digit_snapshot(history, window):
+    """Displayable rolling-window progress, including markets with no signal."""
+    count = len(history)
+    counts = [history.count(digit) for digit in range(10)] if count else [0] * 10
+    digits = [round(item * 100 / count, 2) if count else 0 for item in counts]
+    return {
+        "ticks": count,
+        "window": window,
+        "digits": digits,
+        "lower": round(sum(digits[:5]), 2),
+        "upper": round(sum(digits[5:]), 2),
+        "status": f"Collecting ticks: {count}/{window}" if count < window else "No favorable Over 2 or Under 7 signal yet",
+    }
+
+
 class DerivMessageRouter:
     """One websocket reader, with request responses and subscriptions separated."""
     def __init__(self, ws):
@@ -216,6 +231,7 @@ class AutomationWorker:
                         histories[symbol].append(last_digit(tick.get("quote")))
                         strategies = ("over_2", "under_7") if state.strategy == "auto" else (state.strategy,)
                         candidates = {}
+                        snapshot = {market: digit_snapshot(list(history), state.tick_window) for market, history in histories.items()}
                         for market, history in histories.items():
                             if len(history) < state.tick_window:
                                 continue
@@ -226,7 +242,14 @@ class AutomationWorker:
                         selected_key = max(candidates, key=lambda key: candidates[key]["score"]) if candidates and not active else None
                         selected = selected_key[0] if selected_key else ""
                         selected_candidate = candidates[selected_key] if selected_key else None
-                        snapshot = {f"{market}:{candidate_strategy}": {"digits": [round(v, 2) for v in item["digits"]], "lower": round(item["lower"], 2), "upper": round(item["upper"], 2), "score": item["score"], "strategy": item["strategy"], "thresholds": item["thresholds"]} for (market, candidate_strategy), item in candidates.items()}
+                        for (market, candidate_strategy), item in candidates.items():
+                            snapshot[market].update({
+                                "score": max(snapshot[market].get("score", 0), item["score"]),
+                                "strategy": candidate_strategy,
+                                "signals": [*snapshot[market].get("signals", []), candidate_strategy],
+                                "status": f"Favorable {candidate_strategy.replace('_', ' ').title()} — waiting for {','.join(map(str, item['triggers']))}",
+                                "thresholds": item["thresholds"],
+                            })
                         if selected_candidate and symbol == selected and last_digit(tick.get("quote")) in selected_candidate["triggers"]:
                             fresh = await self.current_run(run_id)
                             if await self.allowed(run_id, fresh) and await self.entry_allowed(fresh):
@@ -234,7 +257,7 @@ class AutomationWorker:
                                 await router.request({"proposal_open_contract": 1, "contract_id": active, "subscribe": 1})
                                 await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(active_contract_id=active, selected_symbol=selected, waiting_for="")
                         if timezone.now().timestamp() - last_save >= 1:
-                            await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(selected_symbol=selected, waiting_for=(f"{selected_candidate['strategy']} · " + ",".join(map(str, selected_candidate["triggers"]))) if selected_candidate else "", stats={"markets": snapshot, "selected": selected, "selected_strategy": selected_candidate["strategy"] if selected_candidate else "", "selected_metrics": snapshot.get(f"{selected}:{selected_candidate['strategy']}", {}) if selected_candidate else {}, "updated_at": timezone.now().isoformat()})
+                            await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(selected_symbol=selected, waiting_for=(f"{selected_candidate['strategy']} · " + ",".join(map(str, selected_candidate["triggers"]))) if selected_candidate else "", stats={"markets": snapshot, "selected": selected, "selected_strategy": selected_candidate["strategy"] if selected_candidate else "", "selected_metrics": snapshot.get(selected, {}) if selected_candidate else {}, "progress": {"markets_ready": sum(1 for item in snapshot.values() if item["ticks"] >= state.tick_window), "markets_total": len(symbols), "tick_window": state.tick_window}, "updated_at": timezone.now().isoformat()})
                             last_save = timezone.now().timestamp()
             finally:
                 await router.close()
