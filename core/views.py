@@ -416,6 +416,15 @@ def automation_dashboard(request):
     return render(request, "core/automation_dashboard.html", {"automation_accounts": request.user.deriv_accounts.all()})
 
 
+@login_required(login_url="login")
+def automation_connect_account(request):
+    """Connect another Deriv account without signing the user out of Profiteraa."""
+    request.session["deriv_post_login_path"] = "/automation/"
+    if _use_pkce_oauth():
+        return redirect(_oauth_authorize_url(request))
+    return redirect(_legacy_authorize_url(request))
+
+
 def deriv_login_page(request):
     error = request.session.pop("deriv_oauth_error", "")
     return render(request, "core/deriv_auth.html", {
