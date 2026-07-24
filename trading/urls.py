@@ -15,6 +15,7 @@ from .views import (
     SwitchAccountView,
     TradeView,
     AutomationBotsView,
+    AutomationAccountsView,
     AutomationRunView,
 )
 
@@ -33,5 +34,6 @@ urlpatterns = [
     path("markup-statistics/", MarkupStatisticsView.as_view(), name="deriv-markup-statistics"),
     path("admin/dashboard/", AdminDashboardDataView.as_view(), name="profitera-admin-dashboard-data"),
     path("automation/bots/", AutomationBotsView.as_view(), name="automation-bots"),
+    path("automation/accounts/", AutomationAccountsView.as_view(), name="automation-accounts"),
     path("automation/bots/<int:bot_id>/run/", AutomationRunView.as_view(), name="automation-run"),
 ]

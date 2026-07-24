@@ -7,12 +7,13 @@ from decimal import Decimal, InvalidOperation
 import asyncio
 from django.utils import timezone
 
-from accounts.models import ActivityLog, DerivAccount, Referral
+from accounts.models import ActivityLog, DerivAccount, OAuthToken, Referral
 from core.deriv_api import (
     DerivAPIClient,
     account_payload_from_snapshot,
     account_snapshot_from_token,
     active_token_for_request,
+    seal_token,
     set_deriv_session,
     sync_accounts,
 )
@@ -433,6 +434,32 @@ class AutomationBotsView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
         return Response({"bots": [{"id": bot.id, "name": bot.name, "description": bot.description, "enabled": bot.enabled, "live_trading_enabled": bot.live_trading_enabled} for bot in AutomationBot.objects.filter(enabled=True)]})
+
+
+class AutomationAccountsView(APIView):
+    """Synchronise only accounts whose Deriv token is usable by the worker."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        token = active_token_for_request(request)
+        if token:
+            try:
+                authorize, balance = account_snapshot_from_token(token)
+                payload = account_payload_from_snapshot(authorize, balance)
+                account_id = payload.get("account_id")
+                if account_id:
+                    account, _ = DerivAccount.objects.update_or_create(
+                        user=request.user, account_id=account_id,
+                        defaults={"account_type": payload["account_type"], "currency": payload["currency"], "balance": Decimal(str(payload.get("balance") or 0)), "is_active": True, "raw": payload},
+                    )
+                    DerivAccount.objects.filter(user=request.user).exclude(pk=account.pk).update(is_active=False)
+                    if not OAuthToken.objects.filter(user=request.user, active_account=account, is_valid=True).exists():
+                        OAuthToken.objects.create(user=request.user, token_type="oauth", access_token=seal_token(token), active_account=account, is_valid=True, last_validated_at=timezone.now())
+            except Exception:
+                pass
+        account_ids = OAuthToken.objects.filter(user=request.user, is_valid=True, active_account__isnull=False).values_list("active_account_id", flat=True)
+        accounts = DerivAccount.objects.filter(user=request.user, pk__in=account_ids).order_by("account_type", "account_id")
+        return Response({"accounts": [{"account_id": account.account_id, "account_type": account.account_type, "balance": str(account.balance), "currency": account.currency} for account in accounts]})
 
 
 class AutomationRunView(APIView):
