@@ -12,7 +12,7 @@ from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 
 from accounts.models import OAuthToken
@@ -376,6 +376,7 @@ def trade_hub(request):
     })
 
 
+@ensure_csrf_cookie
 @login_required(login_url="login")
 def automation_dashboard(request):
     return render(request, "core/automation_dashboard.html", {"automation_accounts": request.user.deriv_accounts.all()})
