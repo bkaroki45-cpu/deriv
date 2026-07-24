@@ -555,7 +555,10 @@ def bot_catalog(request):
             "minimum_stake": str(bot.minimum_stake) if bot.minimum_stake is not None else "",
             "tags": [tag.strip() for tag in bot.tags.split(",") if tag.strip()],
             "ai_summary": bot.ai_summary,
-            "launch_url": bot.launch_url,
+            # The catalog is served to bot.profiteraa.com, so managed bots
+            # must use an absolute Profiteraa destination rather than a path
+            # that would incorrectly resolve on the Bot subdomain.
+            "launch_url": request.build_absolute_uri(bot.launch_url) if bot.launch_url else "",
             "has_strategy": bool(bot.strategy_file),
             "featured": bot.is_featured,
             "cover_image": request.build_absolute_uri(bot.cover_image.url) if bot.cover_image else "",
