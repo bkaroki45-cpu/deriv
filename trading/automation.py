@@ -158,8 +158,23 @@ class AutomationWorker:
             try:
                 await router.request({"authorize": token})
                 await router.request({"balance": 1, "subscribe": 1})
-                for symbol in run.symbols:
-                    await router.request({"ticks": symbol, "subscribe": 1})
+                symbols = list(run.symbols)
+                if "__all_volatility__" in symbols:
+                    catalogue = await router.request({"active_symbols": "full"})
+                    symbols = self.volatility_symbols(catalogue.get("active_symbols", []))
+                # Subscribe individually so a temporarily unavailable market
+                # cannot prevent all other Volatility and 1-second feeds.
+                eligible = []
+                for symbol in symbols:
+                    try:
+                        await router.request({"ticks": symbol, "subscribe": 1})
+                        eligible.append(symbol)
+                    except RuntimeError:
+                        continue
+                if not eligible:
+                    raise RuntimeError("Deriv has no eligible Volatility markets available for this account.")
+                symbols = eligible
+                await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(symbols=symbols)
                 active = run.active_contract_id
                 if active:
                     await router.request({"proposal_open_contract": 1, "contract_id": active, "subscribe": 1})
@@ -193,7 +208,7 @@ class AutomationWorker:
                     elif msg_type == "tick":
                         tick = message.get("tick", {})
                         symbol = tick.get("symbol")
-                        if symbol not in state.symbols:
+                        if symbol not in symbols:
                             continue
                         histories[symbol].append(last_digit(tick.get("quote")))
                         candidates = {key: analyse(list(value), state.strategy, state.digit_threshold, state.digit_thresholds) for key, value in histories.items() if len(value) >= state.tick_window}
@@ -214,6 +229,18 @@ class AutomationWorker:
 
     async def entry_allowed(self, run):
         return run.status == "running" and run.bot.enabled and run.account.account_type in {"demo", "real"} and (run.account.account_type == "demo" or (run.bot.live_trading_enabled and run.live_trading_confirmed_at)) and not run.active_contract_id and bool(await self.token_for(run))
+
+    @staticmethod
+    def volatility_symbols(items):
+        """Use Deriv's live catalogue; include standard and 1-second Volatility indices only."""
+        symbols = []
+        for item in items:
+            symbol = str(item.get("symbol") or item.get("underlying_symbol") or "")
+            name = str(item.get("display_name") or item.get("underlying_symbol_name") or "").lower()
+            is_volatility = "volatility" in name or symbol.startswith("R_") or symbol.startswith("1HZ")
+            if symbol and is_volatility and not item.get("is_trading_suspended") and item.get("exchange_is_open", 1):
+                symbols.append(symbol)
+        return sorted(set(symbols))
 
     async def token_for(self, run):
         token = await sync_to_async(lambda: OAuthToken.objects.filter(user=run.user, active_account=run.account, is_valid=True).order_by("-updated_at").first())()

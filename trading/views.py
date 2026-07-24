@@ -457,7 +457,8 @@ class AutomationRunView(APIView):
             return Response({"error": "The administrator has not enabled live automation for this bot."}, status=400)
         if account.account_type == "real" and request.data.get("confirm_live_trading") is not True:
             return Response({"error": "Confirm live automation before using a real account."}, status=400)
-        symbols = [str(symbol) for symbol in request.data.get("symbols", []) if str(symbol)]
+        scan_all_volatility = request.data.get("scan_all_volatility") is True
+        symbols = ["__all_volatility__"] if scan_all_volatility else [str(symbol) for symbol in request.data.get("symbols", []) if str(symbol)]
         if not symbols: return Response({"error": "Select at least one Volatility Index."}, status=400)
         try:
             stake = Decimal(str(request.data.get("stake", "0.35")))
