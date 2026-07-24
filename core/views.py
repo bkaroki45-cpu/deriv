@@ -379,6 +379,40 @@ def trade_hub(request):
 @ensure_csrf_cookie
 @login_required(login_url="login")
 def automation_dashboard(request):
+    # A user may have a valid shared Deriv session from one of the trading
+    # apps before an account row has been persisted locally.  Sync that active
+    # account here so the scanner never asks them to "link" it again.
+    token = active_token_for_request(request)
+    if token:
+        try:
+            authorize, balance = account_snapshot_from_token(token)
+            payload = account_payload_from_snapshot(authorize, balance)
+            account_id = payload.get("account_id")
+            if account_id:
+                account, _ = request.user.deriv_accounts.update_or_create(
+                    account_id=account_id,
+                    defaults={
+                        "account_type": payload["account_type"],
+                        "currency": payload["currency"],
+                        "balance": Decimal(str(payload.get("balance") or 0)),
+                        "is_active": True,
+                        "raw": payload,
+                    },
+                )
+                request.user.deriv_accounts.exclude(pk=account.pk).update(is_active=False)
+                if not request.user.deriv_tokens.filter(active_account=account, is_valid=True).exists():
+                    OAuthToken.objects.create(
+                        user=request.user,
+                        token_type="oauth",
+                        access_token=seal_token(token),
+                        active_account=account,
+                        is_valid=True,
+                        last_validated_at=timezone.now(),
+                    )
+        except Exception:
+            # Keep previously linked accounts usable while Deriv is briefly
+            # unavailable; the live balance subscription will retry later.
+            pass
     return render(request, "core/automation_dashboard.html", {"automation_accounts": request.user.deriv_accounts.all()})
 
 

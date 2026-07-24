@@ -439,7 +439,15 @@ class AutomationRunView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, bot_id):
         run = AutomationRun.objects.filter(user=request.user, bot_id=bot_id).first()
-        if not run: return Response({"status": "stopped", "trades": [], "stats": {}})
+        if not run:
+            account = request.user.deriv_accounts.filter(is_active=True).first() or request.user.deriv_accounts.first()
+            return Response({
+                "status": "stopped", "trades": [], "stats": {}, "symbols": [],
+                "selected_symbol": "", "waiting_for": "", "active_contract_id": "",
+                "profit_loss": "0.00", "win_rate": 0,
+                "balance": str(account.balance) if account else "", "currency": account.currency if account else "",
+                "error": "",
+            })
         if not run.bot.enabled and run.status in {"running", "stopping"}:
             run.status = "stopping"
             run.error_message = "Disabled by administrator."
