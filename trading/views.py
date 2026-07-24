@@ -444,6 +444,10 @@ class AutomationAccountsView(APIView):
         token = active_token_for_request(request)
         if token:
             try:
+                # The Options accounts endpoint returns every Demo and Real
+                # account associated with this authorised Deriv user.
+                remote_accounts = DerivAPIClient(token).accounts()
+                sync_accounts(request.user, remote_accounts, request.session.get("deriv_account_id", ""))
                 authorize, balance = account_snapshot_from_token(token)
                 payload = account_payload_from_snapshot(authorize, balance)
                 account_id = payload.get("account_id")
@@ -457,8 +461,7 @@ class AutomationAccountsView(APIView):
                         OAuthToken.objects.create(user=request.user, token_type="oauth", access_token=seal_token(token), active_account=account, is_valid=True, last_validated_at=timezone.now())
             except Exception:
                 pass
-        account_ids = OAuthToken.objects.filter(user=request.user, is_valid=True, active_account__isnull=False).values_list("active_account_id", flat=True)
-        accounts = DerivAccount.objects.filter(user=request.user, pk__in=account_ids).order_by("account_type", "account_id")
+        accounts = DerivAccount.objects.filter(user=request.user).order_by("account_type", "account_id")
         return Response({"accounts": [{"account_id": account.account_id, "account_type": account.account_type, "balance": str(account.balance), "currency": account.currency} for account in accounts]})
 
 

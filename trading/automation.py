@@ -14,7 +14,7 @@ from asgiref.sync import sync_to_async
 from django.utils import timezone
 
 from accounts.models import OAuthToken
-from core.deriv_api import unseal_token
+from core.deriv_api import DerivAPIClient, unseal_token
 from .models import AutomationRun, AutomationTrade
 
 
@@ -130,13 +130,13 @@ class AutomationWorker:
                 if run.account.account_type not in {"demo", "real"} or (run.account.account_type == "real" and (not run.bot.live_trading_enabled or not run.live_trading_confirmed_at)):
                     await self.fail(run_id, "This account is not authorised for this automation mode.")
                     return
-                token = await self.token_for(run)
+                token, socket_url = await self.connection_for(run)
                 if not token:
                     await self.fail(run_id, "No valid Deriv token is linked to this demo account.")
                     return
                 for symbol in run.symbols:
                     histories[symbol] = deque(histories[symbol], maxlen=run.tick_window)
-                await self._connected_session(run_id, run, token, histories)
+                await self._connected_session(run_id, run, token, histories, socket_url)
                 return
             except asyncio.CancelledError:
                 raise
@@ -149,14 +149,17 @@ class AutomationWorker:
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, 15)
 
-    async def _connected_session(self, run_id, run, token, histories):
+    async def _connected_session(self, run_id, run, token, histories, socket_url=""):
         import websockets
-        url = f"wss://ws.derivws.com/websockets/v3?app_id={self.app_id}"
+        url = socket_url or f"wss://ws.derivws.com/websockets/v3?app_id={self.app_id}"
         async with websockets.connect(url, ping_interval=20, ping_timeout=20) as ws:
             router = DerivMessageRouter(ws)
             await router.start()
             try:
-                await router.request({"authorize": token})
+                # OTP URLs are already authenticated for the selected Deriv
+                # account. Legacy URLs still need the account token.
+                if not socket_url:
+                    await router.request({"authorize": token})
                 await router.request({"balance": 1, "subscribe": 1})
                 symbols = list(run.symbols)
                 if "__all_volatility__" in symbols:
@@ -253,7 +256,25 @@ class AutomationWorker:
 
     async def token_for(self, run):
         token = await sync_to_async(lambda: OAuthToken.objects.filter(user=run.user, active_account=run.account, is_valid=True).order_by("-updated_at").first())()
+        if not token:
+            token = await sync_to_async(lambda: OAuthToken.objects.filter(user=run.user, is_valid=True).order_by("-updated_at").first())()
         return unseal_token(token.access_token) if token else ""
+
+    async def connection_for(self, run):
+        """Target the selected account through Deriv's short-lived OTP URL."""
+        token = await self.token_for(run)
+        if not token:
+            return "", ""
+        try:
+            payload = await sync_to_async(lambda: DerivAPIClient(token).otp(run.account.account_id))()
+            data = payload.get("data", payload) if isinstance(payload, dict) else {}
+            socket_url = data.get("url", "") if isinstance(data, dict) else ""
+            return token, socket_url
+        except Exception:
+            # Retain compatibility for legacy OAuth accounts that still have
+            # a token bound directly to this account.
+            direct = await sync_to_async(lambda: OAuthToken.objects.filter(user=run.user, active_account=run.account, is_valid=True).exists())()
+            return (token, "") if direct else ("", "")
 
     async def allowed(self, run_id, run):
         trades = await sync_to_async(list)(AutomationTrade.objects.filter(run_id=run_id, opened_at__date=timezone.localdate()).values("profit"))
