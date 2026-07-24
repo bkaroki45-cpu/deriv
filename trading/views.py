@@ -523,6 +523,16 @@ class AutomationRunView(APIView):
         return Response({"id": run.id, "status": run.status})
 
     def delete(self, request, bot_id):
-        run = AutomationRun.objects.filter(user=request.user, bot_id=bot_id, status="running").first()
-        if run: run.status = "stopping"; run.save(update_fields=["status", "updated_at"])
-        return Response({"status": "stopping" if run else "stopped"})
+        run = AutomationRun.objects.filter(user=request.user, bot_id=bot_id, status__in=["running", "stopping", "error"]).first()
+        if not run:
+            return Response({"status": "stopped"})
+        if run.active_contract_id:
+            run.status = "stopping"
+            run.save(update_fields=["status", "updated_at"])
+            return Response({"status": "stopping"})
+        run.status = "stopped"
+        run.waiting_for = ""
+        run.selected_symbol = ""
+        run.stopped_at = timezone.now()
+        run.save(update_fields=["status", "waiting_for", "selected_symbol", "stopped_at", "updated_at"])
+        return Response({"status": "stopped"})

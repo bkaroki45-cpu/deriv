@@ -18,7 +18,14 @@ from core.deriv_api import DerivAPIClient, unseal_token
 from .models import AutomationRun, AutomationTrade
 
 
-def last_digit(quote):
+def last_digit(quote, pip_size=None):
+    """Match Deriv's displayed last digit, preserving trailing zeroes."""
+    try:
+        places = int(pip_size)
+        if places >= 0:
+            return int(format(Decimal(str(quote)), f".{places}f")[-1])
+    except (TypeError, ValueError, ArithmeticError):
+        pass
     digits = [char for char in str(quote) if char.isdigit()]
     return int(digits[-1]) if digits else 0
 
@@ -207,7 +214,12 @@ class AutomationWorker:
                     if state.status == "stopping" and not active:
                         await self.stop(run_id)
                         return
-                    message = await router.events.get()
+                    try:
+                        message = await asyncio.wait_for(router.events.get(), timeout=1)
+                    except asyncio.TimeoutError:
+                        # Re-check the persisted stop state even during a
+                        # quiet or interrupted tick stream.
+                        continue
                     if message.get("msg_type") == "connection_error":
                         raise RuntimeError(message.get("error", {}).get("message", "Connection interrupted"))
                     msg_type = message.get("msg_type")
@@ -228,7 +240,8 @@ class AutomationWorker:
                         symbol = tick.get("symbol")
                         if symbol not in symbols:
                             continue
-                        histories[symbol].append(last_digit(tick.get("quote")))
+                        current_digit = last_digit(tick.get("quote"), tick.get("pip_size"))
+                        histories[symbol].append(current_digit)
                         strategies = ("over_2", "under_7") if state.strategy == "auto" else (state.strategy,)
                         candidates = {}
                         snapshot = {market: digit_snapshot(list(history), state.tick_window) for market, history in histories.items()}
@@ -250,10 +263,10 @@ class AutomationWorker:
                                 "status": f"Favorable {candidate_strategy.replace('_', ' ').title()} — waiting for {','.join(map(str, item['triggers']))}",
                                 "thresholds": item["thresholds"],
                             })
-                        if selected_candidate and symbol == selected and last_digit(tick.get("quote")) in selected_candidate["triggers"]:
+                        if selected_candidate and symbol == selected and current_digit in selected_candidate["triggers"]:
                             fresh = await self.current_run(run_id)
                             if await self.allowed(run_id, fresh) and await self.entry_allowed(fresh):
-                                active = await self.buy(router, fresh, selected, last_digit(tick.get("quote")), selected_candidate["strategy"])
+                                active = await self.buy(router, fresh, selected, current_digit, selected_candidate["strategy"])
                                 await router.request({"proposal_open_contract": 1, "contract_id": active, "subscribe": 1})
                                 await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(active_contract_id=active, selected_symbol=selected, waiting_for="")
                         if timezone.now().timestamp() - last_save >= 1:
