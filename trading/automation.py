@@ -211,18 +211,27 @@ class AutomationWorker:
                         if symbol not in symbols:
                             continue
                         histories[symbol].append(last_digit(tick.get("quote")))
-                        candidates = {key: analyse(list(value), state.strategy, state.digit_threshold, state.digit_thresholds) for key, value in histories.items() if len(value) >= state.tick_window}
-                        candidates = {key: candidate for key, candidate in candidates.items() if candidate}
-                        selected = max(candidates, key=lambda key: candidates[key]["score"]) if candidates and not active else ""
-                        snapshot = {key: {"digits": [round(v, 2) for v in item["digits"]], "lower": round(item["lower"], 2), "upper": round(item["upper"], 2), "score": item["score"], "thresholds": item["thresholds"]} for key, item in candidates.items()}
-                        if selected and symbol == selected and last_digit(tick.get("quote")) in candidates[selected]["triggers"]:
+                        strategies = ("over_2", "under_7") if state.strategy == "auto" else (state.strategy,)
+                        candidates = {}
+                        for market, history in histories.items():
+                            if len(history) < state.tick_window:
+                                continue
+                            for candidate_strategy in strategies:
+                                candidate = analyse(list(history), candidate_strategy, state.digit_threshold, state.digit_thresholds)
+                                if candidate:
+                                    candidates[(market, candidate_strategy)] = {**candidate, "strategy": candidate_strategy}
+                        selected_key = max(candidates, key=lambda key: candidates[key]["score"]) if candidates and not active else None
+                        selected = selected_key[0] if selected_key else ""
+                        selected_candidate = candidates[selected_key] if selected_key else None
+                        snapshot = {f"{market}:{candidate_strategy}": {"digits": [round(v, 2) for v in item["digits"]], "lower": round(item["lower"], 2), "upper": round(item["upper"], 2), "score": item["score"], "strategy": item["strategy"], "thresholds": item["thresholds"]} for (market, candidate_strategy), item in candidates.items()}
+                        if selected_candidate and symbol == selected and last_digit(tick.get("quote")) in selected_candidate["triggers"]:
                             fresh = await self.current_run(run_id)
                             if await self.allowed(run_id, fresh) and await self.entry_allowed(fresh):
-                                active = await self.buy(router, fresh, selected, last_digit(tick.get("quote")))
+                                active = await self.buy(router, fresh, selected, last_digit(tick.get("quote")), selected_candidate["strategy"])
                                 await router.request({"proposal_open_contract": 1, "contract_id": active, "subscribe": 1})
                                 await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(active_contract_id=active, selected_symbol=selected, waiting_for="")
                         if timezone.now().timestamp() - last_save >= 1:
-                            await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(selected_symbol=selected, waiting_for=",".join(map(str, candidates[selected]["triggers"])) if selected else "", stats={"markets": snapshot, "selected": selected, "updated_at": timezone.now().isoformat()})
+                            await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(selected_symbol=selected, waiting_for=(f"{selected_candidate['strategy']} · " + ",".join(map(str, selected_candidate["triggers"]))) if selected_candidate else "", stats={"markets": snapshot, "selected": selected, "selected_strategy": selected_candidate["strategy"] if selected_candidate else "", "selected_metrics": snapshot.get(f"{selected}:{selected_candidate['strategy']}", {}) if selected_candidate else {}, "updated_at": timezone.now().isoformat()})
                             last_save = timezone.now().timestamp()
             finally:
                 await router.close()
@@ -253,13 +262,13 @@ class AutomationWorker:
         loss = -sum((Decimal(str(item["profit"])) for item in trades if Decimal(str(item["profit"])) < 0), Decimal("0"))
         return not run.max_daily_loss or loss < run.max_daily_loss
 
-    async def buy(self, router, run, symbol, digit):
-        contract_type, barrier = ("DIGITOVER", "2") if run.strategy == "over_2" else ("DIGITUNDER", "7")
+    async def buy(self, router, run, symbol, digit, strategy):
+        contract_type, barrier = ("DIGITOVER", "2") if strategy == "over_2" else ("DIGITUNDER", "7")
         proposal = await router.request({"proposal": 1, "amount": float(run.stake), "basis": "stake", "contract_type": contract_type, "currency": run.account.currency, "duration": 1, "duration_unit": "t", "symbol": symbol, "barrier": barrier})
         quote = proposal["proposal"]
         result = await router.request({"buy": quote["id"], "price": float(quote["ask_price"])})
         contract_id = str(result["buy"]["contract_id"])
-        await sync_to_async(AutomationTrade.objects.create)(run=run, symbol=symbol, strategy=run.strategy, trigger_digit=digit, contract_id=contract_id, contract_type=contract_type, stake=run.stake, raw=result)
+        await sync_to_async(AutomationTrade.objects.create)(run=run, symbol=symbol, strategy=strategy, trigger_digit=digit, contract_id=contract_id, contract_type=contract_type, stake=run.stake, raw=result)
         return contract_id
 
     async def stop(self, run_id, message=""):

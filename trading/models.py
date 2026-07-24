@@ -79,7 +79,7 @@ class AutomationBot(models.Model):
 
 class AutomationRun(models.Model):
     STATUS = [("stopped", "Stopped"), ("running", "Running"), ("stopping", "Stopping"), ("error", "Error")]
-    STRATEGIES = [("over_2", "Over 2"), ("under_7", "Under 7")]
+    STRATEGIES = [("auto", "Automatic"), ("over_2", "Over 2"), ("under_7", "Under 7")]
     bot = models.ForeignKey(AutomationBot, on_delete=models.PROTECT, related_name="runs")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="automation_runs")
     account = models.ForeignKey("accounts.DerivAccount", on_delete=models.PROTECT)

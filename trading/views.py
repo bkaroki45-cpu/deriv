@@ -479,9 +479,9 @@ class AutomationRunView(APIView):
         if daily_loss is not None and daily_loss <= 0: return Response({"error": "Daily loss limit must be greater than zero."}, status=400)
         if trade_limit is not None and trade_limit <= 0: return Response({"error": "Trade limit must be greater than zero."}, status=400)
         if bot.max_stake and stake > bot.max_stake: return Response({"error": "Stake exceeds this bot's administrator limit."}, status=400)
-        strategy = request.data.get("strategy", "over_2")
-        if strategy not in {"over_2", "under_7"}: return Response({"error": "Unsupported strategy."}, status=400)
-        trigger_digits = {"over_2": {"0", "1", "2"}, "under_7": {"7", "8", "9"}}[strategy]
+        strategy = request.data.get("strategy", "auto")
+        if strategy not in {"auto", "over_2", "under_7"}: return Response({"error": "Unsupported strategy."}, status=400)
+        trigger_digits = {"over_2": {"0", "1", "2"}, "under_7": {"7", "8", "9"}, "auto": {"0", "1", "2", "7", "8", "9"}}[strategy]
         supplied = request.data.get("digit_thresholds") or {}
         try:
             thresholds = {digit: float(supplied.get(digit, request.data.get("digit_threshold", 8))) for digit in trigger_digits}
