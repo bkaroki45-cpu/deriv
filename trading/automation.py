@@ -212,6 +212,7 @@ class AutomationWorker:
                 if active:
                     await router.request({"proposal_open_contract": 1, "contract_id": active, "subscribe": 1})
                 last_save = 0
+                last_history_sync = timezone.now().timestamp()
                 while True:
                     state = await self.current_run(run_id)
                     if not state.bot.enabled:
@@ -222,6 +223,20 @@ class AutomationWorker:
                     if state.status == "stopping" and not active:
                         await self.stop(run_id)
                         return
+                    # Keep the dashboard aligned with Deriv's current
+                    # rolling history, while the live subscriptions remain
+                    # responsible for immediate entry decisions.
+                    if timezone.now().timestamp() - last_history_sync >= 5:
+                        for market in symbols:
+                            try:
+                                history = await router.request({"ticks_history": market, "adjust_start_time": 1, "count": state.tick_window, "end": "latest", "style": "ticks"})
+                                prices = history.get("history", {}).get("prices", [])
+                                histories[market] = deque((last_digit(price, pip_sizes.get(market)) for price in prices), maxlen=state.tick_window)
+                            except RuntimeError:
+                                # Retain the last verified Deriv sample if a
+                                # particular market temporarily rejects this request.
+                                continue
+                        last_history_sync = timezone.now().timestamp()
                     try:
                         message = await asyncio.wait_for(router.events.get(), timeout=1)
                     except asyncio.TimeoutError:
