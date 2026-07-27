@@ -199,7 +199,8 @@ class AutomationWorker:
                     try:
                         history = await router.request({"ticks_history": symbol, "adjust_start_time": 1, "count": run.tick_window, "end": "latest", "style": "ticks"})
                         prices = history.get("history", {}).get("prices", [])
-                        histories[symbol] = deque((last_digit(price, pip_sizes.get(symbol)) for price in prices), maxlen=run.tick_window)
+                        precision = history.get("pip_size", pip_sizes.get(symbol))
+                        histories[symbol] = deque((last_digit(price, precision) for price in prices), maxlen=run.tick_window)
                         await router.request({"ticks": symbol, "subscribe": 1})
                         eligible.append(symbol)
                     except RuntimeError:
@@ -231,7 +232,8 @@ class AutomationWorker:
                             try:
                                 history = await router.request({"ticks_history": market, "adjust_start_time": 1, "count": state.tick_window, "end": "latest", "style": "ticks"})
                                 prices = history.get("history", {}).get("prices", [])
-                                histories[market] = deque((last_digit(price, pip_sizes.get(market)) for price in prices), maxlen=state.tick_window)
+                                precision = history.get("pip_size", pip_sizes.get(market))
+                                histories[market] = deque((last_digit(price, precision) for price in prices), maxlen=state.tick_window)
                             except RuntimeError:
                                 # Retain the last verified Deriv sample if a
                                 # particular market temporarily rejects this request.
@@ -378,7 +380,7 @@ class AutomationWorker:
 
     async def buy(self, router, run, symbol, digit, strategy):
         contract_type, barrier = ("DIGITOVER", "2") if strategy == "over_2" else ("DIGITUNDER", "7")
-        proposal = await router.request({"proposal": 1, "amount": float(run.stake), "basis": "stake", "contract_type": contract_type, "currency": run.account.currency, "duration": 1, "duration_unit": "t", "symbol": symbol, "barrier": barrier})
+        proposal = await router.request({"proposal": 1, "amount": float(run.stake), "basis": "stake", "contract_type": contract_type, "currency": run.account.currency, "duration": 1, "duration_unit": "t", "underlying_symbol": symbol, "barrier": barrier})
         quote = proposal["proposal"]
         result = await router.request({"buy": quote["id"], "price": float(quote["ask_price"])})
         contract_id = str(result["buy"]["contract_id"])
