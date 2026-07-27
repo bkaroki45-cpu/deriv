@@ -322,10 +322,30 @@ class AutomationWorker:
 
     @staticmethod
     def market_pip_sizes(items):
-        return {
-            str(item.get("symbol") or item.get("underlying_symbol")): item.get("pip_size")
-            for item in items if (item.get("symbol") or item.get("underlying_symbol")) and item.get("pip_size") is not None
-        }
+        precisions = {}
+        for item in items:
+            symbol = str(item.get("symbol") or item.get("underlying_symbol") or "")
+            if not symbol:
+                continue
+            # Legacy active_symbols calls name this field `pip` (for example
+            # 0.01), while streaming ticks use `pip_size` (for example 2).
+            # Treating the former as an integer was losing trailing zeroes in
+            # tick history and produced false digit distributions.
+            pip_size = item.get("pip_size")
+            if pip_size is not None:
+                try:
+                    precisions[symbol] = int(pip_size)
+                    continue
+                except (TypeError, ValueError):
+                    pass
+            pip = item.get("pip")
+            if pip is not None:
+                try:
+                    decimal = Decimal(str(pip))
+                    precisions[symbol] = max(0, -decimal.normalize().as_tuple().exponent)
+                except (ArithmeticError, ValueError):
+                    pass
+        return precisions
 
     async def token_for(self, run):
         token = await sync_to_async(lambda: OAuthToken.objects.filter(user=run.user, active_account=run.account, is_valid=True).order_by("-updated_at").first())()
