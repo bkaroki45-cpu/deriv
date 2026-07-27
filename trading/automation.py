@@ -183,15 +183,23 @@ class AutomationWorker:
                 if not socket_url:
                     await router.request({"authorize": token})
                 await router.request({"balance": 1, "subscribe": 1})
+                # Seed each card from Deriv's own recent tick history, then
+                # keep it current with the matching live tick subscription.
+                catalogue = await router.request({"active_symbols": "full"})
+                catalogue_items = catalogue.get("active_symbols", [])
+                market_names = self.market_names(catalogue_items)
+                pip_sizes = self.market_pip_sizes(catalogue_items)
                 symbols = list(run.symbols)
                 if "__all_volatility__" in symbols:
-                    catalogue = await router.request({"active_symbols": "full"})
-                    symbols = self.volatility_symbols(catalogue.get("active_symbols", []))
+                    symbols = self.volatility_symbols(catalogue_items)
                 # Subscribe individually so a temporarily unavailable market
                 # cannot prevent all other Volatility and 1-second feeds.
                 eligible = []
                 for symbol in symbols:
                     try:
+                        history = await router.request({"ticks_history": symbol, "adjust_start_time": 1, "count": run.tick_window, "end": "latest", "style": "ticks"})
+                        prices = history.get("history", {}).get("prices", [])
+                        histories[symbol] = deque((last_digit(price, pip_sizes.get(symbol)) for price in prices), maxlen=run.tick_window)
                         await router.request({"ticks": symbol, "subscribe": 1})
                         eligible.append(symbol)
                     except RuntimeError:
@@ -244,7 +252,7 @@ class AutomationWorker:
                         histories[symbol].append(current_digit)
                         strategies = ("over_2", "under_7") if state.strategy == "auto" else (state.strategy,)
                         candidates = {}
-                        snapshot = {market: digit_snapshot(list(history), state.tick_window) for market, history in histories.items()}
+                        snapshot = {market: {**digit_snapshot(list(history), state.tick_window), "name": market_names.get(market, market), "symbol": market} for market, history in histories.items()}
                         for market, history in histories.items():
                             if len(history) < state.tick_window:
                                 continue
@@ -289,6 +297,20 @@ class AutomationWorker:
             if symbol and is_volatility and not item.get("is_trading_suspended") and item.get("exchange_is_open", 1):
                 symbols.append(symbol)
         return sorted(set(symbols))
+
+    @staticmethod
+    def market_names(items):
+        return {
+            str(item.get("symbol") or item.get("underlying_symbol")): str(item.get("display_name") or item.get("underlying_symbol_name") or item.get("symbol") or item.get("underlying_symbol"))
+            for item in items if item.get("symbol") or item.get("underlying_symbol")
+        }
+
+    @staticmethod
+    def market_pip_sizes(items):
+        return {
+            str(item.get("symbol") or item.get("underlying_symbol")): item.get("pip_size")
+            for item in items if (item.get("symbol") or item.get("underlying_symbol")) and item.get("pip_size") is not None
+        }
 
     async def token_for(self, run):
         token = await sync_to_async(lambda: OAuthToken.objects.filter(user=run.user, active_account=run.account, is_valid=True).order_by("-updated_at").first())()
