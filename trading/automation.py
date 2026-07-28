@@ -52,6 +52,24 @@ def analyse(history, strategy, threshold, thresholds=None):
     }
 
 
+def analyse_differ(history, previous_digits):
+    """Fallback DIGITDIFF setup using the requested distribution rules."""
+    if not history or not previous_digits:
+        return None
+    counts = [history.count(digit) for digit in range(10)]
+    pct = [count * 100 / len(history) for count in counts]
+    ranked = sorted(range(10), key=lambda digit: (pct[digit], digit))
+    least, second_least = ranked[:2]
+    highest = max(range(10), key=lambda digit: pct[digit])
+    if (pct[least] > previous_digits[least]
+            or pct[second_least] - pct[least] < 0.5
+            or abs(highest - least) < 3):
+        return None
+    return {"digits": pct, "lower": sum(pct[:5]), "upper": sum(pct[5:]),
+            "score": round((pct[highest] - pct[least]) + 2 * (pct[second_least] - pct[least]) + abs(highest - least), 4),
+            "triggers": (), "barrier": least, "immediate": True}
+
+
 def digit_snapshot(history, window):
     """Displayable rolling-window progress, including markets with no signal."""
     count = len(history)
@@ -141,6 +159,7 @@ class AutomationWorker:
         """Reconnect safely; persisted running runs resume after worker restarts."""
         delay = 1
         histories = defaultdict(deque)
+        previous_distributions = {}
         while True:
             try:
                 run = await self.current_run(run_id)
@@ -158,7 +177,7 @@ class AutomationWorker:
                     return
                 for symbol in run.symbols:
                     histories[symbol] = deque(histories[symbol], maxlen=run.tick_window)
-                await self._connected_session(run_id, run, token, histories, socket_url)
+                await self._connected_session(run_id, run, token, histories, socket_url, previous_distributions)
                 return
             except asyncio.CancelledError:
                 raise
@@ -172,7 +191,7 @@ class AutomationWorker:
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, 15)
 
-    async def _connected_session(self, run_id, run, token, histories, socket_url=""):
+    async def _connected_session(self, run_id, run, token, histories, socket_url="", previous_distributions=None):
         import websockets
         url = socket_url or f"wss://ws.derivws.com/websockets/v3?app_id={self.app_id}"
         async with websockets.connect(url, ping_interval=20, ping_timeout=20) as ws:
@@ -211,6 +230,8 @@ class AutomationWorker:
                 symbols = eligible
                 await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(symbols=symbols)
                 active = run.active_contract_id
+                differ_batch_symbol = ""
+                differ_batch_count = 0
                 if active:
                     await router.request({"proposal_open_contract": 1, "contract_id": active, "subscribe": 1})
                 last_save = 0
@@ -278,6 +299,15 @@ class AutomationWorker:
                                 candidate = analyse(list(history), candidate_strategy, state.digit_threshold, state.digit_thresholds)
                                 if candidate:
                                     candidates[(market, candidate_strategy)] = {**candidate, "strategy": candidate_strategy}
+                        # Differs is a fallback only when neither requested
+                        # Over 2 nor Under 7 has a qualifying market.
+                        if not candidates and not active:
+                            for market, history in histories.items():
+                                if len(history) < state.tick_window:
+                                    continue
+                                candidate = analyse_differ(list(history), previous_distributions.get(market))
+                                if candidate and (not differ_batch_symbol or differ_batch_symbol == market):
+                                    candidates[(market, "differ")] = {**candidate, "strategy": "differ"}
                         selected_key = max(candidates, key=lambda key: candidates[key]["score"]) if candidates and not active else None
                         selected = selected_key[0] if selected_key else ""
                         selected_candidate = candidates[selected_key] if selected_key else None
@@ -289,15 +319,22 @@ class AutomationWorker:
                                 "status": f"Favorable {candidate_strategy.replace('_', ' ').title()} — waiting for {','.join(map(str, item['triggers']))}",
                                 "thresholds": item["thresholds"],
                             })
-                        if selected_candidate and symbol == selected and current_digit in selected_candidate["triggers"]:
+                        if selected_candidate and symbol == selected and (selected_candidate.get("immediate") or current_digit in selected_candidate["triggers"]):
                             fresh = await self.current_run(run_id)
                             if await self.allowed(run_id, fresh) and await self.entry_allowed(fresh):
-                                active = await self.buy(router, fresh, selected, current_digit, selected_candidate["strategy"])
+                                active = await self.buy(router, fresh, selected, selected_candidate.get("barrier", current_digit), selected_candidate["strategy"])
+                                if selected_candidate["strategy"] == "differ":
+                                    differ_batch_symbol = selected
+                                    differ_batch_count += 1
+                                    if differ_batch_count >= 5:
+                                        differ_batch_symbol = ""
+                                        differ_batch_count = 0
                                 await router.request({"proposal_open_contract": 1, "contract_id": active, "subscribe": 1})
                                 await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(active_contract_id=active, selected_symbol=selected, waiting_for="")
                         if timezone.now().timestamp() - last_save >= 1:
                             await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(selected_symbol=selected, waiting_for=(f"{selected_candidate['strategy']} · " + ",".join(map(str, selected_candidate["triggers"]))) if selected_candidate else "", stats={"markets": snapshot, "selected": selected, "selected_strategy": selected_candidate["strategy"] if selected_candidate else "", "selected_metrics": snapshot.get(selected, {}) if selected_candidate else {}, "progress": {"markets_ready": sum(1 for item in snapshot.values() if item["ticks"] >= state.tick_window), "markets_total": len(symbols), "tick_window": state.tick_window}, "updated_at": timezone.now().isoformat()})
                             last_save = timezone.now().timestamp()
+                        previous_distributions = {market: item["digits"] for market, item in snapshot.items()}
             finally:
                 await router.close()
 
@@ -380,7 +417,12 @@ class AutomationWorker:
         return not run.max_daily_loss or loss < run.max_daily_loss
 
     async def buy(self, router, run, symbol, digit, strategy):
-        contract_type, barrier = ("DIGITOVER", "2") if strategy == "over_2" else ("DIGITUNDER", "7")
+        if strategy == "over_2":
+            contract_type, barrier = "DIGITOVER", "2"
+        elif strategy == "under_7":
+            contract_type, barrier = "DIGITUNDER", "7"
+        else:
+            contract_type, barrier = "DIGITDIFF", str(digit)
         proposal = await router.request({"proposal": 1, "amount": float(run.stake), "basis": "stake", "contract_type": contract_type, "currency": run.account.currency, "duration": 1, "duration_unit": "t", "underlying_symbol": symbol, "barrier": barrier})
         quote = proposal["proposal"]
         result = await router.request({"buy": quote["id"], "price": float(quote["ask_price"])})
