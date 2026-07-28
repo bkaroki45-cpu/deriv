@@ -500,7 +500,10 @@ class AutomationRunView(APIView):
         if not symbols: return Response({"error": "Select at least one Volatility Index."}, status=400)
         try:
             stake = Decimal(str(request.data.get("stake", "0.35")))
-            window = max(20, min(int(request.data.get("tick_window", 100)), 5000))
+            # DTrader's digit-distribution panel uses the latest 1,000 ticks.
+            # Keep the scanner on the same window so displayed percentages
+            # are directly comparable to the Deriv trading screen.
+            window = 1000
             daily_loss = Decimal(str(request.data["max_daily_loss"])) if request.data.get("max_daily_loss") else bot.max_daily_loss
             trade_limit = int(request.data["max_trades_per_day"]) if request.data.get("max_trades_per_day") else bot.max_trades_per_day
         except (TypeError, ValueError, ArithmeticError):
