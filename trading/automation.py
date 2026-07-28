@@ -317,7 +317,7 @@ class AutomationWorker:
                                 "strategy": candidate_strategy,
                                 "signals": [*snapshot[market].get("signals", []), candidate_strategy],
                                 "status": f"Favorable {candidate_strategy.replace('_', ' ').title()} — waiting for {','.join(map(str, item['triggers']))}",
-                                "thresholds": item["thresholds"],
+                                "thresholds": item.get("thresholds", {}),
                             })
                         if selected_candidate and symbol == selected and (selected_candidate.get("immediate") or current_digit in selected_candidate["triggers"]):
                             fresh = await self.current_run(run_id)
