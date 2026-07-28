@@ -198,6 +198,7 @@ class AutomationWorker:
             router = DerivMessageRouter(ws)
             await router.start()
             try:
+                await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(error_message="")
                 # OTP URLs are already authenticated for the selected Deriv
                 # account. Legacy URLs still need the account token.
                 if not socket_url:
