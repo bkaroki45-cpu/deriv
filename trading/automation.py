@@ -67,7 +67,7 @@ def analyse_differ(history, previous_digits):
         return None
     return {"digits": pct, "lower": sum(pct[:5]), "upper": sum(pct[5:]),
             "score": round((pct[highest] - pct[least]) + 2 * (pct[second_least] - pct[least]) + abs(highest - least), 4),
-            "triggers": (), "barrier": least, "immediate": True}
+            "triggers": (), "thresholds": {}, "barrier": least, "immediate": True}
 
 
 def digit_snapshot(history, window):
