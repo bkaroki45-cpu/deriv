@@ -533,6 +533,7 @@ class AutomationRunView(APIView):
         run.status = "stopped"
         run.waiting_for = ""
         run.selected_symbol = ""
+        run.error_message = ""
         run.stopped_at = timezone.now()
-        run.save(update_fields=["status", "waiting_for", "selected_symbol", "stopped_at", "updated_at"])
+        run.save(update_fields=["status", "waiting_for", "selected_symbol", "error_message", "stopped_at", "updated_at"])
         return Response({"status": "stopped"})

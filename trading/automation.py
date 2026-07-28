@@ -167,7 +167,8 @@ class AutomationWorker:
                 if state.status in {"stopped", "stopping"} and not state.active_contract_id:
                     await self.stop(run_id)
                     return
-                await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(error_message=f"Reconnecting: {str(exc)[:300]}")
+                message = str(exc).strip() or exc.__class__.__name__
+                await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(error_message=f"Reconnecting: {message[:300]}")
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, 15)
 
