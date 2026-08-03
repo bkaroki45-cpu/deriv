@@ -31,6 +31,17 @@
     load();
   };
 
+  const startBot = async (slug, title) => {
+    const response = await fetch(`${api}${encodeURIComponent(slug)}/start/`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.detail || 'Unable to start this bot.');
+    alert(`${title} has started using your connected Deriv ${payload.mode || 'account'} session.`);
+  };
+
   const mount = async () => {
     injectStyle();
     const panel = document.createElement('section');
@@ -45,11 +56,14 @@
       if (!response.ok) throw new Error('Log in on Profiteraa first to access the Bot Library.');
       const bots = payload.bots || [];
       if (!bots.length) { grid.innerHTML = '<div class="profitera-library__empty"><h2>No bots published yet</h2><p>Your administrator can add Deriv or AI-assisted bots from the Profiteraa admin page.</p></div>'; return; }
-      grid.innerHTML = bots.map(bot => `<article class="profitera-bot-card" data-slug="${escapeHtml(bot.slug)}" data-launch-url="${escapeHtml(bot.launch_url)}"><span class="profitera-bot-card__kind">${bot.kind === 'ai' ? 'AI-assisted' : 'Deriv bot'}</span>${bot.cover_image ? `<img class="profitera-library__image" src="${escapeHtml(bot.cover_image)}" alt="">` : ''}<h2>${escapeHtml(bot.title)}</h2><p>${escapeHtml(bot.description)}</p>${bot.ai_summary ? `<p style="margin-top:10px"><b>AI:</b> ${escapeHtml(bot.ai_summary)}</p>` : ''}<div class="profitera-bot-card__meta">${bot.market ? `<span>${escapeHtml(bot.market)}</span>` : ''}${bot.risk_level ? `<span>${escapeHtml(bot.risk_level)} risk</span>` : ''}${bot.minimum_stake ? `<span>Min $${escapeHtml(bot.minimum_stake)}</span>` : ''}${(bot.tags || []).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><button ${bot.has_strategy || bot.launch_url ? '' : 'disabled'}>${bot.launch_url ? 'Open AI scanner' : bot.has_strategy ? 'Load in Bot Builder' : 'Analysis bot — setup required'}</button></article>`).join('');
+      grid.innerHTML = bots.map(bot => `<article class="profitera-bot-card" data-slug="${escapeHtml(bot.slug)}" data-launch-url="${escapeHtml(bot.launch_url)}" data-python-bot="${bot.has_python_bot ? '1' : ''}"><span class="profitera-bot-card__kind">${bot.kind === 'ai' ? 'AI-assisted' : 'Deriv bot'}</span>${bot.cover_image ? `<img class="profitera-library__image" src="${escapeHtml(bot.cover_image)}" alt="">` : ''}<h2>${escapeHtml(bot.title)}</h2><p>${escapeHtml(bot.description)}</p>${bot.ai_summary ? `<p style="margin-top:10px"><b>AI:</b> ${escapeHtml(bot.ai_summary)}</p>` : ''}<div class="profitera-bot-card__meta">${bot.category ? `<span>${escapeHtml(bot.category)}</span>` : ''}${bot.market ? `<span>${escapeHtml(bot.market)}</span>` : ''}${bot.risk_level ? `<span>${escapeHtml(bot.risk_level)} risk</span>` : ''}${bot.minimum_stake ? `<span>Min $${escapeHtml(bot.minimum_stake)}</span>` : ''}${(bot.tags || []).map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div><button ${bot.has_python_bot || bot.has_strategy || bot.launch_url ? '' : 'disabled'}>${bot.has_python_bot ? 'Start Bot' : bot.launch_url ? 'Open AI scanner' : bot.has_strategy ? 'Load in Bot Builder' : 'Analysis bot — setup required'}</button></article>`).join('');
       grid.querySelectorAll('[data-slug]').forEach(card => card.addEventListener('click', async event => {
         if (event.target.tagName === 'BUTTON' && event.target.disabled) return;
         if (card.dataset.launchUrl) { window.location.assign(card.dataset.launchUrl); return; }
-        try { await loadStrategy(card.dataset.slug, card.querySelector('h2').textContent); } catch (error) { alert(error.message || 'Unable to load this strategy.'); }
+        try {
+          if (card.dataset.pythonBot) await startBot(card.dataset.slug, card.querySelector('h2').textContent);
+          else await loadStrategy(card.dataset.slug, card.querySelector('h2').textContent);
+        } catch (error) { alert(error.message || 'Unable to start this bot.'); }
       }));
     } catch (error) {
       grid.innerHTML = `<div class="profitera-library__empty"><h2>Bot Library unavailable</h2><p>${escapeHtml(error.message || 'Please try again.')}</p></div>`;

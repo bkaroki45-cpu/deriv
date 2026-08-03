@@ -18,6 +18,7 @@ from .views import (
     reset_demo_balance,
     bot_catalog,
     bot_strategy,
+    start_python_bot,
 )
 
 urlpatterns = [
@@ -38,6 +39,7 @@ urlpatterns = [
     path('api/deriv/app-session/', app_session, name="app_session"),
     path('api/bots/', bot_catalog, name="bot_catalog"),
     path('api/bots/<slug:slug>/strategy/', bot_strategy, name="bot_strategy"),
+    path('api/bots/<slug:slug>/start/', start_python_bot, name="start_python_bot"),
     path('account/reset-demo-balance/', reset_demo_balance, name="reset_demo_balance"),
     path('login/', deriv_login_page, name="login"),
     path('register/', deriv_register_page, name="register"),

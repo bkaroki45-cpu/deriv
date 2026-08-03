@@ -18,6 +18,7 @@ kombu==5.6.2
 msgpack==1.1.2
 packaging==26.2
 pillow==12.2.0
+PyYAML==6.0.3
 prompt_toolkit==3.0.52
 psycopg2-binary==2.9.12
 python-dateutil==2.9.0.post0

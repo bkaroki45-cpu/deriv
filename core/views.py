@@ -1,5 +1,7 @@
 import os
 import secrets
+import subprocess
+import sys
 from datetime import timedelta
 from decimal import Decimal
 from urllib.parse import urlencode
@@ -16,7 +18,7 @@ from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 
 from accounts.models import OAuthToken
-from .models import BotTemplate
+from .models import BotExecution, BotTemplate
 
 from .deriv_api import (
     authorize_url,
@@ -588,11 +590,12 @@ def _allow_bot_origin(request, response):
 def bot_catalog(request):
     """Return the cards shown by the standalone Bot app."""
     bots = []
-    for bot in BotTemplate.objects.filter(is_published=True):
+    for bot in BotTemplate.objects.filter(is_published=True, is_enabled=True):
         bots.append({
             "slug": bot.slug,
             "title": bot.title,
             "kind": bot.kind,
+            "category": bot.category,
             "description": bot.short_description,
             "market": bot.market,
             "risk_level": bot.risk_level,
@@ -604,6 +607,11 @@ def bot_catalog(request):
             # that would incorrectly resolve on the Bot subdomain.
             "launch_url": request.build_absolute_uri(bot.launch_url) if bot.launch_url else "",
             "has_strategy": bool(bot.strategy_file),
+            "has_bot_file": bool(bot.python_file),
+            # Kept for the deployed Bot Library script; it now means any
+            # supported uploaded bot file, not only Python source.
+            "has_python_bot": bool(bot.python_file),
+            "bot_file_type": bot.bot_file_type,
             "featured": bot.is_featured,
             "cover_image": request.build_absolute_uri(bot.cover_image.url) if bot.cover_image else "",
         })
@@ -613,12 +621,97 @@ def bot_catalog(request):
 @login_required(login_url="login")
 def bot_strategy(request, slug):
     """Serve an approved XML strategy only to a signed-in Bot visitor."""
-    bot = BotTemplate.objects.filter(slug=slug, is_published=True).first()
+    bot = BotTemplate.objects.filter(slug=slug, is_published=True, is_enabled=True).first()
     if not bot or not bot.strategy_file:
         raise Http404("This bot strategy is unavailable.")
     response = FileResponse(bot.strategy_file.open("rb"), content_type="application/xml")
     response["Content-Disposition"] = f'inline; filename="{bot.slug}.xml"'
     return _allow_bot_origin(request, response)
+
+
+@login_required(login_url="login")
+@require_POST
+@csrf_exempt
+def start_python_bot(request, slug):
+    """Start an admin-approved bot with the current user's saved Deriv session.
+
+    Uploaded bots are trusted admin code. They get only the Deriv connection
+    settings below; the Django session and database credentials are never sent
+    to the child process.
+    """
+    origin = request.headers.get("Origin", "")
+    allowed_origins = {"https://bot.profiteraa.com", "https://staging-bot.profiteraa.com"}
+    if origin not in allowed_origins:
+        return JsonResponse({"detail": "Untrusted launch origin."}, status=403)
+
+    bot = BotTemplate.objects.filter(slug=slug, is_published=True, is_enabled=True).first()
+    if not bot or not bot.python_file:
+        raise Http404("This bot is unavailable.")
+    extensions = {
+        BotTemplate.BotFileType.PYTHON: (".py",),
+        BotTemplate.BotFileType.ZIP: (".zip",),
+        BotTemplate.BotFileType.JSON: (".json",),
+        BotTemplate.BotFileType.YAML: (".yaml", ".yml"),
+        BotTemplate.BotFileType.TOML: (".toml",),
+    }
+    if not bot.python_file.name.lower().endswith(extensions[bot.bot_file_type]):
+        return JsonResponse({"detail": "The registered file does not match its selected bot file type."}, status=400)
+
+    token = active_token_for_request(request)
+    session = get_session(request)
+    account_id = session.get("account_id", "")
+    if not token or not account_id:
+        return JsonResponse({"detail": "Your existing Deriv session is unavailable. Connect Deriv in Profitera first."}, status=400)
+
+    # Preserve only OS values needed to launch Python, then add the current
+    # account's connection values. The token is intentionally not returned to
+    # the browser or written to the execution record.
+    child_env = {key: os.environ[key] for key in ("PATH", "SYSTEMROOT", "WINDIR", "LANG", "TZ") if key in os.environ}
+    child_env.update({
+        "DERIV_API_TOKEN": token,
+        "DERIV_APP_ID": str(_deriv_app_id()),
+        "DERIV_ACCOUNT_ID": account_id,
+        "DERIV_MODE": session.get("account_type", "real"),
+        "PROFITERA_BOT_SLUG": bot.slug,
+        "PROFITERA_BOT_FILE": bot.python_file.path,
+        "PROFITERA_BOT_FILE_TYPE": bot.bot_file_type,
+    })
+    execution = BotExecution.objects.create(
+        bot=bot,
+        user=request.user,
+        account_id=account_id,
+        mode=session.get("account_type", "real"),
+    )
+    try:
+        # Python files and Python zip apps are directly executable. Config
+        # files use the config runner and inherit this Deriv environment.
+        command = (
+            [sys.executable, "-m", "core.config_bot_runner", bot.python_file.path]
+            if bot.bot_file_type in {BotTemplate.BotFileType.JSON, BotTemplate.BotFileType.YAML, BotTemplate.BotFileType.TOML}
+            else [sys.executable, bot.python_file.path]
+        )
+        process = subprocess.Popen(
+            command,
+            env=child_env,
+            cwd=os.path.dirname(bot.python_file.path),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except OSError:
+        execution.status = "failed"
+        execution.save(update_fields=["status"])
+        return JsonResponse({"detail": "Unable to start this bot."}, status=500)
+
+    execution.pid = process.pid
+    execution.status = "running"
+    execution.save(update_fields=["pid", "status"])
+    return _allow_bot_origin(request, JsonResponse({
+        "started": True,
+        "execution_id": execution.id,
+        "mode": execution.mode,
+    }))
 
 
 def deriv_logout(request):

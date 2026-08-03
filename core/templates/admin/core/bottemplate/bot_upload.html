@@ -1,0 +1,25 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <div id="content-main">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <fieldset class="module aligned">
+        <h2>Upload Python trading bot</h2>
+        <p>Published and enabled bots immediately appear in the Bot Library. ZIP files must be Python zip apps. JSON, YAML, and TOML files declare a command array for the approved bot process; it receives the logged-in user's Deriv session through environment variables when started.</p>
+        {{ form.as_p }}
+      </fieldset>
+      <div class="submit-row"><input type="submit" value="Upload and register" class="default"></div>
+    </form>
+  </div>
+  <script>
+    (function () {
+      const types = {python: '.py', zip: '.zip', json: '.json', yaml: '.yaml,.yml', toml: '.toml'};
+      const selector = document.getElementById('id_bot_file_type');
+      const input = document.getElementById('id_python_file');
+      const updateAccept = () => input.accept = types[selector.value] || '';
+      selector.addEventListener('change', updateAccept);
+      updateAccept();
+    }());
+  </script>
+{% endblock %}
