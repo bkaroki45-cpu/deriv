@@ -410,9 +410,9 @@ export default class RunPanelStore {
         };
         this.onCancelButtonClick = this.onCloseDialog;
         this.dialog_options = {
-            title: localize('Are you sure?'),
+            title: localize('Reset bot activity?'),
             message: localize(
-                'This will clear all data in the summary, transactions, and journal panels. All counters will be reset to zero.'
+                'This will clear the summary, executed trades, and journal so you can view a fresh run. All counters will reset to zero. Your strategy and Deriv account are not changed.'
             ),
         };
         this.is_dialog_open = true;

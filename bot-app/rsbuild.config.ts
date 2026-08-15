@@ -100,6 +100,7 @@ export default defineConfig({
       { from: path.join(smartchartsDist, 'assets/*'), to: 'assets/[name][ext]' },
       { from: path.join(smartchartsDist, 'assets/fonts/*'), to: 'assets/fonts/[name][ext]' },
       { from: path.join(smartchartsDist, 'assets/shaders/*'), to: 'assets/shaders/[name][ext]' },
+      { from: path.join(__dirname, 'src/xml/martingale_max-stake.xml'), to: 'strategies/martingale.xml' },
       { from: path.join(__dirname, 'public') },
     ],
   },

@@ -123,7 +123,7 @@ const DrawerHeader = ({ is_clear_stat_disabled, is_mobile, is_drawer_open, onCle
             id='db-run-panel__clear-button'
             className='run-panel__clear-button'
             disabled={is_clear_stat_disabled}
-            text={localize('Reset')}
+            text={localize('Reset activity')}
             onClick={onClearStatClick}
             secondary
         />
@@ -174,7 +174,7 @@ const DrawerFooter = ({ is_clear_stat_disabled, onClearStatClick }: TDrawerFoote
             secondary
         >
             <span>
-                <Localize i18n_default_text='Reset' />
+                <Localize i18n_default_text='Reset activity' />
             </span>
         </Button>
     </div>
