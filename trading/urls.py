@@ -17,6 +17,7 @@ from .views import (
     AutomationBotsView,
     AutomationAccountsView,
     AutomationRunView,
+    AutomationRunResetView,
 )
 
 urlpatterns = [
@@ -36,4 +37,5 @@ urlpatterns = [
     path("automation/bots/", AutomationBotsView.as_view(), name="automation-bots"),
     path("automation/accounts/", AutomationAccountsView.as_view(), name="automation-accounts"),
     path("automation/bots/<int:bot_id>/run/", AutomationRunView.as_view(), name="automation-run"),
+    path("automation/bots/<int:bot_id>/run/reset/", AutomationRunResetView.as_view(), name="automation-run-reset"),
 ]

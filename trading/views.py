@@ -542,3 +542,32 @@ class AutomationRunView(APIView):
         run.stopped_at = timezone.now()
         run.save(update_fields=["status", "waiting_for", "selected_symbol", "error_message", "stopped_at", "updated_at"])
         return Response({"status": "stopped"})
+
+
+class AutomationRunResetView(APIView):
+    """Stop an automation run and clear its activity without altering its settings."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, bot_id):
+        run = AutomationRun.objects.filter(user=request.user, bot_id=bot_id).first()
+        if not run:
+            return Response({"status": "stopped", "cleared": 0})
+        if run.active_contract_id:
+            return Response(
+                {"error": "Stop the active contract before resetting activity."},
+                status=409,
+            )
+        run.status = "stopped"
+        run.waiting_for = ""
+        run.selected_symbol = ""
+        run.active_contract_id = ""
+        run.stats = {}
+        run.error_message = ""
+        run.stopped_at = timezone.now()
+        run.save(update_fields=[
+            "status", "waiting_for", "selected_symbol", "active_contract_id",
+            "stats", "error_message", "stopped_at", "updated_at",
+        ])
+        cleared, _ = run.trades.all().delete()
+        return Response({"status": "stopped", "cleared": cleared})

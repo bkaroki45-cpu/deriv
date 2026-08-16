@@ -7,6 +7,10 @@
             'afterend',
             '<label>Martingale recovery multiplier<input id="martingale_multiplier" value="1" type="number" min="1" max="10" step="0.1" aria-describedby="martingale_help"><small id="martingale_help">1 disables Martingale. After a loss, the next stake is multiplied by this number; after a win, it returns to your starting stake.</small></label>'
         );
+        document.querySelector('.actions')?.insertAdjacentHTML(
+            'beforeend',
+            '<button id="reset-activity" type="button" class="stop">Reset activity</button>'
+        );
 
         window.startRun = async () => {
             try {
@@ -39,6 +43,23 @@
                 alert(error.message);
             }
         };
+
+        document.querySelector('#reset-activity')?.addEventListener('click', async () => {
+            if (!window.confirm('Clear the recent trades, scanner summary, and journal for this bot?')) return;
+            try {
+                await json(`${api}bots/${botId}/run/reset/`, { method: 'POST' });
+                status();
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+
+        // A new browser tab never resumes a stored run by itself. The user must
+        // press Start scanner after opening the automation page.
+        if (!sessionStorage.getItem('profitera_automation_session_opened')) {
+            sessionStorage.setItem('profitera_automation_session_opened', '1');
+            json(`${api}bots/${botId}/run/`, { method: 'DELETE' }).then(status).catch(() => {});
+        }
     };
 
     const timer = window.setInterval(() => {
