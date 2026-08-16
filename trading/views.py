@@ -531,16 +531,15 @@ class AutomationRunView(APIView):
         run = AutomationRun.objects.filter(user=request.user, bot_id=bot_id, status__in=["running", "stopping", "error"]).first()
         if not run:
             return Response({"status": "stopped"})
-        if run.active_contract_id:
-            run.status = "stopping"
-            run.save(update_fields=["status", "updated_at"])
-            return Response({"status": "stopping"})
         run.status = "stopped"
         run.waiting_for = ""
         run.selected_symbol = ""
+        # A short-duration contract may still settle at Deriv, but stopping the
+        # automation must never wait for that event or permit another entry.
+        run.active_contract_id = ""
         run.error_message = ""
         run.stopped_at = timezone.now()
-        run.save(update_fields=["status", "waiting_for", "selected_symbol", "error_message", "stopped_at", "updated_at"])
+        run.save(update_fields=["status", "waiting_for", "selected_symbol", "active_contract_id", "error_message", "stopped_at", "updated_at"])
         return Response({"status": "stopped"})
 
 
