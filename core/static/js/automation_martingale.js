@@ -5,7 +5,7 @@
 
         stake.closest('label')?.insertAdjacentHTML(
             'afterend',
-            '<label>Martingale recovery multiplier<input id="martingale_multiplier" value="1" type="number" min="1" max="10" step="0.1" aria-describedby="martingale_help"><small id="martingale_help">1 disables Martingale. After a loss, the next stake is multiplied by this number; after a win, it returns to your starting stake.</small></label>'
+            '<label>Martingale recovery multiplier<input id="martingale_multiplier" value="1" type="number" min="1" max="15" step="0.1" aria-describedby="martingale_help"><small id="martingale_help">1 disables Martingale. After a loss, the next stake is multiplied by this number; after a win, it returns to your starting stake.</small></label>'
         );
         document.querySelector('.actions')?.insertAdjacentHTML(
             'beforeend',

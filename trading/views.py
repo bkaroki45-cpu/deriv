@@ -510,7 +510,7 @@ class AutomationRunView(APIView):
         except (TypeError, ValueError, ArithmeticError):
             return Response({"error": "Enter valid stake, Martingale multiplier, tick window, and optional limits."}, status=400)
         if stake < Decimal("0.35"): return Response({"error": "Minimum stake is 0.35."}, status=400)
-        if not Decimal("1") <= martingale_multiplier <= Decimal("10"): return Response({"error": "Martingale multiplier must be between 1 and 10."}, status=400)
+        if not Decimal("1") <= martingale_multiplier <= Decimal("15"): return Response({"error": "Martingale multiplier must be between 1 and 15."}, status=400)
         if daily_loss is not None and daily_loss <= 0: return Response({"error": "Daily loss limit must be greater than zero."}, status=400)
         if trade_limit is not None and trade_limit <= 0: return Response({"error": "Trade limit must be greater than zero."}, status=400)
         if bot.max_stake and stake > bot.max_stake: return Response({"error": "Stake exceeds this bot's administrator limit."}, status=400)
