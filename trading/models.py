@@ -89,6 +89,13 @@ class AutomationRun(models.Model):
     digit_threshold = models.DecimalField(max_digits=5, decimal_places=2, default=8)
     digit_thresholds = models.JSONField(default=dict, blank=True)
     stake = models.DecimalField(max_digits=12, decimal_places=2, default="0.35", validators=[MinValueValidator("0.35")])
+    martingale_multiplier = models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        default="1.00",
+        validators=[MinValueValidator("1.00")],
+        help_text="Multiplier applied to the next stake after a losing trade. 1.00 disables Martingale.",
+    )
     max_daily_loss = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Optional user limit; leave blank to run until stopped.")
     max_trades_per_day = models.PositiveIntegerField(null=True, blank=True, help_text="Optional user limit; leave blank to run until stopped.")
     live_trading_confirmed_at = models.DateTimeField(null=True, blank=True)

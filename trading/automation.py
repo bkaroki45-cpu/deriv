@@ -330,8 +330,9 @@ class AutomationWorker:
                                     if differ_batch_count >= 5:
                                         differ_batch_symbol = ""
                                         differ_batch_count = 0
-                                await router.request({"proposal_open_contract": 1, "contract_id": active, "subscribe": 1})
-                                await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(active_contract_id=active, selected_symbol=selected, waiting_for="")
+                                if active:
+                                    await router.request({"proposal_open_contract": 1, "contract_id": active, "subscribe": 1})
+                                    await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(active_contract_id=active, selected_symbol=selected, waiting_for="")
                         if timezone.now().timestamp() - last_save >= 1:
                             await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(selected_symbol=selected, waiting_for=(f"{selected_candidate['strategy']} · " + ",".join(map(str, selected_candidate["triggers"]))) if selected_candidate else "", stats={"markets": snapshot, "selected": selected, "selected_strategy": selected_candidate["strategy"] if selected_candidate else "", "selected_metrics": snapshot.get(selected, {}) if selected_candidate else {}, "progress": {"markets_ready": sum(1 for item in snapshot.values() if item["ticks"] >= state.tick_window), "markets_total": len(symbols), "tick_window": state.tick_window}, "updated_at": timezone.now().isoformat()})
                             last_save = timezone.now().timestamp()
@@ -424,11 +425,18 @@ class AutomationWorker:
             contract_type, barrier = "DIGITUNDER", "7"
         else:
             contract_type, barrier = "DIGITDIFF", str(digit)
-        proposal = await router.request({"proposal": 1, "amount": float(run.stake), "basis": "stake", "contract_type": contract_type, "currency": run.account.currency, "duration": 1, "duration_unit": "t", "underlying_symbol": symbol, "barrier": barrier})
+        stake = run.stake
+        previous_trade = await sync_to_async(lambda: AutomationTrade.objects.filter(run=run).order_by("-opened_at").first())()
+        if previous_trade and previous_trade.status == "lost" and run.martingale_multiplier > Decimal("1"):
+            stake = previous_trade.stake * run.martingale_multiplier
+        if run.bot.max_stake and stake > run.bot.max_stake:
+            await self.stop(run.id, "Martingale recovery stake exceeds this bot's maximum stake.")
+            return ""
+        proposal = await router.request({"proposal": 1, "amount": float(stake), "basis": "stake", "contract_type": contract_type, "currency": run.account.currency, "duration": 1, "duration_unit": "t", "underlying_symbol": symbol, "barrier": barrier})
         quote = proposal["proposal"]
         result = await router.request({"buy": quote["id"], "price": float(quote["ask_price"])})
         contract_id = str(result["buy"]["contract_id"])
-        await sync_to_async(AutomationTrade.objects.create)(run=run, symbol=symbol, strategy=strategy, trigger_digit=digit, contract_id=contract_id, contract_type=contract_type, stake=run.stake, raw=result)
+        await sync_to_async(AutomationTrade.objects.create)(run=run, symbol=symbol, strategy=strategy, trigger_digit=digit, contract_id=contract_id, contract_type=contract_type, stake=stake, raw=result)
         return contract_id
 
     async def stop(self, run_id, message=""):
