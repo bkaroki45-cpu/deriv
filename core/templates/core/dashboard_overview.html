@@ -1,11 +1,11 @@
-﻿{% load static %}
+{% load static %}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Profitera AI Dashboard</title>
-  <link rel="stylesheet" href="{% static 'css/dashboard_ai.css' %}?v=ai-mobile-2">
+  <link rel="stylesheet" href="{% static 'css/dashboard_ai.css' %}?v=ai-mobile-3">
 </head>
 <body data-deriv-app-id="{{ deriv_ws_app_id|default:'1089' }}">
   <aside class="ai-sidebar">
@@ -21,7 +21,7 @@
 
   <main class="ai-main">
     <header class="ai-header">
-      <button class="mobile-menu" type="button" aria-label="Open navigation">Menu</button>
+      <a class="mobile-brand" href="/"><b>P</b><span>Profitera</span></a>
       <label class="market-search"><span>Search</span><input type="search" placeholder="Search markets, tools, or anything..."></label>
       <div class="header-status"><i></i><span>Connected to Deriv</span></div>
       <button class="notification" type="button" aria-label="Notifications">Bell<sup>2</sup></button>
