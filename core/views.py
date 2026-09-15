@@ -1,4 +1,5 @@
 import os
+import json
 import secrets
 import subprocess
 import sys
@@ -663,6 +664,32 @@ def start_python_bot(request, slug):
     if not token or not account_id:
         return JsonResponse({"detail": "Your existing Deriv session is unavailable. Connect Deriv in Profitera first."}, status=400)
 
+    bot_settings = None
+    if bot.bot_file_type == BotTemplate.BotFileType.PYTHON:
+        try:
+            payload = json.loads(request.body.decode("utf-8") or "{}")
+            raw_settings = payload["settings"]
+            bot_settings = {
+                "stake": float(raw_settings["stake"]),
+                "stop_loss": float(raw_settings["stop_loss"]),
+                "take_profit": float(raw_settings["take_profit"]),
+                "max_stake": float(raw_settings["max_stake"]),
+                "martingale_multiplier": float(raw_settings["martingale_multiplier"]),
+                "durations": [int(item) for item in raw_settings["durations"]],
+            }
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            return JsonResponse({"detail": "Enter valid stake, stop loss, take profit, maximum stake, multiplier, and duration settings."}, status=400)
+        if (
+            bot_settings["stake"] <= 0
+            or bot_settings["stop_loss"] <= 0
+            or bot_settings["take_profit"] <= 0
+            or bot_settings["max_stake"] < bot_settings["stake"]
+            or bot_settings["martingale_multiplier"] < 1
+            or not bot_settings["durations"]
+            or any(item <= 0 for item in bot_settings["durations"])
+        ):
+            return JsonResponse({"detail": "Use positive values, a maximum stake at least as large as the stake, and positive tick durations."}, status=400)
+
     # Preserve only OS values needed to launch Python, then add the current
     # account's connection values. The token is intentionally not returned to
     # the browser or written to the execution record.
@@ -676,6 +703,8 @@ def start_python_bot(request, slug):
         "PROFITERA_BOT_FILE": bot.python_file.path,
         "PROFITERA_BOT_FILE_TYPE": bot.bot_file_type,
     })
+    if bot_settings is not None:
+        child_env["PROFITERA_BOT_SETTINGS"] = json.dumps(bot_settings)
     execution = BotExecution.objects.create(
         bot=bot,
         user=request.user,
@@ -688,7 +717,11 @@ def start_python_bot(request, slug):
         command = (
             [sys.executable, "-m", "core.config_bot_runner", bot.python_file.path]
             if bot.bot_file_type in {BotTemplate.BotFileType.JSON, BotTemplate.BotFileType.YAML, BotTemplate.BotFileType.TOML}
-            else [sys.executable, bot.python_file.path]
+            else (
+                [sys.executable, "-m", "core.python_bot_runner", bot.python_file.path]
+                if bot.bot_file_type == BotTemplate.BotFileType.PYTHON
+                else [sys.executable, bot.python_file.path]
+            )
         )
         process = subprocess.Popen(
             command,
