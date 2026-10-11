@@ -433,7 +433,7 @@ class AdminDashboardDataView(APIView):
 class AutomationBotsView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
-        return Response({"bots": [{"id": bot.id, "name": bot.name, "description": bot.description, "enabled": bot.enabled, "live_trading_enabled": bot.live_trading_enabled} for bot in AutomationBot.objects.filter(enabled=True)]})
+        return Response({"bots": [{"id": bot.id, "name": bot.name, "description": bot.description, "strategy": bot.strategy, "enabled": bot.enabled, "live_trading_enabled": bot.live_trading_enabled} for bot in AutomationBot.objects.filter(enabled=True)]})
 
 
 class AutomationAccountsView(APIView):
@@ -482,25 +482,33 @@ class AutomationRunView(APIView):
             run.status = "stopping"
             run.error_message = "Disabled by administrator."
             run.save(update_fields=["status", "error_message", "updated_at"])
-        trades = list(run.trades.order_by("-opened_at")[:30].values("symbol", "strategy", "trigger_digit", "contract_id", "stake", "status", "profit", "opened_at", "settled_at"))
+        trades = list(run.trades.order_by("-opened_at")[:30].values("symbol", "strategy", "trigger_digit", "contract_id", "contract_type", "stake", "status", "profit", "opened_at", "settled_at"))
         closed = [item for item in trades if item["status"] in {"won", "lost"}]
-        return Response({"id": run.id, "status": run.status, "enabled": run.bot.enabled, "symbols": run.symbols, "strategy": run.strategy, "stake": str(run.stake), "martingale_multiplier": str(run.martingale_multiplier), "tick_window": run.tick_window, "digit_threshold": str(run.digit_threshold), "digit_thresholds": run.digit_thresholds, "max_daily_loss": str(run.max_daily_loss or ""), "max_trades_per_day": run.max_trades_per_day, "selected_symbol": run.selected_symbol, "waiting_for": run.waiting_for, "active_contract_id": run.active_contract_id, "stats": run.stats, "error": run.error_message, "balance": str(run.account.balance), "currency": run.account.currency, "profit_loss": str(sum((item["profit"] for item in trades), Decimal("0"))), "win_rate": round(100 * sum(1 for item in closed if item["profit"] > 0) / len(closed), 2) if closed else 0, "trades": trades})
+        run_trades = list(run.trades.filter(opened_at__gte=run.started_at).values_list("stake", flat=True)) if run.started_at else []
+        return Response({"id": run.id, "status": run.status, "enabled": run.bot.enabled, "symbols": run.symbols, "strategy": run.strategy, "stake": str(run.stake), "martingale_multiplier": str(run.martingale_multiplier), "capital_limit": str(run.capital_limit or ""), "capital_used": str(sum(run_trades, Decimal("0"))), "max_martingale_steps": run.max_martingale_steps, "tick_window": run.tick_window, "digit_threshold": str(run.digit_threshold), "digit_thresholds": run.digit_thresholds, "max_daily_loss": str(run.max_daily_loss or ""), "max_trades_per_day": run.max_trades_per_day, "selected_symbol": run.selected_symbol, "waiting_for": run.waiting_for, "active_contract_id": run.active_contract_id, "stats": run.stats, "error": run.error_message, "balance": str(run.account.balance), "currency": run.account.currency, "profit_loss": str(sum((item["profit"] for item in trades), Decimal("0"))), "win_rate": round(100 * sum(1 for item in closed if item["profit"] > 0) / len(closed), 2) if closed else 0, "trades": trades})
 
     def post(self, request, bot_id):
         bot = AutomationBot.objects.filter(pk=bot_id, enabled=True).first()
         if not bot: return Response({"error": "This bot is not enabled by the administrator."}, status=404)
         account = request.user.deriv_accounts.filter(account_id=request.data.get("account_id")).first()
         if not account: return Response({"error": "Select one of your linked accounts."}, status=400)
+        if account.account_type == "real" and bot.demo_only:
+            return Response({"error": "This bot is limited to Demo accounts."}, status=400)
         if account.account_type == "real" and not bot.live_trading_enabled:
             return Response({"error": "The administrator has not enabled live automation for this bot."}, status=400)
         if account.account_type == "real" and request.data.get("confirm_live_trading") is not True:
             return Response({"error": "Confirm live automation before using a real account."}, status=400)
+        active_run = AutomationRun.objects.filter(user=request.user, status__in=["running", "stopping"]).first()
+        if active_run:
+            return Response({"error": "Stop the active bot run before starting another one."}, status=409)
         scan_all_volatility = request.data.get("scan_all_volatility") is True
         symbols = ["__all_volatility__"] if scan_all_volatility else [str(symbol) for symbol in request.data.get("symbols", []) if str(symbol)]
         if not symbols: return Response({"error": "Select at least one Volatility Index."}, status=400)
         try:
             stake = Decimal(str(request.data.get("stake", "0.35")))
             martingale_multiplier = Decimal(str(request.data.get("martingale_multiplier", "1")))
+            capital_limit = Decimal(str(request.data["capital_limit"])) if request.data.get("capital_limit") else None
+            max_martingale_steps = int(request.data.get("max_martingale_steps", 0))
             # DTrader's digit-distribution panel uses the latest 1,000 ticks.
             # Keep the scanner on the same window so displayed percentages
             # are directly comparable to the Deriv trading screen.
@@ -508,15 +516,19 @@ class AutomationRunView(APIView):
             daily_loss = Decimal(str(request.data["max_daily_loss"])) if request.data.get("max_daily_loss") else bot.max_daily_loss
             trade_limit = int(request.data["max_trades_per_day"]) if request.data.get("max_trades_per_day") else bot.max_trades_per_day
         except (TypeError, ValueError, ArithmeticError):
-            return Response({"error": "Enter valid stake, Martingale multiplier, tick window, and optional limits."}, status=400)
+            return Response({"error": "Enter valid stake, capital limit, Martingale multiplier, recovery count, and optional limits."}, status=400)
         if stake < Decimal("0.35"): return Response({"error": "Minimum stake is 0.35."}, status=400)
         if not Decimal("1") <= martingale_multiplier <= Decimal("15"): return Response({"error": "Martingale multiplier must be between 1 and 15."}, status=400)
+        if not 0 <= max_martingale_steps <= 10: return Response({"error": "Martingale retries must be between 0 and 10."}, status=400)
+        if capital_limit is not None and capital_limit < stake: return Response({"error": "Capital limit must be at least the starting stake."}, status=400)
         if daily_loss is not None and daily_loss <= 0: return Response({"error": "Daily loss limit must be greater than zero."}, status=400)
         if trade_limit is not None and trade_limit <= 0: return Response({"error": "Trade limit must be greater than zero."}, status=400)
         if bot.max_stake and stake > bot.max_stake: return Response({"error": "Stake exceeds this bot's administrator limit."}, status=400)
-        strategy = request.data.get("strategy", "auto")
-        if strategy not in {"auto", "over_2", "under_7"}: return Response({"error": "Unsupported strategy."}, status=400)
-        trigger_digits = {"over_2": {"0", "1", "2"}, "under_7": {"7", "8", "9"}, "auto": {"0", "1", "2", "7", "8", "9"}}[strategy]
+        strategy = bot.strategy if bot.strategy == "even_odd" else request.data.get("strategy", "auto")
+        supported_strategies = {"even_odd"} if bot.strategy == "even_odd" else {"auto", "over_2", "under_7"}
+        if strategy not in supported_strategies: return Response({"error": "This strategy is not available for the selected bot."}, status=400)
+        if bot.strategy == "even_odd" and capital_limit is None: return Response({"error": "Set a capital limit for this recovery bot."}, status=400)
+        trigger_digits = {"over_2": {"0", "1", "2"}, "under_7": {"7", "8", "9"}, "auto": {"0", "1", "2", "7", "8", "9"}, "even_odd": set()}[strategy]
         supplied = request.data.get("digit_thresholds") or {}
         try:
             thresholds = {digit: float(supplied.get(digit, request.data.get("digit_threshold", 8))) for digit in trigger_digits}
@@ -524,7 +536,7 @@ class AutomationRunView(APIView):
             return Response({"error": "Each digit threshold must be a percentage."}, status=400)
         if any(value <= 0 or value > 100 for value in thresholds.values()):
             return Response({"error": "Digit thresholds must be between 0 and 100."}, status=400)
-        run, _ = AutomationRun.objects.update_or_create(user=request.user, bot=bot, defaults={"account": account, "symbols": symbols, "strategy": strategy, "tick_window": window, "digit_threshold": Decimal(str(request.data.get("digit_threshold", "8"))), "digit_thresholds": thresholds, "stake": stake, "martingale_multiplier": martingale_multiplier, "max_daily_loss": daily_loss, "max_trades_per_day": trade_limit, "live_trading_confirmed_at": timezone.now() if account.account_type == "real" else None, "status": "running", "active_contract_id": "", "error_message": "", "started_at": timezone.now(), "stopped_at": None})
+        run, _ = AutomationRun.objects.update_or_create(user=request.user, bot=bot, defaults={"account": account, "symbols": symbols, "strategy": strategy, "tick_window": window, "digit_threshold": Decimal(str(request.data.get("digit_threshold", "8"))), "digit_thresholds": thresholds, "stake": stake, "martingale_multiplier": martingale_multiplier, "capital_limit": capital_limit, "max_martingale_steps": max_martingale_steps, "max_daily_loss": daily_loss, "max_trades_per_day": trade_limit, "live_trading_confirmed_at": timezone.now() if account.account_type == "real" else None, "status": "running", "active_contract_id": "", "error_message": "", "started_at": timezone.now(), "stopped_at": None})
         return Response({"id": run.id, "status": run.status})
 
     def delete(self, request, bot_id):

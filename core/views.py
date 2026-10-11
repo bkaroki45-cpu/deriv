@@ -5,7 +5,7 @@ import subprocess
 import sys
 from datetime import timedelta
 from decimal import Decimal
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 from django.conf import settings
 from django.contrib import messages
@@ -42,8 +42,31 @@ from .deriv_api import (
 def _safe_post_login_path(request):
     """Keep OAuth returns on Profitera and only for app/dashboard routes."""
     candidate = (request.GET.get("next") or request.session.get("deriv_post_login_path") or "").strip()
-    if candidate.startswith(("/trade/", "/dashboard/", "/automatic-trade/", "/bot-builder/")):
+    if candidate.startswith((
+        "/trade/",
+        "/dashboard/",
+        "/automatic-trade/",
+        "/bot-builder/",
+    )):
         return candidate
+    if not candidate.startswith(("http://", "https://")):
+        return ""
+
+    target = urlsplit(candidate)
+    app_urls = (
+        settings.PROFITERA_BOT_URL,
+        settings.PROFITERA_DIGITS_URL,
+        settings.PROFITERA_RISE_FALL_URL,
+        settings.PROFITERA_ACCUMULATORS_URL,
+    )
+    for app_url in app_urls:
+        configured = urlsplit(app_url)
+        if (
+            configured.scheme == target.scheme
+            and configured.netloc == target.netloc
+            and target.path.startswith(configured.path.rstrip("/") + "/")
+        ):
+            return candidate
     return ""
 
 
@@ -216,7 +239,7 @@ def home(request):
     # polished public entry page for visitors who have not connected Deriv.
     if request.user.is_authenticated:
         return dashboard(request)
-    return render(request, "core/home.html", {
+    return render(request, "core/home_landing.html", {
         "is_connected": request.user.is_authenticated,
         "account_email": request.user.email if request.user.is_authenticated else "",
     })
@@ -578,9 +601,29 @@ def app_session(request):
 
 
 def _allow_bot_origin(request, response):
-    """Allow only the Profitera Bot subdomain to read the session bridge."""
+    """Allow configured Profitera front ends to read authenticated app APIs."""
     origin = request.headers.get("Origin", "")
-    if origin in {"https://bot.profiteraa.com", "https://staging-bot.profiteraa.com"}:
+    allowed_origins = {
+        "https://profiteraa.com",
+        "https://www.profiteraa.com",
+        "https://bot.profiteraa.com",
+        "https://staging-bot.profiteraa.com",
+    }
+    app_urls = (
+        settings.PROFITERA_BOT_URL,
+        settings.PROFITERA_DIGITS_URL,
+        settings.PROFITERA_RISE_FALL_URL,
+        settings.PROFITERA_ACCUMULATORS_URL,
+    )
+    for app_url in app_urls:
+        parsed = urlsplit(app_url)
+        if parsed.scheme and parsed.netloc:
+            allowed_origins.add(f"{parsed.scheme}://{parsed.netloc}")
+            if parsed.hostname in {"localhost", "127.0.0.1"}:
+                local_host = "localhost" if parsed.hostname == "127.0.0.1" else "127.0.0.1"
+                allowed_origins.add(f"{parsed.scheme}://{local_host}:{parsed.port}")
+
+    if origin in allowed_origins:
         response["Access-Control-Allow-Origin"] = origin
         response["Access-Control-Allow-Credentials"] = "true"
         response["Vary"] = "Origin"

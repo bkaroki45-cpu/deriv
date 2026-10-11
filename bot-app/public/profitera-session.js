@@ -1,11 +1,23 @@
 (() => {
   const mountBotNav = () => { const style=document.createElement('style'); style.textContent='@media(max-width:800px){.app-footer,footer{display:none!important}body{padding-bottom:76px!important}.profitera-mobile-nav{position:fixed;z-index:2147483647;bottom:0;left:0;right:0;height:72px;background:#fff;display:flex;justify-content:space-around;align-items:center;box-shadow:0 -4px 16px #0002}.profitera-mobile-nav a{display:flex;flex-direction:column;align-items:center;gap:4px;color:#374151;text-decoration:none;font:700 11px Arial}.profitera-mobile-nav span{font-size:23px}.profitera-mobile-nav a:first-child{color:#f72d5d}}'; document.head.appendChild(style); const nav=document.createElement('nav'); nav.className='profitera-mobile-nav'; nav.innerHTML='<a href="https://profiteraa.com/"><span>⌂</span>Home</a><a href="https://profiteraa.com/trade/"><span>⌁</span>Trade</a><a href="https://bot.profiteraa.com/"><span>♙</span>Bots</a><a href="https://profiteraa.com/dashboard/"><span>▧</span>Dashboard</a><a href="https://profiteraa.com/account/"><span>•••</span>More</a>'; document.body.appendChild(nav); }; if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountBotNav, {once:true}); else mountBotNav();
-  const bridge = 'https://profiteraa.com/api/deriv/app-session/?next=%2Fautomatic-trade%2F';
+  const localHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const djangoOrigin = localHost
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
+    : window.location.hostname === 'bot.profiteraa.com'
+      ? 'https://profiteraa.com'
+      : window.location.origin;
+  const next = localHost ? window.location.origin + window.location.pathname : '/automatic-trade/';
+  const bridgeUrl = new URL('/api/deriv/app-session/', djangoOrigin);
+  bridgeUrl.searchParams.set('next', next);
   // Let dependent UI wait for the shared-session check before mounting.
-  window.profiteraSessionReady = fetch(bridge, { credentials: 'include', headers: { Accept: 'application/json' } })
+  window.profiteraSessionReady = fetch(bridgeUrl, { credentials: 'include', headers: { Accept: 'application/json' } })
     .then(async response => ({ ok: response.ok, body: await response.json() }))
     .then(({ ok, body }) => {
-      if (!ok || !body.auth_info) return;
+      if (!ok) {
+        if (body.login_url) window.location.replace(new URL(body.login_url, djangoOrigin));
+        return;
+      }
+      if (!body.auth_info) return;
       const next = JSON.stringify(body.auth_info);
       const snapshot = JSON.stringify({ auth_info: body.auth_info, accounts: body.accounts || [], active_account_id: body.active_account_id || '' });
       const previousAuth = localStorage.getItem('auth_info');

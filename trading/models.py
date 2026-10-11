@@ -64,8 +64,14 @@ class TradingLog(models.Model):
 
 
 class AutomationBot(models.Model):
+    STRATEGIES = [
+        ("auto", "Automatic digit scanner"),
+        ("even_odd", "Even/Odd pair recovery"),
+    ]
+
     name = models.CharField(max_length=120, unique=True)
     description = models.TextField(blank=True)
+    strategy = models.CharField(max_length=12, choices=STRATEGIES, default="auto")
     enabled = models.BooleanField(default=False, help_text="Only enabled bots can be used by customers.")
     demo_only = models.BooleanField(default=True, editable=False)
     live_trading_enabled = models.BooleanField(default=False, help_text="Allow users to explicitly opt into real-account automation for this bot.")
@@ -79,7 +85,7 @@ class AutomationBot(models.Model):
 
 class AutomationRun(models.Model):
     STATUS = [("stopped", "Stopped"), ("running", "Running"), ("stopping", "Stopping"), ("error", "Error")]
-    STRATEGIES = [("auto", "Automatic"), ("over_2", "Over 2"), ("under_7", "Under 7")]
+    STRATEGIES = [("auto", "Automatic"), ("over_2", "Over 2"), ("under_7", "Under 7"), ("even_odd", "Even/Odd")]
     bot = models.ForeignKey(AutomationBot, on_delete=models.PROTECT, related_name="runs")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="automation_runs")
     account = models.ForeignKey("accounts.DerivAccount", on_delete=models.PROTECT)
@@ -95,6 +101,17 @@ class AutomationRun(models.Model):
         default="1.00",
         validators=[MinValueValidator("1.00")],
         help_text="Multiplier applied to the next stake after a losing trade. 1.00 disables Martingale.",
+    )
+    capital_limit = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Maximum total stake amount allocated during this run.",
+    )
+    max_martingale_steps = models.PositiveIntegerField(
+        default=0,
+        help_text="Maximum recovery trades after the initial losing trade.",
     )
     max_daily_loss = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Optional user limit; leave blank to run until stopped.")
     max_trades_per_day = models.PositiveIntegerField(null=True, blank=True, help_text="Optional user limit; leave blank to run until stopped.")

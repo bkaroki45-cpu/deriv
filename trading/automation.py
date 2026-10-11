@@ -70,6 +70,47 @@ def analyse_differ(history, previous_digits):
             "triggers": (), "thresholds": {}, "barrier": least, "immediate": True}
 
 
+def analyse_even_odd(history):
+    """Oppose two consecutive last digits when they share the same parity."""
+    if len(history) < 2:
+        return None
+    previous, latest = history[-2:]
+    if any(not isinstance(digit, int) or digit < 0 or digit > 9 for digit in (previous, latest)):
+        return None
+    if previous % 2 != latest % 2:
+        return None
+    is_even = latest % 2 == 0
+    return {
+        "strategy": "even_odd",
+        "contract_type": "DIGITODD" if is_even else "DIGITEVEN",
+        "direction": "odd" if is_even else "even",
+        "pair": [previous, latest],
+        "trigger_digit": latest,
+    }
+
+
+def recovery_stake(base_stake, multiplier, consecutive_losses):
+    """Calculate the next bounded-sequence stake from its loss streak."""
+    return Decimal(str(base_stake)) * Decimal(str(multiplier)) ** int(consecutive_losses)
+
+
+def capital_allows(capital_limit, stakes, next_stake):
+    """Keep cumulative stake allocation within the user's run capital limit."""
+    if capital_limit is None:
+        return True
+    spent = sum((Decimal(str(stake)) for stake in stakes), Decimal("0"))
+    return spent + Decimal(str(next_stake)) <= Decimal(str(capital_limit))
+
+
+def recovery_action(profit, loss_streak, max_retries):
+    """Choose whether a settled Even/Odd run ends or immediately recovers."""
+    if Decimal(str(profit)) > 0:
+        return "complete_win"
+    if int(loss_streak) > int(max_retries):
+        return "complete_limit"
+    return "retry"
+
+
 def digit_snapshot(history, window):
     """Displayable rolling-window progress, including markets with no signal."""
     count = len(history)
@@ -279,10 +320,42 @@ class AutomationWorker:
                     elif msg_type == "proposal_open_contract":
                         contract = message.get("proposal_open_contract", {})
                         if active and str(contract.get("contract_id")) == str(active) and (contract.get("is_sold") or contract.get("is_expired")):
+                            settled_contract_id = active
                             profit = Decimal(str(contract.get("profit") or 0))
-                            await sync_to_async(AutomationTrade.objects.filter(contract_id=active).update)(status="won" if profit > 0 else "lost", profit=profit, settled_at=timezone.now(), raw=contract)
+                            await sync_to_async(AutomationTrade.objects.filter(contract_id=settled_contract_id).update)(status="won" if profit > 0 else "lost", profit=profit, settled_at=timezone.now(), raw=contract)
                             await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(active_contract_id="")
                             active = ""
+                            if run.strategy == "even_odd":
+                                loss_streak = await self.loss_streak(run)
+                                action = recovery_action(profit, loss_streak, run.max_martingale_steps)
+                                if action != "retry":
+                                    message = "Won. Recovery sequence complete." if action == "complete_win" else "Recovery limit reached."
+                                    await self.complete_sequence(run_id, message)
+                                    return
+                                previous_trade = await sync_to_async(AutomationTrade.objects.get)(contract_id=settled_contract_id)
+                                fresh = await self.current_run(run_id)
+                                if not await self.allowed(run_id, fresh):
+                                    await self.complete_sequence(run_id, "Daily risk limit reached.")
+                                    return
+                                if not await self.entry_allowed(run_id, fresh):
+                                    await self.complete_sequence(run_id, "Trading authorization is no longer available.")
+                                    return
+                                active = await self.buy(
+                                    router,
+                                    fresh,
+                                    previous_trade.symbol,
+                                    previous_trade.trigger_digit,
+                                    "even_odd",
+                                    previous_trade.contract_type,
+                                )
+                                if not active:
+                                    return
+                                await router.request({"proposal_open_contract": 1, "contract_id": active, "subscribe": 1})
+                                await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(
+                                    active_contract_id=active,
+                                    selected_symbol=previous_trade.symbol,
+                                    waiting_for="",
+                                )
                     elif msg_type == "tick":
                         tick = message.get("tick", {})
                         symbol = tick.get("symbol")
@@ -294,6 +367,23 @@ class AutomationWorker:
                         candidates = {}
                         snapshot = {market: {**digit_snapshot(list(history), state.tick_window), "name": market_names.get(market, market), "symbol": market} for market, history in histories.items()}
                         for market, history in histories.items():
+                            if state.strategy == "even_odd":
+                                pair = list(history)[-2:]
+                                parity_candidate = analyse_even_odd(list(history))
+                                snapshot[market].update({
+                                    "even_percent": round(sum(digit % 2 == 0 for digit in history) * 100 / len(history), 2) if history else 0,
+                                    "odd_percent": round(sum(digit % 2 == 1 for digit in history) * 100 / len(history), 2) if history else 0,
+                                    "last_pair": pair,
+                                    "status": f"Pair {pair[0]}, {pair[1]} signals {parity_candidate['direction'].title()}" if parity_candidate else "Scanning for two consecutive digits with matching parity",
+                                })
+                                if parity_candidate:
+                                    candidates[(market, "even_odd")] = {
+                                        **parity_candidate,
+                                        "strategy": "even_odd",
+                                        "score": 1,
+                                        "triggers": (parity_candidate["trigger_digit"],),
+                                    }
+                                continue
                             if len(history) < state.tick_window:
                                 continue
                             for candidate_strategy in strategies:
@@ -313,17 +403,23 @@ class AutomationWorker:
                         selected = selected_key[0] if selected_key else ""
                         selected_candidate = candidates[selected_key] if selected_key else None
                         for (market, candidate_strategy), item in candidates.items():
+                            signal_status = (
+                                f"Pair {item['pair'][0]}, {item['pair'][1]} signals {item['direction'].title()}"
+                                if candidate_strategy == "even_odd"
+                                else f"Favorable {candidate_strategy.replace('_', ' ').title()} — waiting for {','.join(map(str, item['triggers']))}"
+                            )
                             snapshot[market].update({
                                 "score": max(snapshot[market].get("score", 0), item["score"]),
                                 "strategy": candidate_strategy,
+                                "signal_contract": item.get("contract_type", ""),
                                 "signals": [*snapshot[market].get("signals", []), candidate_strategy],
-                                "status": f"Favorable {candidate_strategy.replace('_', ' ').title()} — waiting for {','.join(map(str, item['triggers']))}",
+                                "status": signal_status,
                                 "thresholds": item.get("thresholds", {}),
                             })
                         if selected_candidate and symbol == selected and (selected_candidate.get("immediate") or current_digit in selected_candidate["triggers"]):
                             fresh = await self.current_run(run_id)
                             if await self.allowed(run_id, fresh) and await self.entry_allowed(fresh):
-                                active = await self.buy(router, fresh, selected, selected_candidate.get("barrier", current_digit), selected_candidate["strategy"])
+                                active = await self.buy(router, fresh, selected, selected_candidate.get("barrier", current_digit), selected_candidate["strategy"], selected_candidate.get("contract_type"))
                                 if selected_candidate["strategy"] == "differ":
                                     differ_batch_symbol = selected
                                     differ_batch_count += 1
@@ -418,17 +514,40 @@ class AutomationWorker:
         loss = -sum((Decimal(str(item["profit"])) for item in trades if Decimal(str(item["profit"])) < 0), Decimal("0"))
         return not run.max_daily_loss or loss < run.max_daily_loss
 
-    async def buy(self, router, run, symbol, digit, strategy):
+    async def run_trades(self, run):
+        query = AutomationTrade.objects.filter(run=run)
+        if run.started_at:
+            query = query.filter(opened_at__gte=run.started_at)
+        return await sync_to_async(list)(query.order_by("-opened_at").values("status", "stake"))
+
+    async def loss_streak(self, run):
+        streak = 0
+        for trade in await self.run_trades(run):
+            if trade["status"] != "lost":
+                break
+            streak += 1
+        return streak
+
+    async def buy(self, router, run, symbol, digit, strategy, requested_contract_type=None):
         if strategy == "over_2":
             contract_type, barrier = "DIGITOVER", "2"
         elif strategy == "under_7":
             contract_type, barrier = "DIGITUNDER", "7"
+        elif strategy == "even_odd":
+            contract_type, barrier = requested_contract_type, None
         else:
             contract_type, barrier = "DIGITDIFF", str(digit)
         stake = run.stake
-        previous_trade = await sync_to_async(lambda: AutomationTrade.objects.filter(run=run).order_by("-opened_at").first())()
-        if previous_trade and previous_trade.status == "lost" and run.martingale_multiplier > Decimal("1"):
-            stake = previous_trade.stake * run.martingale_multiplier
+        trades = await self.run_trades(run)
+        if strategy == "even_odd":
+            loss_streak = await self.loss_streak(run)
+            if loss_streak > run.max_martingale_steps:
+                await self.complete_sequence(run.id, "Recovery limit reached.")
+                return ""
+            stake = recovery_stake(run.stake, run.martingale_multiplier, loss_streak)
+            if not capital_allows(run.capital_limit, [trade["stake"] for trade in trades], stake):
+                await self.complete_sequence(run.id, "Capital limit reached.")
+                return ""
         if run.bot.max_stake and stake > run.bot.max_stake:
             await self.stop(run.id, "Martingale recovery stake exceeds this bot's maximum stake.")
             return ""
@@ -441,6 +560,18 @@ class AutomationWorker:
 
     async def stop(self, run_id, message=""):
         await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(status="stopped", stopped_at=timezone.now(), waiting_for="", error_message=message)
+
+    async def complete_sequence(self, run_id, message):
+        run = await self.current_run(run_id)
+        stats = dict(run.stats or {})
+        stats["sequence_status"] = message
+        await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(
+            status="stopped",
+            stopped_at=timezone.now(),
+            waiting_for="",
+            error_message="",
+            stats=stats,
+        )
 
     async def fail(self, run_id, message):
         await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(status="error", error_message=message[:500])

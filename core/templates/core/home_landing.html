@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070b12">
+  <meta name="description" content="Explore Profitera's trading workspaces and visual bot-building tools in one connected platform.">
+  <title>Profitera | Trading, connected</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/home_landing.css?v=2">
+</head>
+<body class="landing-page">
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Profitera home"><span class="brand-mark" aria-hidden="true">P</span><span>Profitera</span></a>
+    <nav class="main-nav" aria-label="Main navigation"><a href="#automation">Automation</a><a href="#workspaces">Workspaces</a><a href="/trade/">Markets</a></nav>
+    <div class="header-actions">
+      {% if is_connected %}<a class="account-link" href="/dashboard/">Dashboard</a><a class="header-cta" href="/auth/deriv/logout/">Log out</a>
+      {% else %}<a class="account-link" href="/login/">Log in</a><a class="header-cta" href="/register/">Connect account <span aria-hidden="true">&rarr;</span></a>{% endif %}
+    </div>
+  </header>
+
+  <main>
+    <section class="hero page-width" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="pulse-dot"></span> DERIV-POWERED TRADING WORKSPACE</div>
+        <h1 id="hero-title">Trade smarter.<br><span>Automate</span> everything.</h1>
+        <p class="hero-intro">Explore trading tools, build visual strategies, follow live markets, and manage your Deriv workspace from one focused platform.</p>
+        <div class="hero-actions"><a class="button button-primary" href="/trade/">Explore markets <span aria-hidden="true">&rarr;</span></a><a class="button button-quiet" href="/automatic-trade/"><span class="play-mark" aria-hidden="true">&#9654;</span> Launch Bot</a></div>
+        <div class="hero-footnote"><span class="footnote-rule"></span> One account context. Manual tools and automation.</div>
+      </div>
+
+      <div class="terminal-scene" aria-label="Illustrative trading interface preview, not live market data">
+        <div class="scene-orbit orbit-one"></div><div class="scene-orbit orbit-two"></div>
+        <div class="scene-core" aria-hidden="true"><span>P</span><i></i><b></b></div>
+        <div class="scene-node node-one" aria-hidden="true"></div><div class="scene-node node-two" aria-hidden="true"></div><div class="scene-node node-three" aria-hidden="true"></div>
+        <div class="market-window">
+          <div class="window-topline"><div class="window-lights" aria-hidden="true"><i></i><i></i><i></i></div><span class="window-label">MARKET VIEW <b>ILLUSTRATIVE</b></span><span class="window-time">01:24:08</span></div>
+          <div class="market-heading"><div><span class="micro-label">SYNTHETIC INDEX</span><strong>Volatility 100</strong></div><div class="sample-quote"><span>Sample price</span><b>12,480.62</b></div></div>
+          <div class="chart-area">
+            <div class="chart-y-labels" aria-hidden="true"><span>12,500</span><span>12,450</span><span>12,400</span><span>12,350</span></div>
+            <svg class="hero-chart" viewBox="0 0 560 188" preserveAspectRatio="none" role="img" aria-label="Decorative sample price chart">
+              <defs><linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#40d9d0" stop-opacity=".2"/><stop offset="1" stop-color="#40d9d0" stop-opacity="0"/></linearGradient></defs>
+              <path class="chart-fill" d="M0 145 C24 137 26 111 54 120 S84 145 108 111 S145 104 169 117 S203 88 226 102 S255 110 281 81 S318 93 339 67 S377 81 398 58 S429 81 452 48 S492 70 511 31 S543 48 560 20 V188 H0 Z"/>
+              <path class="chart-line" d="M0 145 C24 137 26 111 54 120 S84 145 108 111 S145 104 169 117 S203 88 226 102 S255 110 281 81 S318 93 339 67 S377 81 398 58 S429 81 452 48 S492 70 511 31 S543 48 560 20"/><circle cx="560" cy="20" r="4" class="chart-point"/>
+            </svg>
+            <div class="chart-x-labels" aria-hidden="true"><span>09:00</span><span>10:00</span><span>11:00</span><span>12:00</span><span>13:00</span></div>
+          </div>
+          <div class="market-footer"><span><i class="tiny-signal"></i> PREVIEW MODE</span><span>Example interface only</span></div>
+        </div>
+        <div class="scene-caption"><span class="caption-line"></span> A clearer view of your trading workspace</div>
+      </div>
+    </section>
+
+    <section class="automation-section" id="automation" aria-labelledby="automation-title"><div class="page-width">
+      <div class="section-heading automation-heading"><div><div class="eyebrow">STRATEGY, WITHOUT THE FRICTION</div><h2 id="automation-title">Your next strategy<br><span>starts with a block.</span></h2></div><p>Build with visual blocks, import an XML strategy, or start from a template. Review the setup before you run it in the Bot Builder.</p></div>
+      <div class="builder-layout">
+        <div class="builder-window">
+          <div class="builder-toolbar"><div class="builder-brand"><span class="builder-brand-icon">B</span><div><strong>Strategy Builder</strong><small>Example workflow</small></div></div><span class="preview-tag"><i></i> PREVIEW</span><a class="toolbar-launch" href="/automatic-trade/">Open builder <span aria-hidden="true">&rarr;</span></a></div>
+          <div class="builder-content">
+            <aside class="builder-tools" aria-label="Example builder blocks"><span class="tool-caption">BLOCKS</span><div><i class="tool-dot cyan"></i>Trade</div><div><i class="tool-dot blue"></i>Conditions</div><div><i class="tool-dot violet"></i>Logic</div><div><i class="tool-dot green"></i>Analysis</div><div class="tool-divider"></div><div class="tool-muted">XML import</div></aside>
+            <div class="flow-canvas"><div class="canvas-meta"><span>EXAMPLE FLOW</span><span>NOT RUNNING</span></div>
+              <div class="flow-block block-trigger"><span class="block-icon">01</span><div><small>START</small><strong>When market opens</strong></div><span class="block-port"></span></div><div class="flow-connector"><i></i></div>
+              <div class="flow-block block-condition"><span class="block-icon">02</span><div><small>CONDITION</small><strong>Check price movement</strong></div><span class="block-port"></span></div><div class="flow-connector"><i></i></div>
+              <div class="flow-block block-action"><span class="block-icon">03</span><div><small>ACTION</small><strong>Review trade parameters</strong></div><span class="block-port"></span></div><div class="canvas-coordinate">X 248.6 <span>/</span> Y 104.2</div>
+            </div>
+          </div>
+        </div>
+        <aside class="automation-aside">
+          <div class="capability-list">
+            <div class="capability"><span class="capability-index">01</span><div><strong>Visual bot builder</strong><p>Connect strategy blocks in a drag-and-drop workspace.</p></div><span class="capability-mark">+</span></div>
+            <div class="capability"><span class="capability-index">02</span><div><strong>Import &amp; templates</strong><p>Bring in XML strategies or use a template as your starting point.</p></div><span class="capability-mark">+</span></div>
+            <div class="capability"><span class="capability-index">03</span><div><strong>Review &amp; refine</strong><p>Open charts, review the trade journal, and inspect performance.</p></div><span class="capability-mark">+</span></div>
+          </div>
+          <div class="research-note"><div class="research-icon" aria-hidden="true"><span></span><i></i><b></b></div><div><span class="research-label">AI RESEARCH LAYER <b>CONCEPT PREVIEW</b></span><p>AI-assisted strategy concepts are illustrative only and are not connected to bot execution.</p></div></div>
+        </aside>
+      </div>
+      <div class="automation-cta"><span>Start in the visual builder. Connect an account when you are ready.</span><a class="button button-primary" href="/automatic-trade/">Explore automation <span aria-hidden="true">&rarr;</span></a></div>
+    </div></section>
+
+    <section class="workspaces-section page-width" id="workspaces" aria-labelledby="workspaces-title">
+      <div class="section-heading workspace-heading"><div><div class="eyebrow">ONE PLATFORM, FOUR WORKSPACES</div><h2 id="workspaces-title">Pick up where<br><span>the market moves.</span></h2></div><a class="text-link" href="/trade/">Browse markets <span aria-hidden="true">&rarr;</span></a></div>
+      <div class="workspace-grid">
+        <article class="workspace-card digits-card"><a class="card-link" href="/trade/digits/">Open Digits <span aria-hidden="true">&rarr;</span></a></article>
+        <article class="workspace-card rise-card"><a class="card-link" href="/trade/rise-fall/">Open Rise / Fall <span aria-hidden="true">&rarr;</span></a></article>
+        <article class="workspace-card accumulator-card"><a class="card-link" href="/trade/accumulators/">Open Accumulators <span aria-hidden="true">&rarr;</span></a></article>
+        <article class="workspace-card bot-card"><a class="card-link" href="/automatic-trade/">Open Bot Builder <span aria-hidden="true">&rarr;</span></a></article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><div class="footer-inner page-width">
+    <div class="footer-brand"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true">P</span><span>Profitera</span></a><p>Trading tools and automation in one workspace.</p></div>
+    <nav class="footer-nav" aria-label="Footer navigation"><a href="/trade/">Markets</a><a href="/automatic-trade/">Bot Builder</a><a href="/dashboard/">Dashboard</a><a href="/login/">Log in</a></nav>
+    <p class="risk-note">Trading involves risk. Contract values can move against you. Make decisions based on your own assessment.</p>
+    <div class="footer-bottom"><span>&copy; {% now "Y" %} Profitera</span><span>Built for a more considered trading workflow.</span></div>
+  </div></footer>
+</body>
+</html>
