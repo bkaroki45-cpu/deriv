@@ -91,3 +91,26 @@ class EvenOddBotLibraryTests(TestCase):
 			bot_card["launch_url"],
 			f"http://testserver/automation/?bot={automation_bot.pk}",
 		)
+
+
+class HighDigitPairBotLibraryTests(TestCase):
+	def test_high_digit_pair_is_published_as_a_separate_bot(self):
+		user = get_user_model().objects.create_user(
+			username="high-pair-library-user",
+			email="high-pair-library-user@example.test",
+		)
+		automation_bot = AutomationBot.objects.get(name="High Digit Pair Over 2")
+		self.client.force_login(user)
+
+		response = self.client.get("/api/bots/")
+
+		self.assertEqual(response.status_code, 200)
+		bot_card = next(
+			bot for bot in response.json()["bots"]
+			if bot["slug"] == "high-digit-pair-over-2"
+		)
+		self.assertEqual(bot_card["title"], "High Digit Pair Over 2")
+		self.assertEqual(
+			bot_card["launch_url"],
+			f"http://testserver/automation/?bot={automation_bot.pk}",
+		)

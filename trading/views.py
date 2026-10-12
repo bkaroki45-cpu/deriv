@@ -524,11 +524,12 @@ class AutomationRunView(APIView):
         if daily_loss is not None and daily_loss <= 0: return Response({"error": "Daily loss limit must be greater than zero."}, status=400)
         if trade_limit is not None and trade_limit <= 0: return Response({"error": "Trade limit must be greater than zero."}, status=400)
         if bot.max_stake and stake > bot.max_stake: return Response({"error": "Stake exceeds this bot's administrator limit."}, status=400)
-        strategy = bot.strategy if bot.strategy == "even_odd" else request.data.get("strategy", "auto")
-        supported_strategies = {"even_odd"} if bot.strategy == "even_odd" else {"auto", "over_2", "under_7"}
+        managed_strategies = {"even_odd", "high_pair"}
+        strategy = bot.strategy if bot.strategy in managed_strategies else request.data.get("strategy", "auto")
+        supported_strategies = {bot.strategy} if bot.strategy in managed_strategies else {"auto", "over_2", "under_7"}
         if strategy not in supported_strategies: return Response({"error": "This strategy is not available for the selected bot."}, status=400)
-        if bot.strategy == "even_odd" and capital_limit is None: return Response({"error": "Set a capital limit for this recovery bot."}, status=400)
-        trigger_digits = {"over_2": {"0", "1", "2"}, "under_7": {"7", "8", "9"}, "auto": {"0", "1", "2", "7", "8", "9"}, "even_odd": set()}[strategy]
+        if bot.strategy in {"even_odd", "high_pair"} and capital_limit is None: return Response({"error": "Set a capital limit for this bot."}, status=400)
+        trigger_digits = {"over_2": {"0", "1", "2"}, "under_7": {"7", "8", "9"}, "auto": {"0", "1", "2", "7", "8", "9"}, "even_odd": set(), "high_pair": set()}[strategy]
         supplied = request.data.get("digit_thresholds") or {}
         try:
             thresholds = {digit: float(supplied.get(digit, request.data.get("digit_threshold", 8))) for digit in trigger_digits}

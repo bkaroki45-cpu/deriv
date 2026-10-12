@@ -67,6 +67,7 @@ class AutomationBot(models.Model):
     STRATEGIES = [
         ("auto", "Automatic digit scanner"),
         ("even_odd", "Even/Odd pair recovery"),
+        ("high_pair", "High Digit Pair Over 2"),
     ]
 
     name = models.CharField(max_length=120, unique=True)
@@ -85,7 +86,7 @@ class AutomationBot(models.Model):
 
 class AutomationRun(models.Model):
     STATUS = [("stopped", "Stopped"), ("running", "Running"), ("stopping", "Stopping"), ("error", "Error")]
-    STRATEGIES = [("auto", "Automatic"), ("over_2", "Over 2"), ("under_7", "Under 7"), ("even_odd", "Even/Odd")]
+    STRATEGIES = [("auto", "Automatic"), ("over_2", "Over 2"), ("under_7", "Under 7"), ("even_odd", "Even/Odd"), ("high_pair", "High Digit Pair Over 2")]
     bot = models.ForeignKey(AutomationBot, on_delete=models.PROTECT, related_name="runs")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="automation_runs")
     account = models.ForeignKey("accounts.DerivAccount", on_delete=models.PROTECT)

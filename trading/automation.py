@@ -89,6 +89,33 @@ def analyse_even_odd(history):
     }
 
 
+def analyse_high_digit_pair(history, threshold=10.0):
+    """Screen a market and report a trigger after two qualifying high digits."""
+    if len(history) < 2:
+        return None
+    counts = [history.count(digit) for digit in range(10)]
+    digits = [count * 100 / len(history) for count in counts]
+    dominant_digit = max(range(5, 10), key=lambda digit: (counts[digit], digit))
+    eligible = (
+        all(digits[digit] < threshold for digit in (0, 1, 2))
+        and counts[dominant_digit] == max(counts)
+    )
+    pair = history[-2:]
+    pair_ready = all(digit in (7, 8, 9) for digit in pair)
+    return {
+        "digits": digits,
+        "lower": sum(digits[:5]),
+        "upper": sum(digits[5:]),
+        "score": round(digits[dominant_digit] - sum(digits[:3]), 4),
+        "dominant_digit": dominant_digit,
+        "eligible": eligible,
+        "pair": pair,
+        "pair_ready": pair_ready,
+        "triggers": (7, 8, 9),
+        "thresholds": {digit: threshold for digit in (0, 1, 2)},
+    }
+
+
 def recovery_stake(base_stake, multiplier, consecutive_losses):
     """Calculate the next bounded-sequence stake from its loss streak."""
     return Decimal(str(base_stake)) * Decimal(str(multiplier)) ** int(consecutive_losses)
@@ -274,6 +301,9 @@ class AutomationWorker:
                 active = run.active_contract_id
                 differ_batch_symbol = ""
                 differ_batch_count = 0
+                high_pair_eligible = set()
+                high_pair_streaks = defaultdict(int)
+                high_pair_fired = set()
                 if active:
                     await router.request({"proposal_open_contract": 1, "contract_id": active, "subscribe": 1})
                 last_save = 0
@@ -383,6 +413,37 @@ class AutomationWorker:
                                         "score": 1,
                                         "triggers": (parity_candidate["trigger_digit"],),
                                     }
+                                continue
+                            if state.strategy == "high_pair":
+                                analysis = analyse_high_digit_pair(list(history)) if len(history) >= state.tick_window else None
+                                if not analysis or (not analysis["eligible"] and market not in high_pair_eligible):
+                                    snapshot[market]["status"] = "Screening: digits 0, 1, and 2 must each be below 10%; a top digit must be 5-9"
+                                    continue
+                                snapshot[market].update(analysis)
+                                if market not in high_pair_eligible:
+                                    high_pair_eligible.add(market)
+                                    snapshot[market]["status"] = "Qualified. Waiting for two consecutive 7, 8, or 9 digits."
+                                    if market == symbol:
+                                        high_pair_streaks[market] = int(current_digit in (7, 8, 9))
+                                    continue
+                                if market == symbol:
+                                    if current_digit in (7, 8, 9):
+                                        high_pair_streaks[market] += 1
+                                    else:
+                                        high_pair_streaks[market] = 0
+                                        high_pair_fired.discard(market)
+                                streak = high_pair_streaks[market]
+                                if streak >= 2 and market not in high_pair_fired:
+                                    high_pair_fired.add(market)
+                                    candidates[(market, "high_pair")] = {
+                                        **analysis,
+                                        "strategy": "high_pair",
+                                        "triggers": (current_digit,),
+                                    }
+                                    snapshot[market]["status"] = f"Trigger pair {analysis['pair'][0]}, {analysis['pair'][1]} — submitting Over 2"
+                                else:
+                                    screen_note = "Screen moved; setup remains armed. " if not analysis["eligible"] else "Qualified; "
+                                    snapshot[market]["status"] = f"{screen_note}waiting for two consecutive 7/8/9 digits ({min(streak, 2)}/2)"
                                 continue
                             if len(history) < state.tick_window:
                                 continue
@@ -529,7 +590,7 @@ class AutomationWorker:
         return streak
 
     async def buy(self, router, run, symbol, digit, strategy, requested_contract_type=None):
-        if strategy == "over_2":
+        if strategy in {"over_2", "high_pair"}:
             contract_type, barrier = "DIGITOVER", "2"
         elif strategy == "under_7":
             contract_type, barrier = "DIGITUNDER", "7"
@@ -548,6 +609,13 @@ class AutomationWorker:
             if not capital_allows(run.capital_limit, [trade["stake"] for trade in trades], stake):
                 await self.complete_sequence(run.id, "Capital limit reached.")
                 return ""
+        elif strategy == "high_pair" and not capital_allows(
+            run.capital_limit,
+            [trade["stake"] for trade in trades],
+            stake,
+        ):
+            await self.complete_sequence(run.id, "Capital limit reached.")
+            return ""
         if run.bot.max_stake and stake > run.bot.max_stake:
             await self.stop(run.id, "Martingale recovery stake exceeds this bot's maximum stake.")
             return ""

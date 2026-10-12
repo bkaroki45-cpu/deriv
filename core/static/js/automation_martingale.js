@@ -74,17 +74,22 @@
         if (description) description.textContent = bot.description;
 
         const isEvenOdd = bot.strategy === 'even_odd';
+        const isHighPair = bot.strategy === 'high_pair';
+        const isManagedBot = isEvenOdd || isHighPair;
         const strategy = document.querySelector('#strategy');
         if (strategy) {
-            strategy.disabled = isEvenOdd;
+            strategy.disabled = isManagedBot;
             strategy.innerHTML = isEvenOdd
-                ? '<option value="even_odd">Two evens → Odd · two odds → Even</option>'
+                ? '<option value="even_odd">Two same parity digits → opposite parity</option>'
+                : isHighPair
+                    ? '<option value="high_pair">Rare 0/1/2, then two 7/8/9 → Over 2</option>'
                 : '<option value="auto">Automatic digit scanner</option><option value="over_2">Over 2</option><option value="under_7">Under 7</option>';
-            strategy.value = isEvenOdd ? 'even_odd' : 'auto';
+            strategy.value = isManagedBot ? bot.strategy : 'auto';
         }
-        document.querySelector('#thresholds')?.classList.toggle('hidden', isEvenOdd);
+        document.querySelector('#thresholds')?.classList.toggle('hidden', isManagedBot);
         setSymbolControl(isEvenOdd);
-        document.querySelector('#capital_limit')?.closest('label')?.classList.toggle('hidden', !isEvenOdd);
+        document.querySelector('#symbols')?.closest('label')?.classList.toggle('hidden', isHighPair);
+        document.querySelector('#capital_limit')?.closest('label')?.classList.toggle('hidden', !isManagedBot);
         document.querySelector('#max_martingale_steps')?.closest('label')?.classList.toggle('hidden', !isEvenOdd);
         document.querySelector('#martingale_multiplier')?.closest('label')?.classList.toggle('hidden', !isEvenOdd);
         document.querySelector('#even-odd-hud')?.toggleAttribute('hidden', !isEvenOdd);
@@ -95,18 +100,18 @@
     function updateAccountOptions() {
         const picker = document.querySelector('#account');
         if (!picker) return;
-        const isEvenOdd = selectedBot?.strategy === 'even_odd';
+        const isManagedBot = ['even_odd', 'high_pair'].includes(selectedBot?.strategy);
         for (const option of picker.options) {
             const isReal = option.dataset.live === '1';
-            option.disabled = isEvenOdd && isReal;
-            option.hidden = isEvenOdd && isReal;
+            option.disabled = isManagedBot && isReal;
+            option.hidden = isManagedBot && isReal;
         }
-        if (isEvenOdd && picker.selectedOptions[0]?.dataset.live === '1') {
+        if (isManagedBot && picker.selectedOptions[0]?.dataset.live === '1') {
             const demo = [...picker.options].find(option => option.dataset.live === '0');
             if (demo) picker.value = demo.value;
         }
         const liveConfirmation = document.querySelector('#liveconfirm');
-        liveConfirmation?.classList.toggle('hidden', isEvenOdd || picker.selectedOptions[0]?.dataset.live !== '1');
+        liveConfirmation?.classList.toggle('hidden', isManagedBot || picker.selectedOptions[0]?.dataset.live !== '1');
     }
 
     async function loadBotLibrary() {
@@ -118,7 +123,7 @@
             picker.replaceChildren(...bots.map(bot => {
                 const option = document.createElement('option');
                 option.value = String(bot.id);
-                option.textContent = `${bot.name}${bot.strategy === 'even_odd' ? ' · EVEN/ODD' : ''}`;
+                option.textContent = `${bot.name}${bot.strategy === 'even_odd' ? ' · EVEN/ODD' : bot.strategy === 'high_pair' ? ' · HIGH PAIR' : ''}`;
                 return option;
             }));
             const requested = new URLSearchParams(window.location.search).get('bot');
@@ -191,10 +196,10 @@
         ensureBotPicker();
         const accountPicker = document.querySelector('#account');
         accountPicker?.addEventListener('change', () => {
-            if (selectedBot?.strategy === 'even_odd' && accountPicker.selectedOptions[0]?.dataset.live === '1') {
+            if (['even_odd', 'high_pair'].includes(selectedBot?.strategy) && accountPicker.selectedOptions[0]?.dataset.live === '1') {
                 const demo = [...accountPicker.options].find(option => option.dataset.live === '0');
                 if (demo) accountPicker.value = demo.value;
-                alert('Even / Odd Pair Recovery is limited to Demo accounts.');
+                alert('This bot is limited to Demo accounts.');
             }
             updateAccountOptions();
         });
@@ -209,7 +214,9 @@
         window.startRun = async () => {
             try {
                 const isEvenOdd = selectedBot?.strategy === 'even_odd';
-                const selectedStrategy = isEvenOdd ? 'even_odd' : document.querySelector('#strategy').value;
+                const isHighPair = selectedBot?.strategy === 'high_pair';
+                const isManagedBot = isEvenOdd || isHighPair;
+                const selectedStrategy = isManagedBot ? selectedBot.strategy : document.querySelector('#strategy').value;
                 const digits = selectedStrategy === 'under_7' ? [7, 8, 9] : [0, 1, 2];
                 const thresholds = {};
                 digits.forEach(digit => {
@@ -226,10 +233,10 @@
                     body: JSON.stringify({
                         account_id: document.querySelector('#account').value,
                         symbols: chosenSymbols,
-                        scan_all_volatility: !isEvenOdd,
+                        scan_all_volatility: isHighPair || !isEvenOdd,
                         strategy: selectedStrategy,
                         stake: document.querySelector('#stake').value,
-                        capital_limit: isEvenOdd ? document.querySelector('#capital_limit').value : '',
+                        capital_limit: isManagedBot ? document.querySelector('#capital_limit').value : '',
                         max_martingale_steps: isEvenOdd ? document.querySelector('#max_martingale_steps').value : 0,
                         martingale_multiplier: document.querySelector('#martingale_multiplier').value,
                         tick_window: document.querySelector('#window').value,

@@ -5,7 +5,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from accounts.models import DerivAccount
-from .automation import analyse_even_odd, capital_allows, recovery_action, recovery_stake
+from .automation import analyse_even_odd, analyse_high_digit_pair, capital_allows, recovery_action, recovery_stake
 from .models import AutomationBot, AutomationRun
 
 
@@ -36,6 +36,104 @@ class EvenOddSignalTests(TestCase):
 		self.assertEqual(recovery_action("-0.50", 1, 3), "retry")
 		self.assertEqual(recovery_action("1.00", 1, 3), "complete_win")
 		self.assertEqual(recovery_action("-4.00", 4, 3), "complete_limit")
+
+
+class HighDigitPairSignalTests(TestCase):
+	def distribution(self, counts):
+		return [digit for digit, count in enumerate(counts) for _ in range(count)]
+
+	def test_accepts_mixed_pair_after_screen_qualifies(self):
+		history = self.distribution([5, 5, 5, 10, 10, 10, 10, 10, 20, 15])
+		history[-2:] = [7, 9]
+
+		signal = analyse_high_digit_pair(history)
+
+		self.assertTrue(signal["eligible"])
+		self.assertTrue(signal["pair_ready"])
+		self.assertEqual(signal["pair"], [7, 9])
+		self.assertEqual(signal["dominant_digit"], 8)
+
+	def test_each_low_digit_must_be_strictly_below_ten_percent(self):
+		history = self.distribution([10, 5, 5, 10, 10, 10, 10, 10, 15, 15])
+
+		signal = analyse_high_digit_pair(history)
+
+		self.assertFalse(signal["eligible"])
+
+	def test_dominant_digit_must_be_from_five_through_nine(self):
+		history = self.distribution([20, 5, 5, 10, 10, 10, 10, 10, 10, 10])
+
+		signal = analyse_high_digit_pair(history)
+
+		self.assertFalse(signal["eligible"])
+
+	def test_pair_requires_two_consecutive_digits_from_seven_to_nine(self):
+		history = self.distribution([5, 5, 5, 10, 10, 10, 10, 10, 20, 15])
+		history[-2:] = [7, 6]
+
+		signal = analyse_high_digit_pair(history)
+
+		self.assertTrue(signal["eligible"])
+		self.assertFalse(signal["pair_ready"])
+
+
+class HighDigitPairBotApiTests(TestCase):
+	def setUp(self):
+		self.user = get_user_model().objects.create_user(
+			username="high-pair-user",
+			email="high-pair-user@example.test",
+		)
+		self.account = DerivAccount.objects.create(
+			user=self.user,
+			account_id="VRTC67890",
+			account_type="demo",
+			currency="USD",
+			is_active=True,
+		)
+		self.bot = AutomationBot.objects.get(name="High Digit Pair Over 2")
+		self.client = APIClient()
+		self.client.force_authenticate(self.user)
+		self.url = f"/api/trading/automation/bots/{self.bot.id}/run/"
+
+	def payload(self):
+		return {
+			"account_id": self.account.account_id,
+			"scan_all_volatility": True,
+			"stake": "0.50",
+			"capital_limit": "10.00",
+			"max_daily_loss": "5.00",
+		}
+
+	def test_run_requires_a_capital_limit(self):
+		payload = self.payload()
+		payload.pop("capital_limit")
+
+		response = self.client.post(self.url, payload, format="json")
+
+		self.assertEqual(response.status_code, 400)
+
+	def test_high_pair_bot_rejects_real_accounts(self):
+		real_account = DerivAccount.objects.create(
+			user=self.user,
+			account_id="CR67890",
+			account_type="real",
+			currency="USD",
+		)
+		payload = self.payload()
+		payload["account_id"] = real_account.account_id
+
+		response = self.client.post(self.url, payload, format="json")
+
+		self.assertEqual(response.status_code, 400)
+
+	def test_run_persists_strategy_all_markets_and_capital_limit(self):
+		response = self.client.post(self.url, self.payload(), format="json")
+
+		self.assertEqual(response.status_code, 200)
+		run = AutomationRun.objects.get(user=self.user, bot=self.bot)
+		self.assertEqual(run.strategy, "high_pair")
+		self.assertEqual(run.symbols, ["__all_volatility__"])
+		self.assertEqual(run.capital_limit, Decimal("10.00"))
 
 
 class EvenOddBotApiTests(TestCase):
