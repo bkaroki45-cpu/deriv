@@ -148,7 +148,7 @@ def proposal_payload(amount, currency, symbol, contract_type, barrier=None):
         "currency": currency,
         "duration": 1,
         "duration_unit": "t",
-        "symbol": symbol,
+        "underlying_symbol": symbol,
     }
     if barrier is not None:
         payload["barrier"] = barrier
@@ -163,6 +163,11 @@ def deriv_request_context(payload):
         if key in payload:
             details.append(f"{key}={payload[key]}")
     return ", ".join(details)
+
+
+def buy_payload(proposal_id, ask_price):
+    """Build the buy request using the quote's id and string price."""
+    return {"buy": proposal_id, "price": str(ask_price)}
 
 
 def digit_snapshot(history, window):
@@ -647,7 +652,7 @@ class AutomationWorker:
             return ""
         proposal = await router.request(proposal_payload(stake, run.account.currency, symbol, contract_type, barrier))
         quote = proposal["proposal"]
-        result = await router.request({"buy": quote["id"], "price": float(quote["ask_price"])})
+        result = await router.request(buy_payload(quote["id"], quote["ask_price"]))
         contract_id = str(result["buy"]["contract_id"])
         await sync_to_async(AutomationTrade.objects.create)(run=run, symbol=symbol, strategy=strategy, trigger_digit=digit, contract_id=contract_id, contract_type=contract_type, stake=stake, raw=result)
         return contract_id
