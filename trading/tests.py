@@ -5,7 +5,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from accounts.models import DerivAccount
-from .automation import analyse_even_odd, analyse_high_digit_pair, capital_allows, proposal_payload, recovery_action, recovery_stake
+from .automation import analyse_even_odd, analyse_high_digit_pair, capital_allows, deriv_request_context, proposal_payload, recovery_action, recovery_stake
 from .models import AutomationBot, AutomationRun
 
 
@@ -33,6 +33,15 @@ class EvenOddSignalTests(TestCase):
 
 		self.assertNotIn("barrier", parity)
 		self.assertEqual(over_two["barrier"], "2")
+
+	def test_deriv_error_context_identifies_contract_request_without_secrets(self):
+		context = deriv_request_context({
+			"proposal": 1,
+			"contract_type": "DIGITODD",
+			"underlying_symbol": "1HZ75V",
+		})
+
+		self.assertEqual(context, "request=proposal, contract_type=DIGITODD, underlying_symbol=1HZ75V")
 
 	def test_recovery_stake_and_capital_budget(self):
 		self.assertEqual(recovery_stake("0.50", "2", 3), Decimal("4.00"))

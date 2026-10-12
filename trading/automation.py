@@ -155,6 +155,16 @@ def proposal_payload(amount, currency, symbol, contract_type, barrier=None):
     return payload
 
 
+def deriv_request_context(payload):
+    """Describe a failed request without exposing authorization tokens."""
+    request_type = next((key for key in payload if key != "req_id"), "unknown")
+    details = [f"request={request_type}"]
+    for key in ("contract_type", "underlying_symbol", "contract_id", "barrier"):
+        if key in payload:
+            details.append(f"{key}={payload[key]}")
+    return ", ".join(details)
+
+
 def digit_snapshot(history, window):
     """Displayable rolling-window progress, including markets with no signal."""
     count = len(history)
@@ -209,7 +219,8 @@ class DerivMessageRouter:
         finally:
             self.pending.pop(request_id, None)
         if message.get("error"):
-            raise RuntimeError(message["error"].get("message", "Deriv request failed"))
+            error = message["error"].get("message", "Deriv request failed")
+            raise RuntimeError(f"{error} ({deriv_request_context(payload)})")
         return message
 
     async def close(self):
