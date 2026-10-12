@@ -528,7 +528,7 @@ class AutomationRunView(APIView):
         strategy = bot.strategy if bot.strategy in managed_strategies else request.data.get("strategy", "auto")
         supported_strategies = {bot.strategy} if bot.strategy in managed_strategies else {"auto", "over_2", "under_7"}
         if strategy not in supported_strategies: return Response({"error": "This strategy is not available for the selected bot."}, status=400)
-        if bot.strategy in {"even_odd", "high_pair"} and capital_limit is None: return Response({"error": "Set a capital limit for this bot."}, status=400)
+        if bot.strategy in {"even_odd", "high_pair"} and capital_limit is None: return Response({"error": "Set a total capital limit for this run. This is separate from the stake per trade."}, status=400)
         trigger_digits = {"over_2": {"0", "1", "2"}, "under_7": {"7", "8", "9"}, "auto": {"0", "1", "2", "7", "8", "9"}, "even_odd": set(), "high_pair": set()}[strategy]
         supplied = request.data.get("digit_thresholds") or {}
         try:

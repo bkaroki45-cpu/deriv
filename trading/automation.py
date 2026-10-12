@@ -138,6 +138,23 @@ def recovery_action(profit, loss_streak, max_retries):
     return "retry"
 
 
+def proposal_payload(amount, currency, symbol, contract_type, barrier=None):
+    """Build a one-tick proposal, omitting barriers for parity contracts."""
+    payload = {
+        "proposal": 1,
+        "amount": float(amount),
+        "basis": "stake",
+        "contract_type": contract_type,
+        "currency": currency,
+        "duration": 1,
+        "duration_unit": "t",
+        "underlying_symbol": symbol,
+    }
+    if barrier is not None:
+        payload["barrier"] = barrier
+    return payload
+
+
 def digit_snapshot(history, window):
     """Displayable rolling-window progress, including markets with no signal."""
     count = len(history)
@@ -619,7 +636,7 @@ class AutomationWorker:
         if run.bot.max_stake and stake > run.bot.max_stake:
             await self.stop(run.id, "Martingale recovery stake exceeds this bot's maximum stake.")
             return ""
-        proposal = await router.request({"proposal": 1, "amount": float(stake), "basis": "stake", "contract_type": contract_type, "currency": run.account.currency, "duration": 1, "duration_unit": "t", "underlying_symbol": symbol, "barrier": barrier})
+        proposal = await router.request(proposal_payload(stake, run.account.currency, symbol, contract_type, barrier))
         quote = proposal["proposal"]
         result = await router.request({"buy": quote["id"], "price": float(quote["ask_price"])})
         contract_id = str(result["buy"]["contract_id"])

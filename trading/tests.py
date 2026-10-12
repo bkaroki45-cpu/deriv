@@ -5,7 +5,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from accounts.models import DerivAccount
-from .automation import analyse_even_odd, analyse_high_digit_pair, capital_allows, recovery_action, recovery_stake
+from .automation import analyse_even_odd, analyse_high_digit_pair, capital_allows, proposal_payload, recovery_action, recovery_stake
 from .models import AutomationBot, AutomationRun
 
 
@@ -26,6 +26,13 @@ class EvenOddSignalTests(TestCase):
 	def test_mixed_or_insufficient_digits_do_not_signal(self):
 		self.assertIsNone(analyse_even_odd([2, 3]))
 		self.assertIsNone(analyse_even_odd([8]))
+
+	def test_even_odd_proposal_omits_barrier_but_over_two_keeps_it(self):
+		parity = proposal_payload("0.50", "USD", "1HZ10V", "DIGITODD")
+		over_two = proposal_payload("0.50", "USD", "1HZ10V", "DIGITOVER", "2")
+
+		self.assertNotIn("barrier", parity)
+		self.assertEqual(over_two["barrier"], "2")
 
 	def test_recovery_stake_and_capital_budget(self):
 		self.assertEqual(recovery_stake("0.50", "2", 3), Decimal("4.00"))
@@ -111,6 +118,7 @@ class HighDigitPairBotApiTests(TestCase):
 		response = self.client.post(self.url, payload, format="json")
 
 		self.assertEqual(response.status_code, 400)
+		self.assertIn("separate from the stake per trade", response.data["error"])
 
 	def test_high_pair_bot_rejects_real_accounts(self):
 		real_account = DerivAccount.objects.create(

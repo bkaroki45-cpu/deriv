@@ -20,7 +20,7 @@
 
         stake.closest('label')?.insertAdjacentHTML(
             'afterend',
-            '<label>Capital allocation limit<input id="capital_limit" type="number" min="0.35" step="0.01" value="20"><small>Maximum total stake amount for this one run.</small></label><label>Recovery retries<input id="max_martingale_steps" type="number" min="0" max="10" step="1" value="3"><small>Retries after the first loss. The bot stops when this limit, capital, or the first win is reached.</small></label><label>Martingale multiplier<input id="martingale_multiplier" value="2" type="number" min="1" max="15" step="0.1" aria-describedby="martingale_help"><small id="martingale_help">After a loss, the next stake is multiplied by this amount.</small></label>'
+            '<label>Total capital limit<input id="capital_limit" type="number" min="0.35" step="0.01" value="20"><small>Maximum combined stake for this run. Separate from stake per trade.</small></label><label>Recovery retries<input id="max_martingale_steps" type="number" min="0" max="10" step="1" value="3"><small>Retries after the first loss. The bot stops when this limit, capital, or the first win is reached.</small></label><label>Martingale multiplier<input id="martingale_multiplier" value="2" type="number" min="1" max="15" step="0.1" aria-describedby="martingale_help"><small id="martingale_help">After a loss, the next stake is multiplied by this amount.</small></label>'
         );
         document.querySelector('.actions')?.insertAdjacentHTML(
             'beforeend',
