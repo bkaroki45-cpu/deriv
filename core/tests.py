@@ -8,6 +8,7 @@ from django.utils import timezone
 from accounts.models import OAuthToken
 from core.deriv_api import seal_token
 from core.views import app_session
+from trading.models import AutomationBot
 
 
 @override_settings(
@@ -67,3 +68,26 @@ class AppSessionTests(TestCase):
 
 		self.assertEqual(response.status_code, 401)
 		self.assertEqual(response.json()["login_url"], "/login/")
+
+
+class EvenOddBotLibraryTests(TestCase):
+	def test_even_odd_bot_is_published_with_a_direct_launch_url(self):
+		user = get_user_model().objects.create_user(
+			username="library-user",
+			email="library-user@example.test",
+		)
+		automation_bot = AutomationBot.objects.get(name="Even / Odd Pair Recovery")
+		self.client.force_login(user)
+
+		response = self.client.get("/api/bots/")
+
+		self.assertEqual(response.status_code, 200)
+		bot_card = next(
+			bot for bot in response.json()["bots"]
+			if bot["slug"] == "even-odd-pair-recovery"
+		)
+		self.assertEqual(bot_card["title"], "Even/Odd Pair Recovery")
+		self.assertEqual(
+			bot_card["launch_url"],
+			f"http://testserver/automation/?bot={automation_bot.pk}",
+		)
