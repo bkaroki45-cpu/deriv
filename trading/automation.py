@@ -148,7 +148,7 @@ def proposal_payload(amount, currency, symbol, contract_type, barrier=None):
         "currency": currency,
         "duration": 1,
         "duration_unit": "t",
-        "underlying_symbol": symbol,
+        "symbol": symbol,
     }
     if barrier is not None:
         payload["barrier"] = barrier
