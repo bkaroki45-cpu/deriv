@@ -107,18 +107,10 @@ class HighDigitPairBotApiTests(TestCase):
 			"account_id": self.account.account_id,
 			"scan_all_volatility": True,
 			"stake": "0.50",
-			"capital_limit": "10.00",
+			"max_martingale_steps": 3,
+			"martingale_multiplier": "2",
 			"max_daily_loss": "5.00",
 		}
-
-	def test_run_requires_a_capital_limit(self):
-		payload = self.payload()
-		payload.pop("capital_limit")
-
-		response = self.client.post(self.url, payload, format="json")
-
-		self.assertEqual(response.status_code, 400)
-		self.assertIn("separate from the stake per trade", response.data["error"])
 
 	def test_high_pair_bot_rejects_real_accounts(self):
 		real_account = DerivAccount.objects.create(
@@ -134,14 +126,16 @@ class HighDigitPairBotApiTests(TestCase):
 
 		self.assertEqual(response.status_code, 400)
 
-	def test_run_persists_strategy_all_markets_and_capital_limit(self):
+	def test_run_uses_stake_and_martingale_without_a_capital_limit(self):
 		response = self.client.post(self.url, self.payload(), format="json")
 
 		self.assertEqual(response.status_code, 200)
 		run = AutomationRun.objects.get(user=self.user, bot=self.bot)
 		self.assertEqual(run.strategy, "high_pair")
 		self.assertEqual(run.symbols, ["__all_volatility__"])
-		self.assertEqual(run.capital_limit, Decimal("10.00"))
+		self.assertIsNone(run.capital_limit)
+		self.assertEqual(run.max_martingale_steps, 3)
+		self.assertEqual(run.martingale_multiplier, Decimal("2.00"))
 
 
 class EvenOddBotApiTests(TestCase):

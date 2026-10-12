@@ -89,9 +89,9 @@
         document.querySelector('#thresholds')?.classList.toggle('hidden', isManagedBot);
         setSymbolControl(isEvenOdd);
         document.querySelector('#symbols')?.closest('label')?.classList.toggle('hidden', isHighPair);
-        document.querySelector('#capital_limit')?.closest('label')?.classList.toggle('hidden', !isManagedBot);
-        document.querySelector('#max_martingale_steps')?.closest('label')?.classList.toggle('hidden', !isEvenOdd);
-        document.querySelector('#martingale_multiplier')?.closest('label')?.classList.toggle('hidden', !isEvenOdd);
+        document.querySelector('#capital_limit')?.closest('label')?.classList.toggle('hidden', !isEvenOdd);
+        document.querySelector('#max_martingale_steps')?.closest('label')?.classList.toggle('hidden', !isManagedBot);
+        document.querySelector('#martingale_multiplier')?.closest('label')?.classList.toggle('hidden', !isManagedBot);
         document.querySelector('#even-odd-hud')?.toggleAttribute('hidden', !isEvenOdd);
         updateAccountOptions();
         status();
@@ -236,8 +236,8 @@
                         scan_all_volatility: isHighPair || !isEvenOdd,
                         strategy: selectedStrategy,
                         stake: document.querySelector('#stake').value,
-                        capital_limit: isManagedBot ? document.querySelector('#capital_limit').value : '',
-                        max_martingale_steps: isEvenOdd ? document.querySelector('#max_martingale_steps').value : 0,
+                        capital_limit: isEvenOdd ? document.querySelector('#capital_limit').value : '',
+                        max_martingale_steps: isManagedBot ? document.querySelector('#max_martingale_steps').value : 0,
                         martingale_multiplier: document.querySelector('#martingale_multiplier').value,
                         tick_window: document.querySelector('#window').value,
                         digit_thresholds: thresholds,

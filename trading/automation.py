@@ -372,9 +372,14 @@ class AutomationWorker:
                             await sync_to_async(AutomationTrade.objects.filter(contract_id=settled_contract_id).update)(status="won" if profit > 0 else "lost", profit=profit, settled_at=timezone.now(), raw=contract)
                             await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(active_contract_id="")
                             active = ""
-                            if run.strategy == "even_odd":
+                            if run.strategy in {"even_odd", "high_pair"}:
                                 loss_streak = await self.loss_streak(run)
                                 action = recovery_action(profit, loss_streak, run.max_martingale_steps)
+                                if action == "complete_win" and run.strategy == "high_pair":
+                                    previous_trade = await sync_to_async(AutomationTrade.objects.get)(contract_id=settled_contract_id)
+                                    high_pair_fired.discard(previous_trade.symbol)
+                                    high_pair_streaks[previous_trade.symbol] = 0
+                                    continue
                                 if action != "retry":
                                     message = "Won. Recovery sequence complete." if action == "complete_win" else "Recovery limit reached."
                                     await self.complete_sequence(run_id, message)
@@ -392,8 +397,8 @@ class AutomationWorker:
                                     fresh,
                                     previous_trade.symbol,
                                     previous_trade.trigger_digit,
-                                    "even_odd",
-                                    previous_trade.contract_type,
+                                    run.strategy,
+                                    previous_trade.contract_type if run.strategy == "even_odd" else None,
                                 )
                                 if not active:
                                     return
@@ -617,22 +622,15 @@ class AutomationWorker:
             contract_type, barrier = "DIGITDIFF", str(digit)
         stake = run.stake
         trades = await self.run_trades(run)
-        if strategy == "even_odd":
+        if strategy in {"even_odd", "high_pair"}:
             loss_streak = await self.loss_streak(run)
             if loss_streak > run.max_martingale_steps:
                 await self.complete_sequence(run.id, "Recovery limit reached.")
                 return ""
             stake = recovery_stake(run.stake, run.martingale_multiplier, loss_streak)
-            if not capital_allows(run.capital_limit, [trade["stake"] for trade in trades], stake):
+            if strategy == "even_odd" and not capital_allows(run.capital_limit, [trade["stake"] for trade in trades], stake):
                 await self.complete_sequence(run.id, "Capital limit reached.")
                 return ""
-        elif strategy == "high_pair" and not capital_allows(
-            run.capital_limit,
-            [trade["stake"] for trade in trades],
-            stake,
-        ):
-            await self.complete_sequence(run.id, "Capital limit reached.")
-            return ""
         if run.bot.max_stake and stake > run.bot.max_stake:
             await self.stop(run.id, "Martingale recovery stake exceeds this bot's maximum stake.")
             return ""
