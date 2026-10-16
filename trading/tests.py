@@ -6,7 +6,7 @@ from django.test import SimpleTestCase, TestCase
 from rest_framework.test import APIClient
 
 from accounts.models import DerivAccount
-from .automation import analyse_even_odd, analyse_high_digit_pair, buy_payload, buy_with_fresh_proposal, capital_allows, deriv_request_context, proposal_payload, recovery_action, recovery_stake
+from .automation import analyse_even_odd, analyse_high_digit_pair, buy_payload, buy_with_fresh_proposal, capital_allows, deriv_request_context, differ_fallback_allowed, proposal_open_contract_payload, proposal_payload, recovery_action, recovery_stake, subscribe_open_contract
 from .models import AutomationBot, AutomationRun
 
 
@@ -59,6 +59,13 @@ class EvenOddSignalTests(TestCase):
 
 
 class ProposalRetryTests(SimpleTestCase):
+	def test_differ_fallback_is_limited_to_automatic_strategy(self):
+		self.assertTrue(differ_fallback_allowed("auto"))
+		self.assertFalse(differ_fallback_allowed("even_odd"))
+		self.assertFalse(differ_fallback_allowed("over_2"))
+		self.assertFalse(differ_fallback_allowed("under_7"))
+		self.assertFalse(differ_fallback_allowed("high_pair"))
+
 	def test_unknown_proposal_retries_once_with_a_fresh_quote(self):
 		class FakeRouter:
 			def __init__(self):
@@ -80,6 +87,43 @@ class ProposalRetryTests(SimpleTestCase):
 		self.assertEqual(result["buy"]["contract_id"], "contract-1")
 		self.assertEqual(router.proposal_count, 2)
 		self.assertEqual(router.buy_ids, ["proposal-1", "proposal-2"])
+
+	def test_open_contract_request_serializes_saved_id_as_integer(self):
+		payload = proposal_open_contract_payload("17147836139")
+
+		self.assertEqual(payload, {
+			"proposal_open_contract": 1,
+			"contract_id": 17147836139,
+			"subscribe": 1,
+		})
+		self.assertIsInstance(payload["contract_id"], int)
+
+	def test_open_contract_request_rejects_invalid_id(self):
+		with self.assertRaises(ValueError):
+			proposal_open_contract_payload("not-a-contract")
+
+	def test_open_contract_subscription_queues_initial_settlement_snapshot(self):
+		class FakeRouter:
+			def __init__(self):
+				self.events = asyncio.Queue()
+				self.payload = None
+
+			async def request(self, payload):
+				self.payload = payload
+				return {
+					"msg_type": "proposal_open_contract",
+					"proposal_open_contract": {"contract_id": 17147836139, "is_sold": 1},
+				}
+
+		router = FakeRouter()
+		async def exercise():
+			response = await subscribe_open_contract(router, "17147836139")
+			return response, router.events.get_nowait()
+
+		response, event = asyncio.run(exercise())
+
+		self.assertEqual(router.payload["contract_id"], 17147836139)
+		self.assertEqual(event, response)
 
 
 class HighDigitPairSignalTests(TestCase):
