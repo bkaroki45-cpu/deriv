@@ -6,7 +6,7 @@
         <i></i>
     </div>
     <aside class="deriv-rail" aria-label="Main navigation">
-        <a class="deriv-logo" href="{% url 'home' %}" aria-label="Profitera home">P</a>
+        <a class="deriv-logo profitera-logo-mark" href="{% url 'home' %}" aria-label="Profitera home"><img src="/static/images/profitera-mark.png" alt=""></a>
         <div class="rail-status" aria-label="Connection status">
             <span data-connection="markets">offline</span>
             <small>Markets</small>
@@ -33,6 +33,9 @@
 
     <section class="positions-drawer" id="positions-drawer" aria-label="Open positions">
         <header>
+  <link rel="icon" href="/static/images/favicon.ico?v=profitera-1" sizes="any">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/images/profitera-favicon.png?v=profitera-1">
+  <link rel="apple-touch-icon" href="/static/images/profitera-favicon.png?v=profitera-1">
             <strong>Open positions</strong>
             <button type="button" data-close-positions aria-label="Close positions">x</button>
         </header>
@@ -52,7 +55,7 @@
     <section class="trade-workspace">
         <header class="trade-topbar">
             <div class="mobile-account-strip">
-                <span class="deriv-logo">DT</span>
+                <span class="deriv-logo profitera-logo-mark"><img src="/static/images/profitera-mark.png" alt=""></span>
                 <span><small id="mobile-account-label">{% if deriv_session.is_connected %}{{ deriv_session.account_id }}{% else %}Real account{% endif %}</small><strong id="mobile-account-balance">{{ real_balance|default:'0.00' }} {{ deriv_session.currency|default:'USD' }}</strong></span>
                 <a class="account-link-btn" href="{% if deriv_session.is_connected %}{% url 'account' %}{% else %}{% url 'login' %}{% endif %}">{% if deriv_session.is_connected %}Account{% else %}Login{% endif %}</a>
             </div>

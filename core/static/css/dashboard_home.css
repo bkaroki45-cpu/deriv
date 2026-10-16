@@ -8,6 +8,7 @@ body.trading-home{margin:0;min-width:320px;background:var(--paper);color:var(--i
 .topbar{height:76px;padding:0 max(32px,calc((100% - 1280px)/2));display:flex;align-items:center;gap:56px;border-bottom:1px solid rgba(32,40,33,.1);background:rgba(248,247,242,.84)}
 .wordmark{display:inline-flex;align-items:center;gap:9px;font:800 19px var(--display);letter-spacing:-1px;white-space:nowrap}
 .brand-mark{width:30px;height:30px;display:grid;place-items:center;border-radius:10px;background:var(--green);color:#f5f3ec;font:800 15px var(--display);letter-spacing:0}
+.brand-mark.profitera-logo-mark{object-fit:contain;padding:0;border-radius:0;background:transparent;box-shadow:none}
 .topnav{height:100%;display:flex;align-items:center;gap:30px}
 .topnav a{height:100%;display:flex;align-items:center;position:relative;color:#737b72;font-size:12px;font-weight:600}
 .topnav a:hover,.topnav a.current{color:var(--ink)}

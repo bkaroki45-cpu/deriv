@@ -11573,3 +11573,5 @@ body:has(.deriv-terminal) {
         min-height: 50px !important;
     }
 }
+.profitera-logo-mark{object-fit:contain!important;background:transparent!important;box-shadow:none!important;border:0!important;padding:0!important}
+.deriv-logo.profitera-logo-mark img,.dbot-logo.profitera-logo-mark img{display:block;width:100%;height:100%;object-fit:contain}

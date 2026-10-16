@@ -22,6 +22,7 @@ body.landing-page { margin: 0; min-width: 320px; overflow-x: hidden; background:
 .site-header { position: sticky; top: 0; z-index: 20; height: 76px; padding: 0 max(32px,calc((100% - 1320px)/2)); display: flex; align-items: center; gap: 52px; border-bottom: 1px solid rgba(139,163,190,.12); background: rgba(7,11,18,.88); backdrop-filter: blur(18px); }
 .brand { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; font: 600 20px var(--font-display); }
 .brand-mark { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 9px; background: linear-gradient(145deg,#79e8d7,#65aef5 56%,#a38af4); color: #071016; font: 700 17px var(--font-display); box-shadow: 0 0 22px rgba(104,232,208,.16); }
+.brand-mark.profitera-logo-mark { object-fit: contain; padding: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .main-nav { height: 100%; display: flex; align-items: center; gap: 32px; }
 .main-nav a,.account-link { color: #a8b5c0; font-size: 12px; font-weight: 600; }
 .main-nav a:hover,.account-link:hover { color: #ecf3f6; }
