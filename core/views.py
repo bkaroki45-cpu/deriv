@@ -251,7 +251,9 @@ def dashboard(request):
     deriv_session = _deriv_session(request)
     deriv_accounts = request.user.deriv_accounts.all() if request.user.is_authenticated else []
     active_deriv_account = _active_deriv_account(request)
-    return render(request, "core/dashboard_overview.html", {
+    return render(request, "core/home_landing.html", {
+        "is_connected": True,
+        "account_email": request.user.email,
         "wallet": wallet,
         "demo_balance": "10000.00",
         "real_balance": getattr(active_deriv_account, "balance", getattr(wallet, "balance", "0.00") if wallet else "0.00"),
@@ -264,6 +266,7 @@ def dashboard(request):
         "rise_fall_url": settings.PROFITERA_RISE_FALL_URL,
         "accumulators_url": settings.PROFITERA_ACCUMULATORS_URL,
         "bot_url": settings.PROFITERA_BOT_URL,
+        "active_deriv_account": active_deriv_account,
     })
 
 

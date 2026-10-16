@@ -16,7 +16,7 @@
     <a class="brand" href="/" aria-label="Profitera home"><span class="brand-mark" aria-hidden="true">P</span><span>Profitera</span></a>
     <nav class="main-nav" aria-label="Main navigation"><a href="#automation">Automation</a><a href="#workspaces">Workspaces</a><a href="/trade/">Markets</a></nav>
     <div class="header-actions">
-      {% if is_connected %}<a class="account-link" href="/dashboard/">Dashboard</a><a class="header-cta" href="/auth/deriv/logout/">Log out</a>
+      {% if is_connected %}<a class="account-link" href="/dashboard/">My account</a><a class="header-cta" href="/auth/deriv/logout/">Log out</a>
       {% else %}<a class="account-link" href="/login/">Log in</a><a class="header-cta" href="/register/">Connect account <span aria-hidden="true">&rarr;</span></a>{% endif %}
     </div>
   </header>
@@ -52,6 +52,14 @@
         <div class="scene-caption"><span class="caption-line"></span> A clearer view of your trading workspace</div>
       </div>
     </section>
+
+    {% if is_connected %}
+    <section class="account-home page-width" aria-label="Connected account">
+      <div><span class="eyebrow"><span class="pulse-dot"></span> YOUR DERIV ACCOUNT</span><h2>Welcome back, {{ user.first_name|default:user.username }}.</h2><p>Pick up where you left off across your trading workspaces.</p></div>
+      <div class="account-home-status"><span>ACTIVE ACCOUNT</span><strong>{{ active_deriv_account.account_id|default:"Not connected" }}</strong><small>{{ active_deriv_account.account_type|default:"Connect Deriv"|title }}{% if active_deriv_account.currency %} · {{ active_deriv_account.currency }} {{ active_deriv_account.balance|floatformat:2 }}{% endif %}</small></div>
+      <a class="button button-primary" href="{{ bot_url|default:'/automatic-trade/' }}">Open my bots <span aria-hidden="true">&rarr;</span></a>
+    </section>
+    {% endif %}
 
     <section class="automation-section" id="automation" aria-labelledby="automation-title"><div class="page-width">
       <div class="section-heading automation-heading"><div><div class="eyebrow">STRATEGY, WITHOUT THE FRICTION</div><h2 id="automation-title">Your next strategy<br><span>starts with a block.</span></h2></div><p>Build with visual blocks, import an XML strategy, or start from a template. Review the setup before you run it in the Bot Builder.</p></div>

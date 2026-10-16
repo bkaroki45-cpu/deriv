@@ -1,11 +1,12 @@
+import asyncio
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from rest_framework.test import APIClient
 
 from accounts.models import DerivAccount
-from .automation import analyse_even_odd, analyse_high_digit_pair, buy_payload, capital_allows, deriv_request_context, proposal_payload, recovery_action, recovery_stake
+from .automation import analyse_even_odd, analyse_high_digit_pair, buy_payload, buy_with_fresh_proposal, capital_allows, deriv_request_context, proposal_payload, recovery_action, recovery_stake
 from .models import AutomationBot, AutomationRun
 
 
@@ -55,6 +56,30 @@ class EvenOddSignalTests(TestCase):
 		self.assertEqual(recovery_action("-0.50", 1, 3), "retry")
 		self.assertEqual(recovery_action("1.00", 1, 3), "complete_win")
 		self.assertEqual(recovery_action("-4.00", 4, 3), "complete_limit")
+
+
+class ProposalRetryTests(SimpleTestCase):
+	def test_unknown_proposal_retries_once_with_a_fresh_quote(self):
+		class FakeRouter:
+			def __init__(self):
+				self.proposal_count = 0
+				self.buy_ids = []
+
+			async def request(self, payload):
+				if "proposal" in payload:
+					self.proposal_count += 1
+					return {"proposal": {"id": f"proposal-{self.proposal_count}", "ask_price": 0.35}}
+				self.buy_ids.append(payload["buy"])
+				if payload["buy"] == "proposal-1":
+					raise RuntimeError("Unknown contract proposal")
+				return {"buy": {"contract_id": "contract-1"}}
+
+		router = FakeRouter()
+		result = asyncio.run(buy_with_fresh_proposal(router, proposal_payload("0.35", "USD", "1HZ75V", "DIGITODD")))
+
+		self.assertEqual(result["buy"]["contract_id"], "contract-1")
+		self.assertEqual(router.proposal_count, 2)
+		self.assertEqual(router.buy_ids, ["proposal-1", "proposal-2"])
 
 
 class HighDigitPairSignalTests(TestCase):

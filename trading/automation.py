@@ -159,7 +159,9 @@ def deriv_request_context(payload):
     """Describe a failed request without exposing authorization tokens."""
     request_type = next((key for key in payload if key != "req_id"), "unknown")
     details = [f"request={request_type}"]
-    for key in ("contract_type", "underlying_symbol", "contract_id", "barrier"):
+    if "buy" in payload:
+        details.append(f"proposal_id={payload['buy']}")
+    for key in ("contract_type", "symbol", "underlying_symbol", "contract_id", "barrier"):
         if key in payload:
             details.append(f"{key}={payload[key]}")
     return ", ".join(details)
@@ -168,6 +170,23 @@ def deriv_request_context(payload):
 def buy_payload(proposal_id, ask_price):
     """Build the buy request using the quote's id and string price."""
     return {"buy": proposal_id, "price": str(ask_price)}
+
+
+async def buy_with_fresh_proposal(router, proposal_request):
+    """Renew an invalid proposal once before surfacing the Deriv error."""
+    for attempt in range(2):
+        response = await router.request(proposal_request)
+        quote = response.get("proposal", {})
+        proposal_id = quote.get("id")
+        ask_price = quote.get("ask_price")
+        if not proposal_id or ask_price is None:
+            raise RuntimeError("Deriv proposal response is missing its id or ask price.")
+        try:
+            return await router.request(buy_payload(proposal_id, ask_price))
+        except RuntimeError as exc:
+            if attempt or "Unknown contract proposal" not in str(exc):
+                raise
+    raise RuntimeError("Deriv rejected the refreshed contract proposal.")
 
 
 def digit_snapshot(history, window):
@@ -650,9 +669,10 @@ class AutomationWorker:
         if run.bot.max_stake and stake > run.bot.max_stake:
             await self.stop(run.id, "Martingale recovery stake exceeds this bot's maximum stake.")
             return ""
-        proposal = await router.request(proposal_payload(stake, run.account.currency, symbol, contract_type, barrier))
-        quote = proposal["proposal"]
-        result = await router.request(buy_payload(quote["id"], quote["ask_price"]))
+        result = await buy_with_fresh_proposal(
+            router,
+            proposal_payload(stake, run.account.currency, symbol, contract_type, barrier),
+        )
         contract_id = str(result["buy"]["contract_id"])
         await sync_to_async(AutomationTrade.objects.create)(run=run, symbol=symbol, strategy=strategy, trigger_digit=digit, contract_id=contract_id, contract_type=contract_type, stake=stake, raw=result)
         return contract_id
