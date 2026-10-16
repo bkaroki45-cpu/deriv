@@ -84,3 +84,55 @@ body.trading-home{margin:0;min-width:320px;background:var(--paper);color:var(--i
 @media(max-width:650px){.page-width{width:calc(100% - 36px)}.topbar{height:64px;padding:0 18px;gap:0}.wordmark{font-size:17px}.topnav{display:none}.user-name{display:none}.user-menu{gap:8px}.logout-link{margin-left:5px}.welcome-wrap{padding-top:43px;padding-bottom:37px;grid-template-columns:1fr;gap:27px}.welcome-copy h1{font-size:48px;letter-spacing:-2.8px}.welcome-intro{font-size:12px}.account-card{min-height:225px}.workspaces{padding-top:25px;padding-bottom:42px}.section-heading{align-items:start;gap:14px}.section-heading h2{font-size:19px}.section-link{align-self:end;font-size:9px;white-space:nowrap}.workspace-grid{gap:9px}.workspace-card{min-height:188px;padding:12px}.workspace-copy strong{font-size:16px}.workspace-copy small{font-size:8px}.card-index{gap:6px;font-size:9px}.card-index i{font-size:6px}.card-arrow{right:11px;bottom:13px;width:22px;height:22px}.studio-callout{width:calc(100% - 36px);min-height:350px;margin-bottom:38px;padding:27px 24px;grid-template-columns:1fr;align-items:start}.studio-art{right:-55px;top:auto;bottom:9px;width:390px;height:137px;transform:rotate(-6deg)}.studio-node{width:70px;height:34px}.studio-art i{width:32px}.studio-copy h2{font-size:29px}.page-footer{min-height:80px;flex-wrap:wrap;gap:5px 12px;padding-block:14px}.page-footer>span{order:3;width:100%}.page-footer>a:last-child{margin-left:auto;font-size:8px}}
 @media(max-width:380px){.workspace-card{min-height:168px;padding:10px}.workspace-copy small{max-width:150px}.workspace-copy strong{font-size:14px}.card-index i{padding:3px 4px;font-size:5px}.welcome-copy h1{font-size:43px}.button{padding-inline:12px;gap:11px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+/* Cool blue treatment for the signed-in home page. */
+:root{--paper:#eff5fb;--ink:#182a40;--muted:#65788d;--green:#235a9f;--line:#d8e4f1}
+.topbar{border-color:rgba(41,78,119,.12);background:rgba(247,250,254,.9)}
+.brand-mark{background:#214f84;color:#f3f8ff}
+.topnav a{color:#71849a}
+.topnav a:hover,.topnav a.current{color:#1d3552}
+.topnav a.current:after{background:#438ade}
+.user-avatar{background:#dce9f8;color:#2b5d99}
+.logout-link{color:#6d8299}
+.kicker{color:#5c7694}
+.kicker>span{background:#438ade;box-shadow:0 0 0 4px rgba(67,138,222,.13)}
+.welcome-copy h1{color:#182a40}
+.welcome-copy h1 em{color:#2868a9}
+.welcome-intro{color:#65788d}
+.button-dark{background:#204e82;color:#f5f9ff!important}
+.button-dark span{color:#c2ddfa}
+.text-action,.section-link{color:#2e6397}
+.account-card{background-color:#17395f;background-image:linear-gradient(104deg,rgba(10,36,69,.91),rgba(13,48,87,.77) 58%,rgba(10,34,62,.67)),url('/static/images/dashboard-trading.jpg');background-position:center,center 52%;background-size:cover,cover;background-repeat:no-repeat;box-shadow:0 18px 44px rgba(24,57,91,.2)}
+.account-state.is-connected i{background:#a7d7ff;box-shadow:0 0 8px rgba(167,215,255,.7)}
+.account-type{color:#d5e5f4}
+.account-type span{color:#a7c5e3}
+.balance-label{color:#c9d9e9}
+.account-link{color:#cde6ff!important}
+.card-orbit{border-color:rgba(203,229,255,.19)}
+.workspaces{border-color:var(--line)}
+.workspace-card{background-color:#294b70}
+.workspace-card:before{background:linear-gradient(180deg,rgba(12,33,57,.18),rgba(11,31,55,.14) 25%,rgba(8,23,42,.86))}
+.workspace-card:hover:before{background:linear-gradient(180deg,rgba(12,33,57,.3),rgba(11,31,55,.18) 19%,rgba(8,23,42,.92))}
+.workspace-card:hover .card-arrow{background:#edf6ff;color:#1e4f83}
+.studio-callout{background:#e2edf8}
+.studio-copy .kicker{color:#466b92}
+.studio-copy>p:not(.kicker){color:#617891}
+.button-light{color:#234f7e!important}
+.studio-art:before{border-color:rgba(39,91,145,.19)}
+.studio-art:after{border-color:rgba(39,91,145,.13)}
+.studio-node{border-color:rgba(39,91,145,.25);background:#f4f8fc;color:#315b87;box-shadow:0 5px 18px rgba(37,67,102,.09)}
+.studio-art i{background:#6f9ac8}
+.node-two{background:#dceafa}.node-three{background:#315f91;color:#f2f7fd}
+.studio-number{color:rgba(47,88,135,.2)}
+.page-footer{border-color:var(--line);color:#8293a5}
+.page-footer>a:last-child{color:#426e9d}
+
+@media(max-width:430px){
+  .workspace-grid{grid-template-columns:1fr}
+  .workspace-card{min-height:150px;padding:14px}
+  .workspace-copy strong{font-size:17px}
+  .workspace-copy small{max-width:240px;font-size:9px}
+  .card-index i{font-size:6px}
+  .studio-callout{min-height:395px}
+  .studio-art{right:-68px;bottom:1px;width:370px;height:130px}
+}
