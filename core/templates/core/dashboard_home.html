@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#eff5fb">
   <title>Your trading space | Profitera</title>
-  <link rel="stylesheet" href="{% static 'css/dashboard_home.css' %}?v=20261016-2">
+  <link rel="stylesheet" href="{% static 'css/dashboard_home.css' %}?v=20261016-3">
 </head>
 <body class="trading-home">
   <header class="topbar">
@@ -31,18 +31,19 @@
 
       <aside class="account-card" aria-label="Deriv account summary">
         <div class="card-top"><span>DERIV ACCOUNT</span><span class="account-state {% if active_deriv_account %}is-connected{% else %}is-offline{% endif %}"><i></i>{% if active_deriv_account %}CONNECTED{% else %}NOT CONNECTED{% endif %}</span></div>
-        {% if active_deriv_account %}
-          <p class="account-type">{{ active_deriv_account.account_type|title }} account <span>·</span> {{ active_deriv_account.account_id }}</p>
-          <p class="balance-label">Available balance</p>
-          <p class="balance"><span>{{ active_deriv_account.currency|default:"USD" }}</span> {{ active_deriv_account.balance|floatformat:2 }}</p>
-          <a class="account-link" href="/automation/">Manage connected account <span aria-hidden="true">↗</span></a>
-        {% else %}
-          <p class="account-type">Connect your Deriv account to open a trading workspace.</p>
-          <p class="balance-label">Account balance</p>
-          <p class="balance balance-empty">Ready when you are</p>
-          <a class="account-link" href="/automation/connect-account/">Connect Deriv <span aria-hidden="true">↗</span></a>
-        {% endif %}
-        <div class="card-orbit orbit-a"></div><div class="card-orbit orbit-b"></div>
+        <div class="account-info">
+          {% if active_deriv_account %}
+            <p class="account-type">{{ active_deriv_account.account_type|title }} account <span>·</span> {{ active_deriv_account.account_id }}</p>
+            <p class="balance-label">Available balance</p>
+            <p class="balance"><span>{{ active_deriv_account.currency|default:"USD" }}</span> {{ active_deriv_account.balance|floatformat:2 }}</p>
+            <a class="account-link" href="/automation/">Manage account <span aria-hidden="true">↗</span></a>
+          {% else %}
+            <p class="account-type">Connect your Deriv account to get started.</p>
+            <p class="balance-label">Account balance</p>
+            <p class="balance balance-empty">Ready when you are</p>
+            <a class="account-link" href="/automation/connect-account/">Connect Deriv <span aria-hidden="true">↗</span></a>
+          {% endif %}
+        </div>
       </aside>
     </section>
 

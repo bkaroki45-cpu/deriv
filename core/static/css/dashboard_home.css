@@ -28,7 +28,7 @@ body.trading-home{margin:0;min-width:320px;background:var(--paper);color:var(--i
 .button-dark{background:#263e31;color:#f6f5ef!important}
 .button-dark span{font-size:15px;color:#b7d6bd}
 .text-action,.section-link{color:#48634f;font-size:11px;font-weight:700}
-.account-card{position:relative;isolation:isolate;min-height:242px;padding:23px 25px;overflow:hidden;border-radius:8px;background:linear-gradient(132deg,#344e3d,#1d3026 76%);color:#f4f5ef;box-shadow:0 18px 44px rgba(32,51,37,.14)}
+.account-card{position:relative;isolation:isolate;min-height:310px;padding:0;overflow:hidden;border-radius:8px;background-color:#123c67;background-image:url('/static/images/dashboard-trading.jpg');background-position:center 48%;background-size:cover;background-repeat:no-repeat;color:#f4f5ef;box-shadow:0 18px 44px rgba(24,57,91,.2)}
 .card-top{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;color:#c4cfc4;font-size:8px;font-weight:700;letter-spacing:1px}
 .account-state{display:flex;align-items:center;gap:6px;font-size:7px;letter-spacing:.7px}
 .account-state i{width:6px;height:6px;border-radius:50%;background:#a9d69e;box-shadow:0 0 8px rgba(169,214,158,.7)}
@@ -102,7 +102,7 @@ body.trading-home{margin:0;min-width:320px;background:var(--paper);color:var(--i
 .button-dark{background:#204e82;color:#f5f9ff!important}
 .button-dark span{color:#c2ddfa}
 .text-action,.section-link{color:#2e6397}
-.account-card{background-color:#17395f;background-image:linear-gradient(104deg,rgba(10,36,69,.91),rgba(13,48,87,.77) 58%,rgba(10,34,62,.67)),url('/static/images/dashboard-trading.jpg');background-position:center,center 52%;background-size:cover,cover;background-repeat:no-repeat;box-shadow:0 18px 44px rgba(24,57,91,.2)}
+.account-card{box-shadow:0 18px 44px rgba(24,57,91,.2)}
 .account-state.is-connected i{background:#a7d7ff;box-shadow:0 0 8px rgba(167,215,255,.7)}
 .account-type{color:#d5e5f4}
 .account-type span{color:#a7c5e3}
@@ -136,3 +136,21 @@ body.trading-home{margin:0;min-width:320px;background:var(--paper);color:var(--i
   .studio-callout{min-height:395px}
   .studio-art{right:-68px;bottom:1px;width:370px;height:130px}
 }
+
+/* Keep every layout inside the viewport and leave the account photo unfaded. */
+html,.trading-home{width:100%;max-width:100%;overflow-x:hidden}
+body.trading-home{min-width:0}
+.card-top{position:absolute;top:14px;right:15px;left:15px;gap:8px;color:#f5f9ff;font-size:8px}
+.card-top>span{padding:6px 8px;border-radius:3px;background:rgba(14,43,73,.96)}
+.account-state{color:#f5f9ff}
+.account-info{position:absolute;right:0;bottom:0;left:0;min-height:132px;padding:13px 20px 15px;background:#123c67;color:#f5f9ff}
+.account-type{max-width:100%;margin:0 0 5px;color:#e0ecf8;font-size:10px;line-height:1.45;overflow-wrap:anywhere}
+.account-type span{color:#b8d3ed}
+.balance-label{margin:7px 0 0;color:#c8dbef}
+.balance{max-width:calc(100% - 105px);font-size:30px;line-height:1.25}
+.account-link{right:18px;bottom:19px;left:auto;max-width:100px;color:#d4eaff!important;text-align:right}
+.card-orbit{display:none}
+
+@media(max-width:760px){.topbar{gap:18px}.topnav{gap:14px}.user-name{display:none}}
+@media(max-width:650px){.account-card{min-height:295px;background-position:center 45%}.account-info{min-height:136px;padding:12px 16px 14px}.account-link{right:15px;bottom:17px;max-width:92px}}
+@media(max-width:380px){.topbar{padding-inline:14px}.account-card{min-height:280px}.account-info{min-height:138px;padding-inline:13px}.balance{font-size:27px;max-width:calc(100% - 92px)}.account-link{right:12px;max-width:82px;font-size:8px}.card-top{top:11px;right:11px;left:11px}}
