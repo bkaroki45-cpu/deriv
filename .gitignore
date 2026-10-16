@@ -58,3 +58,12 @@ core/static/js/deriv_ws_manager.js
 
 # IDE
 .vscode/
+
+# Local-only development files and generated output
+/django-server.log
+/startup.txt
+/start-local.ps1
+/images/
+
+# VPS-managed static app exports
+/static-apps/
