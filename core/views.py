@@ -251,7 +251,7 @@ def dashboard(request):
     deriv_session = _deriv_session(request)
     deriv_accounts = request.user.deriv_accounts.all() if request.user.is_authenticated else []
     active_deriv_account = _active_deriv_account(request)
-    return render(request, "core/home_landing.html", {
+    return render(request, "core/dashboard_home.html", {
         "is_connected": True,
         "account_email": request.user.email,
         "wallet": wallet,

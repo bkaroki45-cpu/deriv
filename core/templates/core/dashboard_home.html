@@ -1,0 +1,68 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f3ed">
+  <title>Your trading space | Profitera</title>
+  <link rel="stylesheet" href="{% static 'css/dashboard_home.css' %}?v=20261016-1">
+</head>
+<body class="trading-home">
+  <header class="topbar">
+    <a class="wordmark" href="/" aria-label="Profitera home"><span class="brand-mark">P</span><span>profitera</span></a>
+    <nav class="topnav" aria-label="Main navigation">
+      <a class="current" href="/dashboard/">Overview</a>
+      <a href="/trade/">Markets</a>
+      <a href="/automation/">Automation</a>
+      <a href="{{ bot_url|default:'/automatic-trade/' }}">Bot studio</a>
+    </nav>
+    <div class="user-menu"><span class="user-avatar">{{ user.username|first|upper }}</span><span class="user-name">{{ user.first_name|default:user.username }}</span><a class="logout-link" href="/auth/deriv/logout/">Log out</a></div>
+  </header>
+
+  <main>
+    <section class="welcome-wrap page-width">
+      <div class="welcome-copy">
+        <p class="kicker"><span></span> YOUR TRADING SPACE</p>
+        <h1>Good to see you,<br><em>{{ user.first_name|default:user.username }}.</em></h1>
+        <p class="welcome-intro">Your markets, strategies, and trading tools are all within reach. Choose where you want to begin.</p>
+        <div class="welcome-actions"><a class="button button-dark" href="/trade/">Explore markets <span aria-hidden="true">↗</span></a><a class="text-action" href="{{ bot_url|default:'/automatic-trade/' }}">Build a strategy <span aria-hidden="true">→</span></a></div>
+      </div>
+
+      <aside class="account-card" aria-label="Deriv account summary">
+        <div class="card-top"><span>DERIV ACCOUNT</span><span class="account-state {% if active_deriv_account %}is-connected{% else %}is-offline{% endif %}"><i></i>{% if active_deriv_account %}CONNECTED{% else %}NOT CONNECTED{% endif %}</span></div>
+        {% if active_deriv_account %}
+          <p class="account-type">{{ active_deriv_account.account_type|title }} account <span>·</span> {{ active_deriv_account.account_id }}</p>
+          <p class="balance-label">Available balance</p>
+          <p class="balance"><span>{{ active_deriv_account.currency|default:"USD" }}</span> {{ active_deriv_account.balance|floatformat:2 }}</p>
+          <a class="account-link" href="/automation/">Manage connected account <span aria-hidden="true">↗</span></a>
+        {% else %}
+          <p class="account-type">Connect your Deriv account to open a trading workspace.</p>
+          <p class="balance-label">Account balance</p>
+          <p class="balance balance-empty">Ready when you are</p>
+          <a class="account-link" href="/automation/connect-account/">Connect Deriv <span aria-hidden="true">↗</span></a>
+        {% endif %}
+        <div class="card-orbit orbit-a"></div><div class="card-orbit orbit-b"></div>
+      </aside>
+    </section>
+
+    <section class="workspaces page-width" aria-labelledby="workspaces-title">
+      <div class="section-heading"><div><p class="kicker">A GOOD PLACE TO START</p><h2 id="workspaces-title">Choose your workspace</h2></div><a class="section-link" href="/trade/">See all markets <span aria-hidden="true">→</span></a></div>
+      <div class="workspace-grid">
+        <a class="workspace-card card-digits" href="{{ digits_url|default:'/trade/' }}"><span class="card-index">01 <i>MARKETS</i></span><span class="workspace-copy"><strong>Digits</strong><small>Explore the last digit and build a precise trading plan.</small></span><span class="card-arrow" aria-hidden="true">↗</span></a>
+        <a class="workspace-card card-rise" href="{{ rise_fall_url|default:'/trade/' }}"><span class="card-index">02 <i>DIRECTION</i></span><span class="workspace-copy"><strong>Rise / Fall</strong><small>Make a call on the next move in the market.</small></span><span class="card-arrow" aria-hidden="true">↗</span></a>
+        <a class="workspace-card card-accumulators" href="{{ accumulators_url|default:'/trade/' }}"><span class="card-index">03 <i>GROWTH</i></span><span class="workspace-copy"><strong>Accumulators</strong><small>Explore a different way to shape a position.</small></span><span class="card-arrow" aria-hidden="true">↗</span></a>
+        <a class="workspace-card card-bots" href="{{ bot_url|default:'/automatic-trade/' }}"><span class="card-index">04 <i>AUTOMATION</i></span><span class="workspace-copy"><strong>Bot studio</strong><small>Build a strategy and decide how it should run.</small></span><span class="card-arrow" aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+
+    <section class="studio-callout page-width">
+      <div class="studio-art" aria-hidden="true"><span class="studio-node node-one">START</span><i></i><span class="studio-node node-two">RULE</span><i></i><span class="studio-node node-three">TRADE</span></div>
+      <div class="studio-copy"><p class="kicker">FROM IDEA TO STRATEGY</p><h2>Make a strategy<br>your own.</h2><p>Start in the visual bot studio, explore the available tools, and configure a strategy around your preferences.</p><a class="button button-light" href="{{ bot_url|default:'/automatic-trade/' }}">Open bot studio <span aria-hidden="true">↗</span></a></div>
+      <span class="studio-number">04</span>
+    </section>
+  </main>
+
+  <footer class="page-footer page-width"><a class="wordmark" href="/"><span class="brand-mark">P</span><span>profitera</span></a><span>Trading tools for your next move.</span><a href="/">Back to Profitera <span aria-hidden="true">↗</span></a></footer>
+</body>
+</html>
