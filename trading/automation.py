@@ -484,6 +484,14 @@ class AutomationWorker:
                                     high_pair_fired.discard(previous_trade.symbol)
                                     high_pair_streaks[previous_trade.symbol] = 0
                                     continue
+                                if action == "complete_win" and run.strategy == "even_odd":
+                                    even_odd_recovery_pending = False
+                                    even_odd_armed_symbol = ""
+                                    even_odd_armed_direction = ""
+                                    even_odd_trigger_streak = 0
+                                    even_odd_trigger_fired = False
+                                    await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(waiting_for="Scanning for next entry")
+                                    continue
                                 if action != "retry":
                                     message = "Won. Recovery sequence complete." if action == "complete_win" else "Recovery limit reached."
                                     await self.complete_sequence(run_id, message)
