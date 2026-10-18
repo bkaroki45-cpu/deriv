@@ -160,7 +160,7 @@
     }
 
     async function updateParityHud() {
-        if (!selectedBot || selectedBot.strategy !== 'even_odd') return;
+        if (window.activityResetPending || !selectedBot || selectedBot.strategy !== 'even_odd') return;
         try {
             const run = await json(`${api}bots/${botId}/run/`);
             const market = run.stats?.markets?.[run.selected_symbol] || {};
@@ -278,17 +278,35 @@
             const button = event.currentTarget;
             if (button.disabled) return;
             const originalLabel = button.textContent;
+            const live = document.querySelector('#live');
+            const activityCard = live?.closest('.card');
+            window.activityResetPending = true;
+            if (live) live.innerHTML = '<p class="muted">Activity cleared. Resetting saved history…</p>';
+            const cleanLive = '<p class="muted">Activity cleared. Resetting saved history…</p>';
+            const keepPageClean = live ? new MutationObserver(() => {
+                if (window.activityResetPending && live.innerHTML !== cleanLive) live.innerHTML = cleanLive;
+            }) : null;
+            if (live && keepPageClean) keepPageClean.observe(live, { childList: true, subtree: true, characterData: true });
+            activityCard?.querySelectorAll('[data-eo-symbol],[data-eo-pair],[data-eo-contract],[data-eo-step],[data-eo-pnl],[data-eo-active],[data-eo-status],[data-eo-even],[data-eo-odd]')
+                .forEach(node => { node.textContent = '—'; });
+            activityCard?.querySelectorAll('[data-eo-even-bar],[data-eo-odd-bar]')
+                .forEach(node => { node.style.width = '0%'; });
+            const note = activityCard?.querySelector('[data-eo-note]');
+            if (note) note.textContent = 'Activity cleared. Start one trade when you are ready.';
             button.disabled = true;
             button.classList.add('is-busy');
             button.textContent = 'Clearing...';
             try {
                 await json(`${api}bots/${botId}/run/reset/`, { method: 'POST' });
-                // The reset is complete once the POST succeeds. Refresh the
-                // panels in the background so slow read requests don't keep
-                // the button disabled after the history has been deleted.
+                window.activityResetPending = false;
+                keepPageClean?.disconnect();
                 status();
                 updateParityHud();
             } catch (error) {
+                window.activityResetPending = false;
+                keepPageClean?.disconnect();
+                status();
+                updateParityHud();
                 alert(error.message);
             } finally {
                 if (button.isConnected) {
