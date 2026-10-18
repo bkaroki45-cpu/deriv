@@ -39,17 +39,35 @@ def analyse(history, strategy, threshold, thresholds=None):
     lower, upper = sum(pct[:5]), sum(pct[5:])
     screen_digits = (0, 1, 2) if strategy == "over_2" else (7, 8, 9)
     triggers = (0, 1) if strategy == "over_2" else (7, 8, 9)
-    group_ok = lower > upper if strategy == "over_2" else upper > lower
+    group_ok = upper > lower
     configured = thresholds or {}
-    limits = {digit: float(configured.get(str(digit), threshold)) for digit in screen_digits}
-    if not group_ok or not all(pct[digit] < limits[digit] for digit in screen_digits):
+    limits = {
+        digit: min(float(configured.get(str(digit), threshold)), 10.0) if strategy == "over_2"
+        else float(configured.get(str(digit), threshold))
+        for digit in screen_digits
+    }
+    dominant_digit = max(range(10), key=lambda digit: (counts[digit], digit))
+    trend_ok = True
+    if strategy == "over_2":
+        midpoint = len(history) // 2
+        older, recent = history[:midpoint], history[midpoint:]
+        if not older or not recent:
+            trend_ok = False
+        else:
+            older_pct = [older.count(digit) * 100 / len(older) for digit in range(10)]
+            recent_pct = [recent.count(digit) * 100 / len(recent) for digit in range(10)]
+            trend_ok = all(recent_pct[digit] <= older_pct[digit] for digit in (0, 1, 2))
+    if (not group_ok
+            or not all(pct[digit] < limits[digit] for digit in screen_digits)
+            or (strategy == "over_2" and (not trend_ok or dominant_digit < 5))):
         return None
     imbalance = abs(lower - upper)
     rarity = sum(max(0, limits[digit] - pct[digit]) for digit in screen_digits)
     return {
         "digits": pct, "lower": lower, "upper": upper,
         "score": round(imbalance * 2 + rarity, 4), "triggers": triggers,
-        "thresholds": limits,
+        "thresholds": limits, "dominant_digit": dominant_digit,
+        "low_digits_trend_ok": trend_ok,
     }
 
 
@@ -577,6 +595,8 @@ class AutomationWorker:
                                 candidate = analyse(list(history), candidate_strategy, state.digit_threshold, state.digit_thresholds)
                                 if candidate:
                                     candidates[(market, candidate_strategy)] = {**candidate, "strategy": candidate_strategy}
+                                elif candidate_strategy == "over_2":
+                                    snapshot[market]["status"] = "Waiting: 5–9 must lead 0–4; 0–2 below 10% and not rising; top digit 5–9; trigger 0/1"
                         # Only the automatic strategy may fall back to Differs.
                         if not candidates and not active_contracts and differ_fallback_allowed(state.strategy):
                             for market, history in histories.items():
