@@ -613,7 +613,7 @@ class AutomationWorker:
                             selected = strongest_market
                             strongest = parity_rankings[strongest_market]
                             if strongest["eligible"]:
-                                direction = strongest["contract_type"]
+                                direction = strongest["direction"]
                                 trigger_parity = "odd" if direction == "even" else "even"
                                 if (even_odd_armed_symbol, even_odd_armed_direction) != (strongest_market, direction):
                                     even_odd_armed_symbol = strongest_market
@@ -688,7 +688,7 @@ class AutomationWorker:
                             )
                             if state.strategy == "even_odd" and not (recovery_only and active_contracts):
                                 if selected in parity_rankings and parity_rankings[selected]["eligible"]:
-                                    direction = parity_rankings[selected]["contract_type"]
+                                    direction = parity_rankings[selected]["direction"]
                                     opposite = "odd" if direction == "even" else "even"
                                     prefix = "Recovery: " if even_odd_recovery_pending else ""
                                     waiting_for = f"{prefix}{opposite} pair {min(even_odd_trigger_streak, 2)}/2"
