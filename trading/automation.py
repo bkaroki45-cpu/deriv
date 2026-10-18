@@ -467,7 +467,12 @@ class AutomationWorker:
                         settled_contract_id = str(contract.get("contract_id") or "")
                         if settled_contract_id in active_contracts and (contract.get("is_sold") or contract.get("is_expired")):
                             profit = Decimal(str(contract.get("profit") or 0))
-                            await sync_to_async(AutomationTrade.objects.filter(contract_id=settled_contract_id).update)(status="won" if profit > 0 else "lost", profit=profit, settled_at=timezone.now(), raw=contract)
+                            settled_trade = await sync_to_async(AutomationTrade.objects.get)(contract_id=settled_contract_id)
+                            exit_quote = contract.get("exit_tick_display_value")
+                            if exit_quote is None:
+                                exit_quote = contract.get("exit_tick")
+                            result_digit = last_digit(exit_quote, pip_sizes.get(settled_trade.symbol)) if exit_quote is not None else None
+                            await sync_to_async(AutomationTrade.objects.filter(contract_id=settled_contract_id).update)(status="won" if profit > 0 else "lost", profit=profit, result_digit=result_digit, settled_at=timezone.now(), raw=contract)
                             active_contracts.discard(settled_contract_id)
                             active = run.active_contract_id if run.active_contract_id in active_contracts else (sorted(active_contracts)[-1] if active_contracts else "")
                             await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(active_contract_id=active)
@@ -478,7 +483,7 @@ class AutomationWorker:
                                 await self.complete_sequence(run_id, "Existing open contracts settled. Restart the bot to continue.")
                                 return
                             if run.strategy in {"even_odd", "high_pair"}:
-                                previous_trade = await sync_to_async(AutomationTrade.objects.get)(contract_id=settled_contract_id)
+                                previous_trade = settled_trade
                                 if previous_trade.strategy != run.strategy:
                                     await self.complete_sequence(run_id, "Existing trade used a different strategy. Restart the bot to continue.")
                                     return

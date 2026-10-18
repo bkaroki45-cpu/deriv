@@ -137,6 +137,7 @@ class AutomationTrade(models.Model):
     contract_id = models.CharField(max_length=64, unique=True)
     contract_type = models.CharField(max_length=24)
     stake = models.DecimalField(max_digits=12, decimal_places=2)
+    result_digit = models.PositiveSmallIntegerField(null=True, blank=True)
     status = models.CharField(max_length=16, default="open")
     profit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     opened_at = models.DateTimeField(auto_now_add=True)
