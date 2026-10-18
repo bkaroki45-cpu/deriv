@@ -37,14 +37,15 @@ def analyse(history, strategy, threshold, thresholds=None):
     counts = [history.count(digit) for digit in range(10)]
     pct = [count * 100 / len(history) for count in counts]
     lower, upper = sum(pct[:5]), sum(pct[5:])
-    triggers = (0, 1, 2) if strategy == "over_2" else (7, 8, 9)
+    screen_digits = (0, 1, 2) if strategy == "over_2" else (7, 8, 9)
+    triggers = (0, 1) if strategy == "over_2" else (7, 8, 9)
     group_ok = lower > upper if strategy == "over_2" else upper > lower
     configured = thresholds or {}
-    limits = {digit: float(configured.get(str(digit), threshold)) for digit in triggers}
-    if not group_ok or not all(pct[digit] < limits[digit] for digit in triggers):
+    limits = {digit: float(configured.get(str(digit), threshold)) for digit in screen_digits}
+    if not group_ok or not all(pct[digit] < limits[digit] for digit in screen_digits):
         return None
     imbalance = abs(lower - upper)
-    rarity = sum(max(0, limits[digit] - pct[digit]) for digit in triggers)
+    rarity = sum(max(0, limits[digit] - pct[digit]) for digit in screen_digits)
     return {
         "digits": pct, "lower": lower, "upper": upper,
         "score": round(imbalance * 2 + rarity, 4), "triggers": triggers,
@@ -75,22 +76,29 @@ def differ_fallback_allowed(strategy):
     return strategy == "auto"
 
 
-def analyse_even_odd(history):
-    """Oppose two consecutive last digits when they share the same parity."""
-    if len(history) < 2:
+def analyse_even_odd(history, minimum_share=51.0):
+    """Trade the leading parity only when it reaches the required share."""
+    if not history or any(not isinstance(digit, int) or digit < 0 or digit > 9 for digit in history):
         return None
-    previous, latest = history[-2:]
-    if any(not isinstance(digit, int) or digit < 0 or digit > 9 for digit in (previous, latest)):
-        return None
-    if previous % 2 != latest % 2:
-        return None
-    is_even = latest % 2 == 0
+    even_count = sum(digit % 2 == 0 for digit in history)
+    odd_count = len(history) - even_count
+    even_percent = even_count * 100 / len(history)
+    odd_percent = odd_count * 100 / len(history)
+    dominant_share = max(even_percent, odd_percent)
+    dominant_parity = "even" if even_percent > odd_percent else "odd"
+    difference = abs(even_percent - odd_percent)
     return {
         "strategy": "even_odd",
-        "contract_type": "DIGITODD" if is_even else "DIGITEVEN",
-        "direction": "odd" if is_even else "even",
-        "pair": [previous, latest],
-        "trigger_digit": latest,
+        "contract_type": "DIGITEVEN" if dominant_parity == "even" else "DIGITODD",
+        "direction": dominant_parity,
+        "dominant_parity": dominant_parity,
+        "even_percent": round(even_percent, 2),
+        "odd_percent": round(odd_percent, 2),
+        "dominant_share": round(dominant_share, 2),
+        "parity_difference": round(difference, 2),
+        "score": round(difference, 4),
+        "eligible": dominant_share >= float(minimum_share),
+        "trigger_digit": history[-1],
     }
 
 
@@ -355,7 +363,7 @@ class AutomationWorker:
                 market_names = self.market_names(catalogue_items)
                 pip_sizes = self.market_pip_sizes(catalogue_items)
                 symbols = list(run.symbols)
-                if "__all_volatility__" in symbols:
+                if "__all_volatility__" in symbols or run.strategy == "even_odd":
                     symbols = self.volatility_symbols(catalogue_items)
                 # Subscribe individually so a temporarily unavailable market
                 # cannot prevent all other Volatility and 1-second feeds.
@@ -495,23 +503,32 @@ class AutomationWorker:
                         histories[symbol].append(current_digit)
                         strategies = ("over_2", "under_7") if state.strategy == "auto" else (state.strategy,)
                         candidates = {}
+                        parity_rankings = {}
                         snapshot = {market: {**digit_snapshot(list(history), state.tick_window), "name": market_names.get(market, market), "symbol": market} for market, history in histories.items()}
                         for market, history in histories.items():
                             if state.strategy == "even_odd":
-                                pair = list(history)[-2:]
-                                parity_candidate = analyse_even_odd(list(history))
+                                if len(history) < state.tick_window:
+                                    snapshot[market]["status"] = f"Collecting ticks: {len(history)}/{state.tick_window}"
+                                    continue
+                                parity_analysis = analyse_even_odd(list(history))
+                                if not parity_analysis:
+                                    snapshot[market]["status"] = "Waiting for valid tick data"
+                                    continue
+                                parity_rankings[market] = parity_analysis
                                 snapshot[market].update({
-                                    "even_percent": round(sum(digit % 2 == 0 for digit in history) * 100 / len(history), 2) if history else 0,
-                                    "odd_percent": round(sum(digit % 2 == 1 for digit in history) * 100 / len(history), 2) if history else 0,
-                                    "last_pair": pair,
-                                    "status": f"Pair {pair[0]}, {pair[1]} signals {parity_candidate['direction'].title()}" if parity_candidate else "Scanning for two consecutive digits with matching parity",
+                                    **parity_analysis,
+                                    "status": (
+                                        f"{parity_analysis['dominant_parity'].title()} leads {parity_analysis['dominant_share']:.2f}% · gap {parity_analysis['parity_difference']:.2f}%"
+                                        if parity_analysis["eligible"]
+                                        else f"No trade: leading parity {parity_analysis['dominant_share']:.2f}% is below 51%"
+                                    ),
                                 })
-                                if parity_candidate:
+                                if parity_analysis["eligible"]:
                                     candidates[(market, "even_odd")] = {
-                                        **parity_candidate,
+                                        **parity_analysis,
                                         "strategy": "even_odd",
-                                        "score": 1,
-                                        "triggers": (parity_candidate["trigger_digit"],),
+                                        "immediate": True,
+                                        "triggers": (parity_analysis["trigger_digit"],),
                                     }
                                 continue
                             if state.strategy == "high_pair":
@@ -562,9 +579,19 @@ class AutomationWorker:
                         selected_key = max(candidates, key=lambda key: candidates[key]["score"]) if candidates and not active_contracts else None
                         selected = selected_key[0] if selected_key else ""
                         selected_candidate = candidates[selected_key] if selected_key else None
+                        if state.strategy == "even_odd" and parity_rankings:
+                            strongest_market = max(parity_rankings, key=lambda market: parity_rankings[market]["parity_difference"])
+                            selected = strongest_market
+                            selected_candidate = candidates.get((strongest_market, "even_odd")) if not active_contracts else None
+                            strongest = parity_rankings[strongest_market]
+                            snapshot[strongest_market]["status"] = (
+                                f"Strongest gap · {strongest['dominant_parity'].title()} {strongest['dominant_share']:.2f}%"
+                                if strongest["eligible"]
+                                else f"Best gap, but {strongest['dominant_share']:.2f}% is below 51%"
+                            )
                         for (market, candidate_strategy), item in candidates.items():
                             signal_status = (
-                                f"Pair {item['pair'][0]}, {item['pair'][1]} signals {item['direction'].title()}"
+                                (f"Selected: {item['direction']} {item['dominant_share']:.2f}% · gap {item['parity_difference']:.2f}%" if market == selected else f"Qualified, but not strongest · gap {item['parity_difference']:.2f}%")
                                 if candidate_strategy == "even_odd"
                                 else f"Favorable {candidate_strategy.replace('_', ' ').title()} — waiting for {','.join(map(str, item['triggers']))}"
                             )
@@ -597,7 +624,14 @@ class AutomationWorker:
                                 if recovery_only and active_contracts
                                 else (f"{selected_candidate['strategy']} · " + ",".join(map(str, selected_candidate["triggers"]))) if selected_candidate else ""
                             )
-                            await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(selected_symbol=selected, waiting_for=waiting_for, stats={"markets": snapshot, "selected": selected, "selected_strategy": selected_candidate["strategy"] if selected_candidate else "", "selected_metrics": snapshot.get(selected, {}) if selected_candidate else {}, "progress": {"markets_ready": sum(1 for item in snapshot.values() if item["ticks"] >= state.tick_window), "markets_total": len(symbols), "tick_window": state.tick_window}, "updated_at": timezone.now().isoformat()})
+                            if state.strategy == "even_odd" and not (recovery_only and active_contracts):
+                                if selected_candidate:
+                                    waiting_for = f"Parity {selected_candidate['dominant_share']:.2f}% >= 51%"
+                                elif selected in parity_rankings:
+                                    waiting_for = f"Parity {parity_rankings[selected]['dominant_share']:.2f}% < 51%"
+                                else:
+                                    waiting_for = "Collecting volatility ticks"
+                            await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(selected_symbol=selected, waiting_for=waiting_for, stats={"markets": snapshot, "selected": selected, "selected_strategy": selected_candidate["strategy"] if selected_candidate else ("even_odd" if state.strategy == "even_odd" and selected else ""), "selected_metrics": snapshot.get(selected, {}) if selected else {}, "progress": {"markets_ready": sum(1 for item in snapshot.values() if item["ticks"] >= state.tick_window), "markets_total": len(symbols), "tick_window": state.tick_window}, "updated_at": timezone.now().isoformat()})
                             last_save = timezone.now().timestamp()
                         previous_distributions = {market: item["digits"] for market, item in snapshot.items()}
             finally:

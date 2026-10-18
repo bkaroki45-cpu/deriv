@@ -11,22 +11,27 @@ from .models import AutomationBot, AutomationRun
 
 
 class EvenOddSignalTests(TestCase):
-	def test_two_even_digits_signal_odd(self):
-		signal = analyse_even_odd([1, 2, 8])
-
-		self.assertEqual(signal["contract_type"], "DIGITODD")
-		self.assertEqual(signal["direction"], "odd")
-		self.assertEqual(signal["pair"], [2, 8])
-
-	def test_two_odd_digits_signal_even(self):
-		signal = analyse_even_odd([3, 9])
+	def test_even_majority_signals_even(self):
+		signal = analyse_even_odd([0] * 520 + [1] * 480)
 
 		self.assertEqual(signal["contract_type"], "DIGITEVEN")
 		self.assertEqual(signal["direction"], "even")
+		self.assertEqual(signal["dominant_share"], 52.0)
+		self.assertTrue(signal["eligible"])
 
-	def test_mixed_or_insufficient_digits_do_not_signal(self):
-		self.assertIsNone(analyse_even_odd([2, 3]))
-		self.assertIsNone(analyse_even_odd([8]))
+	def test_odd_majority_signals_odd_at_exact_threshold(self):
+		signal = analyse_even_odd([1] * 510 + [0] * 490)
+
+		self.assertEqual(signal["contract_type"], "DIGITODD")
+		self.assertEqual(signal["direction"], "odd")
+		self.assertEqual(signal["dominant_share"], 51.0)
+		self.assertTrue(signal["eligible"])
+
+	def test_parity_below_51_percent_is_not_eligible(self):
+		signal = analyse_even_odd([0] * 505 + [1] * 495)
+
+		self.assertFalse(signal["eligible"])
+		self.assertIsNone(analyse_even_odd([]))
 
 	def test_even_odd_proposal_omits_barrier_but_over_two_keeps_it(self):
 		parity = proposal_payload("0.50", "USD", "1HZ10V", "DIGITODD")
@@ -233,7 +238,7 @@ class EvenOddBotApiTests(TestCase):
 			is_active=True,
 		)
 		self.bot, _ = AutomationBot.objects.get_or_create(
-			name="Even / Odd Pair Recovery",
+			name="Even/Odd Volatility Scanner",
 			defaults={"strategy": "even_odd", "enabled": True},
 		)
 		self.bot.enabled = True
@@ -283,7 +288,7 @@ class EvenOddBotApiTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		run = AutomationRun.objects.get(user=self.user, bot=self.bot)
 		self.assertEqual(run.strategy, "even_odd")
-		self.assertEqual(run.symbols, ["1HZ10V"])
+		self.assertEqual(run.symbols, ["__all_volatility__"])
 		self.assertEqual(run.capital_limit, Decimal("10.00"))
 		self.assertEqual(run.max_martingale_steps, 3)
 

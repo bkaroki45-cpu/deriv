@@ -501,7 +501,11 @@ class AutomationRunView(APIView):
         active_run = AutomationRun.objects.filter(user=request.user, status__in=["running", "stopping"]).first()
         if active_run:
             return Response({"error": "Stop the active bot run before starting another one."}, status=409)
-        scan_all_volatility = request.data.get("scan_all_volatility") is True
+        managed_strategies = {"even_odd", "high_pair"}
+        strategy = bot.strategy if bot.strategy in managed_strategies else request.data.get("strategy", "auto")
+        supported_strategies = {bot.strategy} if bot.strategy in managed_strategies else {"auto", "over_2", "under_7"}
+        if strategy not in supported_strategies: return Response({"error": "This strategy is not available for the selected bot."}, status=400)
+        scan_all_volatility = request.data.get("scan_all_volatility") is True or strategy == "even_odd"
         symbols = ["__all_volatility__"] if scan_all_volatility else [str(symbol) for symbol in request.data.get("symbols", []) if str(symbol)]
         if not symbols: return Response({"error": "Select at least one Volatility Index."}, status=400)
         try:
@@ -524,15 +528,11 @@ class AutomationRunView(APIView):
         if daily_loss is not None and daily_loss <= 0: return Response({"error": "Daily loss limit must be greater than zero."}, status=400)
         if trade_limit is not None and trade_limit <= 0: return Response({"error": "Trade limit must be greater than zero."}, status=400)
         if bot.max_stake and stake > bot.max_stake: return Response({"error": "Stake exceeds this bot's administrator limit."}, status=400)
-        managed_strategies = {"even_odd", "high_pair"}
-        strategy = bot.strategy if bot.strategy in managed_strategies else request.data.get("strategy", "auto")
-        supported_strategies = {bot.strategy} if bot.strategy in managed_strategies else {"auto", "over_2", "under_7"}
-        if strategy not in supported_strategies: return Response({"error": "This strategy is not available for the selected bot."}, status=400)
         if bot.strategy == "even_odd" and capital_limit is None: return Response({"error": "Set a total capital limit for this run. This is separate from the stake per trade."}, status=400)
-        trigger_digits = {"over_2": {"0", "1", "2"}, "under_7": {"7", "8", "9"}, "auto": {"0", "1", "2", "7", "8", "9"}, "even_odd": set(), "high_pair": set()}[strategy]
+        threshold_digits = {"over_2": {"0", "1", "2"}, "under_7": {"7", "8", "9"}, "auto": {"0", "1", "2", "7", "8", "9"}, "even_odd": set(), "high_pair": set()}[strategy]
         supplied = request.data.get("digit_thresholds") or {}
         try:
-            thresholds = {digit: float(supplied.get(digit, request.data.get("digit_threshold", 8))) for digit in trigger_digits}
+            thresholds = {digit: float(supplied.get(digit, request.data.get("digit_threshold", 8))) for digit in threshold_digits}
         except (TypeError, ValueError):
             return Response({"error": "Each digit threshold must be a percentage."}, status=400)
         if any(value <= 0 or value > 100 for value in thresholds.values()):

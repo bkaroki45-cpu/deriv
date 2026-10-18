@@ -38,21 +38,22 @@
         style.textContent = '.bot-library-picker{grid-column:1/-1}.automation-card h2{font-size:19px}.even-odd-hud{margin-top:16px;padding:16px;border:1px solid #26516b;border-radius:12px;background:linear-gradient(135deg,#0b1b2a,#101a2c)}.eo-hud-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}.eo-hud-head strong{font-size:12px;letter-spacing:.08em;text-transform:uppercase}.eo-live{display:flex;align-items:center;gap:7px;color:#7ee9c0;font-size:11px}.eo-live i{width:7px;height:7px;border-radius:50%;background:#53e3ad;box-shadow:0 0 12px #53e3ad;animation:eo-pulse 1.5s infinite}.eo-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.eo-stat{padding:10px;border:1px solid #24364d;border-radius:8px;background:#08121f}.eo-stat span{display:block;color:#8ea1b5;font-size:10px}.eo-stat b{display:block;margin-top:5px;font-size:14px;color:#e9f5f6;overflow-wrap:anywhere}.eo-bars{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.eo-bar{height:6px;margin-top:7px;border-radius:5px;background:#1d2b3c;overflow:hidden}.eo-bar i{display:block;height:100%;background:linear-gradient(90deg,#41d8ae,#61bbf1);transition:width .25s}.eo-bar.odd i{background:linear-gradient(90deg,#b794ff,#69b9ff)}.eo-hud-note{margin:12px 0 0;color:#8ea1b5;font-size:11px}.eo-sequence-done{color:#61d7a8!important}@keyframes eo-pulse{50%{opacity:.45}}@media(max-width:720px){.eo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}';
         document.head.appendChild(style);
         const liveCard = document.querySelector('#live')?.closest('.card');
-        liveCard?.insertAdjacentHTML('beforeend', '<section class="even-odd-hud" id="even-odd-hud" hidden><div class="eo-hud-head"><strong>Parity signal monitor</strong><span class="eo-live"><i></i><span data-eo-live>Scanning</span></span></div><div class="eo-grid"><div class="eo-stat"><span>Selected volatility</span><b data-eo-symbol>-</b></div><div class="eo-stat"><span>Last two digits</span><b data-eo-pair>Waiting</b></div><div class="eo-stat"><span>Next contract</span><b data-eo-contract>Scanning</b></div><div class="eo-stat"><span>Recovery step</span><b data-eo-step>0 retries</b></div><div class="eo-stat"><span>Capital used</span><b data-eo-capital>0.00 / 20.00</b></div><div class="eo-stat"><span>Realized P/L</span><b data-eo-pnl>0.00</b></div><div class="eo-stat"><span>Active contract</span><b data-eo-active>None</b></div><div class="eo-stat"><span>Run state</span><b data-eo-status>Stopped</b></div></div><div class="eo-bars"><div class="eo-stat"><span>Even digits <b data-eo-even>0%</b></span><div class="eo-bar"><i data-eo-even-bar style="width:0%"></i></div></div><div class="eo-stat"><span>Odd digits <b data-eo-odd>0%</b></span><div class="eo-bar odd"><i data-eo-odd-bar style="width:0%"></i></div></div></div><p class="eo-hud-note" data-eo-note>Waiting for live ticks from the selected volatility index.</p></section>');
+        liveCard?.insertAdjacentHTML('beforeend', '<section class="even-odd-hud" id="even-odd-hud" hidden><div class="eo-hud-head"><strong>Parity signal monitor</strong><span class="eo-live"><i></i><span data-eo-live>Scanning</span></span></div><div class="eo-grid"><div class="eo-stat"><span>Strongest volatility</span><b data-eo-symbol>-</b></div><div class="eo-stat"><span>Leading parity and gap</span><b data-eo-pair>Waiting for 1,000 ticks</b></div><div class="eo-stat"><span>Trade direction</span><b data-eo-contract>Waiting for 51%</b></div><div class="eo-stat"><span>Recovery step</span><b data-eo-step>0 retries</b></div><div class="eo-stat"><span>Capital used</span><b data-eo-capital>0.00 / 20.00</b></div><div class="eo-stat"><span>Realized P/L</span><b data-eo-pnl>0.00</b></div><div class="eo-stat"><span>Active contract</span><b data-eo-active>None</b></div><div class="eo-stat"><span>Run state</span><b data-eo-status>Stopped</b></div></div><div class="eo-bars"><div class="eo-stat"><span>Even digits <b data-eo-even>0%</b></span><div class="eo-bar"><i data-eo-even-bar style="width:0%"></i></div></div><div class="eo-stat"><span>Odd digits <b data-eo-odd>0%</b></span><div class="eo-bar odd"><i data-eo-odd-bar style="width:0%"></i></div></div></div><p class="eo-hud-note" data-eo-note>Scanning all open Volatility markets. A parity must reach 51% before a trade.</p></section>');
     }
 
     function setSymbolControl(isEvenOdd) {
         const current = document.querySelector('#symbols');
         if (!current) return;
-        if (isEvenOdd && current.tagName !== 'SELECT') {
-            const select = document.createElement('select');
-            select.id = 'symbols';
-            select.setAttribute('aria-label', 'Selected Volatility index');
-            select.innerHTML = symbols.map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
-            current.replaceWith(select);
-            const label = select.closest('label');
-            if (label) label.firstChild.textContent = 'Volatility index';
-        } else if (!isEvenOdd && current.tagName === 'SELECT') {
+        if (isEvenOdd && !(current.tagName === 'INPUT' && current.readOnly)) {
+            const input = document.createElement('input');
+            input.id = 'symbols';
+            input.value = 'All active Volatility markets';
+            input.readOnly = true;
+            input.setAttribute('aria-label', 'All active Volatility markets');
+            current.replaceWith(input);
+            const label = input.closest('label');
+            if (label) label.firstChild.textContent = 'Markets scanned automatically';
+        } else if (!isEvenOdd && (current.tagName === 'SELECT' || current.readOnly)) {
             const input = document.createElement('input');
             input.id = 'symbols';
             input.value = '1HZ10V,1HZ25V,1HZ50V';
@@ -71,7 +72,9 @@
         const title = document.querySelector('.layout .card h2');
         const description = document.querySelector('.layout .card p.muted');
         if (title) title.textContent = bot.name;
-        if (description) description.textContent = bot.description;
+        if (description) description.textContent = bot.strategy === 'even_odd'
+            ? 'Scans every active Volatility market and trades the leading parity only when it reaches 51%.'
+            : bot.description;
 
         const isEvenOdd = bot.strategy === 'even_odd';
         const isHighPair = bot.strategy === 'high_pair';
@@ -85,6 +88,7 @@
                     ? '<option value="high_pair">Rare 0/1/2, then two 7/8/9 → Over 2</option>'
                 : '<option value="auto">Automatic digit scanner</option><option value="over_2">Over 2</option><option value="under_7">Under 7</option>';
             strategy.value = isManagedBot ? bot.strategy : 'auto';
+            if (isEvenOdd && strategy.options[0]) strategy.options[0].textContent = 'Largest even/odd gap (minimum 51%)';
         }
         document.querySelector('#thresholds')?.classList.toggle('hidden', isManagedBot);
         setSymbolControl(isEvenOdd);
@@ -166,9 +170,13 @@
                 const node = document.querySelector(selector);
                 if (node) node.textContent = value;
             };
-            set('[data-eo-symbol]', market.name || run.selected_symbol || document.querySelector('#symbols')?.selectedOptions[0]?.textContent || 'Scanning');
+            set('[data-eo-symbol]', market.name || run.selected_symbol || 'Scanning all markets');
             set('[data-eo-pair]', pair.length === 2 ? `${pair[0]}  →  ${pair[1]}` : 'Collecting first pair');
             set('[data-eo-contract]', market.signal_contract || 'Waiting for pair');
+            set('[data-eo-pair]', market.dominant_parity
+                ? `${market.dominant_parity} leads by ${Number(market.parity_difference || 0).toFixed(2)}%`
+                : 'Collecting 1,000 ticks');
+            set('[data-eo-contract]', market.eligible ? market.signal_contract : 'Waiting for 51%');
             set('[data-eo-step]', `${step} / ${run.max_martingale_steps || 0} retries`);
             set('[data-eo-capital]', `${used.toFixed(2)} / ${limit.toFixed(2)} ${run.currency || ''}`);
             set('[data-eo-pnl]', `${Number(run.profit_loss || 0).toFixed(2)} ${run.currency || ''}`);
@@ -177,7 +185,7 @@
             set('[data-eo-live]', run.status === 'running' ? 'LIVE SCAN' : 'MONITOR');
             set('[data-eo-even]', `${even.toFixed(1)}%`);
             set('[data-eo-odd]', `${odd.toFixed(1)}%`);
-            set('[data-eo-note]', market.status || run.error || 'Waiting for live ticks from the selected volatility index.');
+            set('[data-eo-note]', market.status || run.error || 'Scanning all active Volatility markets for the largest parity gap.');
             const evenBar = document.querySelector('[data-eo-even-bar]');
             const oddBar = document.querySelector('[data-eo-odd-bar]');
             if (evenBar) evenBar.style.width = `${Math.min(100, even)}%`;
@@ -225,7 +233,7 @@
                 });
                 const symbolControl = document.querySelector('#symbols');
                 const chosenSymbols = isEvenOdd
-                    ? [symbolControl.value]
+                    ? []
                     : symbolControl.value.split(',').map(item => item.trim()).filter(Boolean);
                 await json(`${api}bots/${botId}/run/`, {
                     method: 'POST',
@@ -233,7 +241,7 @@
                     body: JSON.stringify({
                         account_id: document.querySelector('#account').value,
                         symbols: chosenSymbols,
-                        scan_all_volatility: isHighPair || !isEvenOdd,
+                        scan_all_volatility: true,
                         strategy: selectedStrategy,
                         stake: document.querySelector('#stake').value,
                         capital_limit: isEvenOdd ? document.querySelector('#capital_limit').value : '',

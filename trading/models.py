@@ -66,7 +66,7 @@ class TradingLog(models.Model):
 class AutomationBot(models.Model):
     STRATEGIES = [
         ("auto", "Automatic digit scanner"),
-        ("even_odd", "Even/Odd pair recovery"),
+        ("even_odd", "Even/Odd volatility scanner"),
         ("high_pair", "High Digit Pair Over 2"),
     ]
 

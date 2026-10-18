@@ -76,7 +76,7 @@ class EvenOddBotLibraryTests(TestCase):
 			username="library-user",
 			email="library-user@example.test",
 		)
-		automation_bot = AutomationBot.objects.get(name="Even / Odd Pair Recovery")
+		automation_bot = AutomationBot.objects.get(name="Even/Odd Volatility Scanner")
 		self.client.force_login(user)
 
 		response = self.client.get("/api/bots/")
@@ -86,7 +86,7 @@ class EvenOddBotLibraryTests(TestCase):
 			bot for bot in response.json()["bots"]
 			if bot["slug"] == "even-odd-pair-recovery"
 		)
-		self.assertEqual(bot_card["title"], "Even/Odd Pair Recovery")
+		self.assertEqual(bot_card["title"], "Even/Odd Volatility Scanner")
 		self.assertEqual(
 			bot_card["launch_url"],
 			f"http://testserver/automation/?bot={automation_bot.pk}",
