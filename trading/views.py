@@ -522,14 +522,15 @@ class AutomationRunView(APIView):
             martingale_multiplier = Decimal(str(request.data.get("martingale_multiplier", "1")))
             capital_limit = Decimal(str(request.data["capital_limit"])) if strategy != "even_odd" and request.data.get("capital_limit") else None
             max_martingale_steps = int(request.data.get("max_martingale_steps", 0)) if strategy != "even_odd" else 0
-            # DTrader's digit-distribution panel uses the latest 1,000 ticks.
-            # Keep the scanner on the same window so displayed percentages
-            # are directly comparable to the Deriv trading screen.
-            window = 1000
+            # Use the rolling window selected on the scanner page. A fixed
+            # 1,000-tick override made the displayed setting misleading and
+            # could leave a run screening long after Start was pressed.
+            window = int(request.data.get("tick_window", 40))
             daily_loss = Decimal(str(request.data["max_daily_loss"])) if request.data.get("max_daily_loss") else bot.max_daily_loss
             trade_limit = int(request.data["max_trades_per_day"]) if request.data.get("max_trades_per_day") else bot.max_trades_per_day
         except (TypeError, ValueError, ArithmeticError):
             return Response({"error": "Enter a valid stake, Martingale multiplier, recovery count, and optional limits."}, status=400)
+        if not 20 <= window <= 5000: return Response({"error": "Rolling ticks must be between 20 and 5,000."}, status=400)
         if stake < Decimal("0.35"): return Response({"error": "Minimum stake is 0.35."}, status=400)
         if not Decimal("1") <= martingale_multiplier <= Decimal("15"): return Response({"error": "Martingale multiplier must be between 1 and 15."}, status=400)
         if not 0 <= max_martingale_steps <= 10: return Response({"error": "Martingale retries must be between 0 and 10."}, status=400)
