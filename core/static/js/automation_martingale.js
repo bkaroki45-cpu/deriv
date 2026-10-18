@@ -85,7 +85,7 @@
             strategy.innerHTML = isEvenOdd
                 ? '<option value="even_odd">Two same parity digits → opposite parity</option>'
                 : isHighPair
-                    ? '<option value="high_pair">Rare 0/1/2, then two 7/8/9 → Over 2</option>'
+                    ? '<option value="high_pair">Rare 0/1/2, then entry digit 0/1 → Over 2</option>'
                 : '<option value="auto">Automatic digit scanner</option><option value="over_2">Over 2</option><option value="under_7">Under 7</option>';
             strategy.value = isManagedBot ? bot.strategy : 'auto';
             if (isEvenOdd && strategy.options[0]) strategy.options[0].textContent = 'Largest even/odd gap (minimum 51%)';

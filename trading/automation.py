@@ -422,7 +422,6 @@ class AutomationWorker:
                 differ_batch_symbol = ""
                 differ_batch_count = 0
                 high_pair_eligible = set()
-                high_pair_streaks = defaultdict(int)
                 high_pair_fired = set()
                 even_odd_armed_symbol = ""
                 even_odd_armed_direction = ""
@@ -495,7 +494,6 @@ class AutomationWorker:
                                 )
                                 if action == "complete_win" and run.strategy == "high_pair":
                                     high_pair_fired.discard(previous_trade.symbol)
-                                    high_pair_streaks[previous_trade.symbol] = 0
                                     continue
                                 if action == "complete_win" and run.strategy == "even_odd":
                                     await self.complete_sequence(run_id, "Trade won. Press Start for the next trade.")
@@ -521,6 +519,11 @@ class AutomationWorker:
                                         selected_symbol="",
                                         waiting_for="Recovery: scanning all Volatility markets",
                                     )
+                                    continue
+                                if run.strategy == "high_pair":
+                                    # Keep recovery automatic, but require the
+                                    # next qualifying 0/1 entry tick again.
+                                    high_pair_fired.discard(previous_trade.symbol)
                                     continue
                                 active = await self.buy(
                                     router,
@@ -578,28 +581,18 @@ class AutomationWorker:
                                 snapshot[market].update(analysis)
                                 if market not in high_pair_eligible:
                                     high_pair_eligible.add(market)
-                                    snapshot[market]["status"] = "Qualified. Waiting for two consecutive 7, 8, or 9 digits."
-                                    if market == symbol:
-                                        high_pair_streaks[market] = int(current_digit in (7, 8, 9))
+                                    snapshot[market]["status"] = "Qualified. Waiting for an entry digit of 0 or 1."
                                     continue
-                                if market == symbol:
-                                    if current_digit in (7, 8, 9):
-                                        high_pair_streaks[market] += 1
-                                    else:
-                                        high_pair_streaks[market] = 0
-                                        high_pair_fired.discard(market)
-                                streak = high_pair_streaks[market]
-                                if streak >= 2 and market not in high_pair_fired:
-                                    high_pair_fired.add(market)
+                                if market == symbol and current_digit in (0, 1) and market not in high_pair_fired:
                                     candidates[(market, "high_pair")] = {
                                         **analysis,
                                         "strategy": "high_pair",
                                         "triggers": (current_digit,),
                                     }
-                                    snapshot[market]["status"] = f"Trigger pair {analysis['pair'][0]}, {analysis['pair'][1]} — submitting Over 2"
+                                    snapshot[market]["status"] = f"Entry digit {current_digit} — submitting Over 2"
                                 else:
                                     screen_note = "Screen moved; setup remains armed. " if not analysis["eligible"] else "Qualified; "
-                                    snapshot[market]["status"] = f"{screen_note}waiting for two consecutive 7/8/9 digits ({min(streak, 2)}/2)"
+                                    snapshot[market]["status"] = f"{screen_note}waiting for entry digit 0 or 1"
                                 continue
                             if len(history) < state.tick_window:
                                 continue
@@ -685,6 +678,8 @@ class AutomationWorker:
                                         differ_batch_count = 0
                                 if active:
                                     active = str(active)
+                                    if selected_candidate["strategy"] == "high_pair":
+                                        high_pair_fired.add(selected)
                                     if selected_candidate["strategy"] == "even_odd":
                                         even_odd_armed_symbol = ""
                                         even_odd_armed_direction = ""
@@ -818,6 +813,9 @@ class AutomationWorker:
         return streak
 
     async def buy(self, router, run, symbol, digit, strategy, requested_contract_type=None):
+        if strategy == "high_pair" and digit not in (0, 1):
+            await self.stop(run.id, "High Pair entries must be triggered by digit 0 or 1.")
+            return ""
         if strategy in {"over_2", "high_pair"}:
             contract_type, barrier = "DIGITOVER", "2"
         elif strategy == "under_7":
