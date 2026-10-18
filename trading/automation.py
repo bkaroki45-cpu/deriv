@@ -396,6 +396,11 @@ class AutomationWorker:
                 high_pair_eligible = set()
                 high_pair_streaks = defaultdict(int)
                 high_pair_fired = set()
+                even_odd_armed_symbol = ""
+                even_odd_armed_direction = ""
+                even_odd_trigger_streak = 0
+                even_odd_trigger_fired = False
+                even_odd_recovery_pending = run.strategy == "even_odd" and await self.loss_streak(run) > 0
                 for contract_id in sorted(active_contracts):
                     await subscribe_open_contract(router, contract_id)
                 last_save = 0
@@ -476,6 +481,17 @@ class AutomationWorker:
                                 if not await self.entry_allowed(run_id, fresh):
                                     await self.complete_sequence(run_id, "Trading authorization is no longer available.")
                                     return
+                                if run.strategy == "even_odd":
+                                    even_odd_recovery_pending = True
+                                    even_odd_armed_symbol = ""
+                                    even_odd_armed_direction = ""
+                                    even_odd_trigger_streak = 0
+                                    even_odd_trigger_fired = False
+                                    await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(
+                                        selected_symbol=previous_trade.symbol,
+                                        waiting_for="Recovery: waiting for pair",
+                                    )
+                                    continue
                                 active = await self.buy(
                                     router,
                                     fresh,
@@ -523,13 +539,6 @@ class AutomationWorker:
                                         else f"No trade: leading parity {parity_analysis['dominant_share']:.2f}% is below 51%"
                                     ),
                                 })
-                                if parity_analysis["eligible"]:
-                                    candidates[(market, "even_odd")] = {
-                                        **parity_analysis,
-                                        "strategy": "even_odd",
-                                        "immediate": True,
-                                        "triggers": (parity_analysis["trigger_digit"],),
-                                    }
                                 continue
                             if state.strategy == "high_pair":
                                 analysis = analyse_high_digit_pair(list(history)) if len(history) >= state.tick_window else None
@@ -582,13 +591,40 @@ class AutomationWorker:
                         if state.strategy == "even_odd" and parity_rankings:
                             strongest_market = max(parity_rankings, key=lambda market: parity_rankings[market]["parity_difference"])
                             selected = strongest_market
-                            selected_candidate = candidates.get((strongest_market, "even_odd")) if not active_contracts else None
                             strongest = parity_rankings[strongest_market]
-                            snapshot[strongest_market]["status"] = (
-                                f"Strongest gap · {strongest['dominant_parity'].title()} {strongest['dominant_share']:.2f}%"
-                                if strongest["eligible"]
-                                else f"Best gap, but {strongest['dominant_share']:.2f}% is below 51%"
-                            )
+                            if strongest["eligible"]:
+                                direction = strongest["contract_type"]
+                                trigger_parity = "odd" if direction == "even" else "even"
+                                if (even_odd_armed_symbol, even_odd_armed_direction) != (strongest_market, direction):
+                                    even_odd_armed_symbol = strongest_market
+                                    even_odd_armed_direction = direction
+                                    even_odd_trigger_streak = 0
+                                    even_odd_trigger_fired = False
+                                if symbol == strongest_market:
+                                    wanted_parity = 1 if trigger_parity == "odd" else 0
+                                    even_odd_trigger_streak = even_odd_trigger_streak + 1 if current_digit % 2 == wanted_parity else 0
+                                    if even_odd_trigger_streak == 0:
+                                        even_odd_trigger_fired = False
+                                snapshot[strongest_market]["signal_contract"] = direction
+                                snapshot[strongest_market]["status"] = (
+                                    f"Two {trigger_parity} ticks confirmed; buying {direction.title()}"
+                                    if even_odd_trigger_streak >= 2
+                                    else f"{direction.title()} leads {strongest['dominant_share']:.2f}%; waiting for {trigger_parity} pair ({even_odd_trigger_streak}/2)"
+                                )
+                                if even_odd_trigger_streak >= 2 and not even_odd_trigger_fired and not active_contracts and symbol == strongest_market:
+                                    selected_candidate = {**strongest, "strategy": "even_odd", "immediate": True, "triggers": (current_digit,)}
+                                    even_odd_trigger_fired = True
+                            else:
+                                even_odd_armed_symbol = ""
+                                even_odd_armed_direction = ""
+                                even_odd_trigger_streak = 0
+                                even_odd_trigger_fired = False
+                                snapshot[strongest_market]["status"] = f"Best gap, but {strongest['dominant_share']:.2f}% is below 51%"
+                        elif state.strategy == "even_odd":
+                            even_odd_armed_symbol = ""
+                            even_odd_armed_direction = ""
+                            even_odd_trigger_streak = 0
+                            even_odd_trigger_fired = False
                         for (market, candidate_strategy), item in candidates.items():
                             signal_status = (
                                 (f"Selected: {item['direction']} {item['dominant_share']:.2f}% · gap {item['parity_difference']:.2f}%" if market == selected else f"Qualified, but not strongest · gap {item['parity_difference']:.2f}%")
@@ -615,6 +651,12 @@ class AutomationWorker:
                                         differ_batch_count = 0
                                 if active:
                                     active = str(active)
+                                    if selected_candidate["strategy"] == "even_odd":
+                                        even_odd_armed_symbol = ""
+                                        even_odd_armed_direction = ""
+                                        even_odd_trigger_streak = 0
+                                        even_odd_trigger_fired = False
+                                        even_odd_recovery_pending = False
                                     await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(active_contract_id=active, selected_symbol=selected, waiting_for="")
                                     active_contracts.add(active)
                                     await subscribe_open_contract(router, active)
@@ -625,8 +667,11 @@ class AutomationWorker:
                                 else (f"{selected_candidate['strategy']} · " + ",".join(map(str, selected_candidate["triggers"]))) if selected_candidate else ""
                             )
                             if state.strategy == "even_odd" and not (recovery_only and active_contracts):
-                                if selected_candidate:
-                                    waiting_for = f"Parity {selected_candidate['dominant_share']:.2f}% >= 51%"
+                                if selected in parity_rankings and parity_rankings[selected]["eligible"]:
+                                    direction = parity_rankings[selected]["contract_type"]
+                                    opposite = "odd" if direction == "even" else "even"
+                                    prefix = "Recovery: " if even_odd_recovery_pending else ""
+                                    waiting_for = f"{prefix}{opposite} pair {min(even_odd_trigger_streak, 2)}/2"
                                 elif selected in parity_rankings:
                                     waiting_for = f"Parity {parity_rankings[selected]['dominant_share']:.2f}% < 51%"
                                 else:
