@@ -511,8 +511,8 @@ class AutomationRunView(APIView):
         try:
             stake = Decimal(str(request.data.get("stake", "0.35")))
             martingale_multiplier = Decimal(str(request.data.get("martingale_multiplier", "1")))
-            capital_limit = Decimal(str(request.data["capital_limit"])) if request.data.get("capital_limit") else None
-            max_martingale_steps = int(request.data.get("max_martingale_steps", 0))
+            capital_limit = Decimal(str(request.data["capital_limit"])) if strategy != "even_odd" and request.data.get("capital_limit") else None
+            max_martingale_steps = int(request.data.get("max_martingale_steps", 0)) if strategy != "even_odd" else 0
             # DTrader's digit-distribution panel uses the latest 1,000 ticks.
             # Keep the scanner on the same window so displayed percentages
             # are directly comparable to the Deriv trading screen.
@@ -528,7 +528,11 @@ class AutomationRunView(APIView):
         if daily_loss is not None and daily_loss <= 0: return Response({"error": "Daily loss limit must be greater than zero."}, status=400)
         if trade_limit is not None and trade_limit <= 0: return Response({"error": "Trade limit must be greater than zero."}, status=400)
         if bot.max_stake and stake > bot.max_stake: return Response({"error": "Stake exceeds this bot's administrator limit."}, status=400)
-        if bot.strategy == "even_odd" and capital_limit is None: return Response({"error": "Set a total capital limit for this run. This is separate from the stake per trade."}, status=400)
+        if strategy == "even_odd":
+            # Even/Odd recovery runs until the configured stop loss is reached.
+            # Capital and retry-count limits do not control this strategy.
+            capital_limit = None
+            max_martingale_steps = 0
         threshold_digits = {"over_2": {"0", "1", "2"}, "under_7": {"7", "8", "9"}, "auto": {"0", "1", "2", "7", "8", "9"}, "even_odd": set(), "high_pair": set()}[strategy]
         supplied = request.data.get("digit_thresholds") or {}
         try:

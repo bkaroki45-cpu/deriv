@@ -17,7 +17,6 @@ from accounts.models import OAuthToken
 from core.deriv_api import DerivAPIClient, unseal_token
 from .models import AutomationRun, AutomationTrade
 
-EVEN_ODD_SWITCH_DRAWDOWN = 1.0
 
 
 def last_digit(quote, pip_size=None):
@@ -166,7 +165,7 @@ def recovery_action(profit, loss_streak, max_retries):
     """Choose whether a settled Even/Odd run ends or immediately recovers."""
     if Decimal(str(profit)) > 0:
         return "complete_win"
-    if int(loss_streak) > int(max_retries):
+    if max_retries is not None and int(loss_streak) > int(max_retries):
         return "complete_limit"
     return "retry"
 
@@ -429,7 +428,9 @@ class AutomationWorker:
                 even_odd_armed_direction = ""
                 even_odd_trigger_streak = 0
                 even_odd_trigger_fired = False
-                even_odd_selected_gap_peak = None
+                # Each manual start arms one normal trade. Losses enter an
+                # automatic recovery sequence; a win returns control to the user.
+                even_odd_manual_armed = run.strategy == "even_odd"
                 even_odd_recovery_pending = run.strategy == "even_odd" and await self.loss_streak(run) > 0
                 for contract_id in sorted(active_contracts):
                     await subscribe_open_contract(router, contract_id)
@@ -482,20 +483,18 @@ class AutomationWorker:
                                     await self.complete_sequence(run_id, "Existing trade used a different strategy. Restart the bot to continue.")
                                     return
                                 loss_streak = await self.loss_streak(run)
-                                action = recovery_action(profit, loss_streak, run.max_martingale_steps)
+                                action = recovery_action(
+                                    profit,
+                                    loss_streak,
+                                    None if run.strategy == "even_odd" else run.max_martingale_steps,
+                                )
                                 if action == "complete_win" and run.strategy == "high_pair":
                                     high_pair_fired.discard(previous_trade.symbol)
                                     high_pair_streaks[previous_trade.symbol] = 0
                                     continue
                                 if action == "complete_win" and run.strategy == "even_odd":
-                                    even_odd_recovery_pending = False
-                                    even_odd_armed_symbol = ""
-                                    even_odd_armed_direction = ""
-                                    even_odd_trigger_streak = 0
-                                    even_odd_trigger_fired = False
-                                    even_odd_selected_gap_peak = None
-                                    await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(waiting_for="Scanning for next entry")
-                                    continue
+                                    await self.complete_sequence(run_id, "Trade won. Press Start for the next trade.")
+                                    return
                                 if action != "retry":
                                     message = "Won. Recovery sequence complete." if action == "complete_win" else "Recovery limit reached."
                                     await self.complete_sequence(run_id, message)
@@ -513,10 +512,9 @@ class AutomationWorker:
                                     even_odd_armed_direction = ""
                                     even_odd_trigger_streak = 0
                                     even_odd_trigger_fired = False
-                                    even_odd_selected_gap_peak = None
                                     await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(
-                                        selected_symbol=previous_trade.symbol,
-                                        waiting_for="Recovery: waiting for pair",
+                                        selected_symbol="",
+                                        waiting_for="Recovery: scanning all Volatility markets",
                                     )
                                     continue
                                 active = await self.buy(
@@ -619,14 +617,6 @@ class AutomationWorker:
                         selected_candidate = candidates[selected_key] if selected_key else None
                         if state.strategy == "even_odd" and parity_rankings:
                             strongest_market = max(parity_rankings, key=lambda market: parity_rankings[market]["parity_difference"])
-                            incumbent = even_odd_armed_symbol
-                            if incumbent in parity_rankings and parity_rankings[incumbent]["eligible"]:
-                                incumbent_gap = parity_rankings[incumbent]["parity_difference"]
-                                even_odd_selected_gap_peak = max(even_odd_selected_gap_peak or incumbent_gap, incumbent_gap)
-                                if even_odd_selected_gap_peak - incumbent_gap >= EVEN_ODD_SWITCH_DRAWDOWN:
-                                    alternatives = [market for market, analysis in parity_rankings.items() if market != incumbent and analysis["eligible"]]
-                                    if alternatives:
-                                        strongest_market = max(alternatives, key=lambda market: parity_rankings[market]["parity_difference"])
                             selected = strongest_market
                             strongest = parity_rankings[strongest_market]
                             if strongest["eligible"]:
@@ -637,9 +627,6 @@ class AutomationWorker:
                                     even_odd_armed_direction = direction
                                     even_odd_trigger_streak = 0
                                     even_odd_trigger_fired = False
-                                    even_odd_selected_gap_peak = strongest["parity_difference"]
-                                else:
-                                    even_odd_selected_gap_peak = max(even_odd_selected_gap_peak or strongest["parity_difference"], strongest["parity_difference"])
                                 if symbol == strongest_market:
                                     wanted_parity = 1 if trigger_parity == "odd" else 0
                                     even_odd_trigger_streak = even_odd_trigger_streak + 1 if current_digit % 2 == wanted_parity else 0
@@ -651,7 +638,9 @@ class AutomationWorker:
                                     if even_odd_trigger_streak >= 2
                                     else f"{direction.title()} leads {strongest['dominant_share']:.2f}%; waiting for {trigger_parity} pair ({even_odd_trigger_streak}/2)"
                                 )
-                                if even_odd_trigger_streak >= 2 and not even_odd_trigger_fired and not active_contracts and symbol == strongest_market:
+                                if (even_odd_trigger_streak >= 2 and not even_odd_trigger_fired
+                                        and not active_contracts and symbol == strongest_market
+                                        and (even_odd_manual_armed or even_odd_recovery_pending)):
                                     selected_candidate = {**strongest, "strategy": "even_odd", "immediate": True, "triggers": (current_digit,)}
                                     even_odd_trigger_fired = True
                             else:
@@ -659,14 +648,12 @@ class AutomationWorker:
                                 even_odd_armed_direction = ""
                                 even_odd_trigger_streak = 0
                                 even_odd_trigger_fired = False
-                                even_odd_selected_gap_peak = None
                                 snapshot[strongest_market]["status"] = f"Best gap, but {strongest['dominant_share']:.2f}% is below 51%"
                         elif state.strategy == "even_odd":
                             even_odd_armed_symbol = ""
                             even_odd_armed_direction = ""
                             even_odd_trigger_streak = 0
                             even_odd_trigger_fired = False
-                            even_odd_selected_gap_peak = None
                         for (market, candidate_strategy), item in candidates.items():
                             signal_status = (
                                 (f"Selected: {item['direction']} {item['dominant_share']:.2f}% · gap {item['parity_difference']:.2f}%" if market == selected else f"Qualified, but not strongest · gap {item['parity_difference']:.2f}%")
@@ -698,7 +685,7 @@ class AutomationWorker:
                                         even_odd_armed_direction = ""
                                         even_odd_trigger_streak = 0
                                         even_odd_trigger_fired = False
-                                        even_odd_recovery_pending = False
+                                        even_odd_manual_armed = False
                                     await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(active_contract_id=active, selected_symbol=selected, waiting_for="")
                                     active_contracts.add(active)
                                     await subscribe_open_contract(router, active)
@@ -806,7 +793,7 @@ class AutomationWorker:
 
     async def allowed(self, run_id, run):
         trades = await sync_to_async(list)(AutomationTrade.objects.filter(run_id=run_id, opened_at__date=timezone.localdate()).values("profit"))
-        if run.max_trades_per_day and len(trades) >= run.max_trades_per_day:
+        if run.strategy != "even_odd" and run.max_trades_per_day and len(trades) >= run.max_trades_per_day:
             return False
         loss = -sum((Decimal(str(item["profit"])) for item in trades if Decimal(str(item["profit"])) < 0), Decimal("0"))
         return not run.max_daily_loss or loss < run.max_daily_loss
@@ -835,16 +822,12 @@ class AutomationWorker:
         else:
             contract_type, barrier = "DIGITDIFF", str(digit)
         stake = run.stake
-        trades = await self.run_trades(run)
         if strategy in {"even_odd", "high_pair"}:
             loss_streak = await self.loss_streak(run)
-            if loss_streak > run.max_martingale_steps:
+            if strategy == "high_pair" and loss_streak > run.max_martingale_steps:
                 await self.complete_sequence(run.id, "Recovery limit reached.")
                 return ""
             stake = recovery_stake(run.stake, run.martingale_multiplier, loss_streak)
-            if strategy == "even_odd" and not capital_allows(run.capital_limit, [trade["stake"] for trade in trades], stake):
-                await self.complete_sequence(run.id, "Capital limit reached.")
-                return ""
         if run.bot.max_stake and stake > run.bot.max_stake:
             await self.stop(run.id, "Martingale recovery stake exceeds this bot's maximum stake.")
             return ""
