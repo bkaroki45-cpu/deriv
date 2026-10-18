@@ -17,6 +17,8 @@ from accounts.models import OAuthToken
 from core.deriv_api import DerivAPIClient, unseal_token
 from .models import AutomationRun, AutomationTrade
 
+EVEN_ODD_SWITCH_DRAWDOWN = 1.0
+
 
 def last_digit(quote, pip_size=None):
     """Match Deriv's displayed last digit, preserving trailing zeroes."""
@@ -250,6 +252,7 @@ def digit_snapshot(history, window):
         "ticks": count,
         "window": window,
         "digits": digits,
+        "recent_digits": list(history)[-20:],
         "lower": round(sum(digits[:5]), 2),
         "upper": round(sum(digits[5:]), 2),
         "status": f"Collecting ticks: {count}/{window}" if count < window else "No favorable Over 2 or Under 7 signal yet",
@@ -426,8 +429,8 @@ class AutomationWorker:
                 even_odd_armed_direction = ""
                 even_odd_trigger_streak = 0
                 even_odd_trigger_fired = False
+                even_odd_selected_gap_peak = None
                 even_odd_recovery_pending = run.strategy == "even_odd" and await self.loss_streak(run) > 0
-                previous_parity_gaps = {}
                 for contract_id in sorted(active_contracts):
                     await subscribe_open_contract(router, contract_id)
                 loop = asyncio.get_running_loop()
@@ -490,6 +493,7 @@ class AutomationWorker:
                                     even_odd_armed_direction = ""
                                     even_odd_trigger_streak = 0
                                     even_odd_trigger_fired = False
+                                    even_odd_selected_gap_peak = None
                                     await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(waiting_for="Scanning for next entry")
                                     continue
                                 if action != "retry":
@@ -509,6 +513,7 @@ class AutomationWorker:
                                     even_odd_armed_direction = ""
                                     even_odd_trigger_streak = 0
                                     even_odd_trigger_fired = False
+                                    even_odd_selected_gap_peak = None
                                     await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(
                                         selected_symbol=previous_trade.symbol,
                                         waiting_for="Recovery: waiting for pair",
@@ -617,13 +622,11 @@ class AutomationWorker:
                             incumbent = even_odd_armed_symbol
                             if incumbent in parity_rankings and parity_rankings[incumbent]["eligible"]:
                                 incumbent_gap = parity_rankings[incumbent]["parity_difference"]
-                                previous_gap = previous_parity_gaps.get(incumbent)
-                                if previous_gap is not None and incumbent_gap < previous_gap:
+                                even_odd_selected_gap_peak = max(even_odd_selected_gap_peak or incumbent_gap, incumbent_gap)
+                                if even_odd_selected_gap_peak - incumbent_gap >= EVEN_ODD_SWITCH_DRAWDOWN:
                                     alternatives = [market for market, analysis in parity_rankings.items() if market != incumbent and analysis["eligible"]]
                                     if alternatives:
                                         strongest_market = max(alternatives, key=lambda market: parity_rankings[market]["parity_difference"])
-                                else:
-                                    strongest_market = incumbent
                             selected = strongest_market
                             strongest = parity_rankings[strongest_market]
                             if strongest["eligible"]:
@@ -634,6 +637,9 @@ class AutomationWorker:
                                     even_odd_armed_direction = direction
                                     even_odd_trigger_streak = 0
                                     even_odd_trigger_fired = False
+                                    even_odd_selected_gap_peak = strongest["parity_difference"]
+                                else:
+                                    even_odd_selected_gap_peak = max(even_odd_selected_gap_peak or strongest["parity_difference"], strongest["parity_difference"])
                                 if symbol == strongest_market:
                                     wanted_parity = 1 if trigger_parity == "odd" else 0
                                     even_odd_trigger_streak = even_odd_trigger_streak + 1 if current_digit % 2 == wanted_parity else 0
@@ -653,12 +659,14 @@ class AutomationWorker:
                                 even_odd_armed_direction = ""
                                 even_odd_trigger_streak = 0
                                 even_odd_trigger_fired = False
+                                even_odd_selected_gap_peak = None
                                 snapshot[strongest_market]["status"] = f"Best gap, but {strongest['dominant_share']:.2f}% is below 51%"
                         elif state.strategy == "even_odd":
                             even_odd_armed_symbol = ""
                             even_odd_armed_direction = ""
                             even_odd_trigger_streak = 0
                             even_odd_trigger_fired = False
+                            even_odd_selected_gap_peak = None
                         for (market, candidate_strategy), item in candidates.items():
                             signal_status = (
                                 (f"Selected: {item['direction']} {item['dominant_share']:.2f}% · gap {item['parity_difference']:.2f}%" if market == selected else f"Qualified, but not strongest · gap {item['parity_difference']:.2f}%")
@@ -695,7 +703,8 @@ class AutomationWorker:
                                     active_contracts.add(active)
                                     await subscribe_open_contract(router, active)
                         now = loop.time()
-                        if now - last_save >= 1:
+                        save_interval = 0.5 if state.strategy == "even_odd" else 1.0
+                        if now - last_save >= save_interval:
                             waiting_for = (
                                 f"Recovering {len(active_contracts)} open contracts"
                                 if recovery_only and active_contracts
@@ -714,8 +723,6 @@ class AutomationWorker:
                             await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(selected_symbol=selected, waiting_for=waiting_for, stats={"markets": snapshot, "selected": selected, "selected_strategy": selected_candidate["strategy"] if selected_candidate else ("even_odd" if state.strategy == "even_odd" and selected else ""), "selected_metrics": snapshot.get(selected, {}) if selected else {}, "progress": {"markets_ready": sum(1 for item in snapshot.values() if item["ticks"] >= state.tick_window), "markets_total": len(symbols), "tick_window": state.tick_window}, "updated_at": timezone.now().isoformat()})
                             last_save = now
                         previous_distributions = {market: item["digits"] for market, item in snapshot.items()}
-                        if state.strategy == "even_odd":
-                            previous_parity_gaps = {market: item["parity_difference"] for market, item in parity_rankings.items()}
             finally:
                 await router.close()
 
