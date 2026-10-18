@@ -220,6 +220,14 @@
             if (selectedBot) json(`${api}bots/${botId}/run/`, { method: 'DELETE' }).then(status).catch(() => {});
         }
         window.startRun = async () => {
+            const button = document.querySelector('#start');
+            if (button?.disabled) return;
+            const originalLabel = button?.textContent || 'Start scanner';
+            if (button) {
+                button.disabled = true;
+                button.classList.add('is-busy');
+                button.textContent = 'Starting...';
+            }
             try {
                 const isEvenOdd = selectedBot?.strategy === 'even_odd';
                 const isHighPair = selectedBot?.strategy === 'high_pair';
@@ -254,18 +262,37 @@
                         confirm_live_trading: !!document.querySelector('#liveok')?.checked,
                     }),
                 });
-                status();
-                updateParityHud();
+                await status();
+                await updateParityHud();
             } catch (error) {
                 alert(error.message);
+            } finally {
+                if (button?.isConnected) {
+                    button.disabled = false;
+                    button.classList.remove('is-busy');
+                    button.textContent = originalLabel;
+                }
             }
         };
-        document.querySelector('#reset-activity')?.addEventListener('click', async () => {
+        document.querySelector('#reset-activity')?.addEventListener('click', async event => {
+            const button = event.currentTarget;
+            if (button.disabled) return;
+            const originalLabel = button.textContent;
+            button.disabled = true;
+            button.classList.add('is-busy');
+            button.textContent = 'Clearing...';
             try {
                 await json(`${api}bots/${botId}/run/reset/`, { method: 'POST' });
-                status();
+                await status();
+                await updateParityHud();
             } catch (error) {
                 alert(error.message);
+            } finally {
+                if (button.isConnected) {
+                    button.disabled = false;
+                    button.classList.remove('is-busy');
+                    button.textContent = originalLabel;
+                }
             }
         });
         document.addEventListener('click', event => {

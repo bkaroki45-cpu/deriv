@@ -427,6 +427,7 @@ class AutomationWorker:
                 even_odd_trigger_streak = 0
                 even_odd_trigger_fired = False
                 even_odd_recovery_pending = run.strategy == "even_odd" and await self.loss_streak(run) > 0
+                previous_parity_gaps = {}
                 for contract_id in sorted(active_contracts):
                     await subscribe_open_contract(router, contract_id)
                 loop = asyncio.get_running_loop()
@@ -605,6 +606,16 @@ class AutomationWorker:
                         selected_candidate = candidates[selected_key] if selected_key else None
                         if state.strategy == "even_odd" and parity_rankings:
                             strongest_market = max(parity_rankings, key=lambda market: parity_rankings[market]["parity_difference"])
+                            incumbent = even_odd_armed_symbol
+                            if incumbent in parity_rankings and parity_rankings[incumbent]["eligible"]:
+                                incumbent_gap = parity_rankings[incumbent]["parity_difference"]
+                                previous_gap = previous_parity_gaps.get(incumbent)
+                                if previous_gap is not None and incumbent_gap < previous_gap:
+                                    alternatives = [market for market, analysis in parity_rankings.items() if market != incumbent and analysis["eligible"]]
+                                    if alternatives:
+                                        strongest_market = max(alternatives, key=lambda market: parity_rankings[market]["parity_difference"])
+                                else:
+                                    strongest_market = incumbent
                             selected = strongest_market
                             strongest = parity_rankings[strongest_market]
                             if strongest["eligible"]:
@@ -695,6 +706,8 @@ class AutomationWorker:
                             await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(selected_symbol=selected, waiting_for=waiting_for, stats={"markets": snapshot, "selected": selected, "selected_strategy": selected_candidate["strategy"] if selected_candidate else ("even_odd" if state.strategy == "even_odd" and selected else ""), "selected_metrics": snapshot.get(selected, {}) if selected else {}, "progress": {"markets_ready": sum(1 for item in snapshot.values() if item["ticks"] >= state.tick_window), "markets_total": len(symbols), "tick_window": state.tick_window}, "updated_at": timezone.now().isoformat()})
                             last_save = now
                         previous_distributions = {market: item["digits"] for market, item in snapshot.items()}
+                        if state.strategy == "even_odd":
+                            previous_parity_gaps = {market: item["parity_difference"] for market, item in parity_rankings.items()}
             finally:
                 await router.close()
 
