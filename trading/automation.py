@@ -222,7 +222,7 @@ def buy_payload(proposal_id, ask_price):
     return {"buy": proposal_id, "price": str(ask_price)}
 
 
-async def buy_with_fresh_proposal(router, proposal_request):
+async def buy_with_fresh_proposal(router, proposal_request, before_buy=None):
     """Renew an invalid proposal once before surfacing the Deriv error."""
     for attempt in range(2):
         response = await router.request(proposal_request)
@@ -231,6 +231,8 @@ async def buy_with_fresh_proposal(router, proposal_request):
         ask_price = quote.get("ask_price")
         if not proposal_id or ask_price is None:
             raise RuntimeError("Deriv proposal response is missing its id or ask price.")
+        if before_buy and not await before_buy():
+            return None
         try:
             return await router.request(buy_payload(proposal_id, ask_price))
         except RuntimeError as exc:
@@ -320,7 +322,8 @@ class AutomationWorker:
             for run_id, task in list(self.tasks.items()):
                 if task.done():
                     self.tasks.pop(run_id, None)
-            await asyncio.sleep(2)
+            # Pick up newly started runs quickly without a long idle scan gap.
+            await asyncio.sleep(0.5)
 
     async def current_run(self, run_id):
         return await sync_to_async(AutomationRun.objects.select_related("bot", "account", "user").get)(pk=run_id)
@@ -385,17 +388,22 @@ class AutomationWorker:
                     symbols = self.volatility_symbols(catalogue_items)
                 # Subscribe individually so a temporarily unavailable market
                 # cannot prevent all other Volatility and 1-second feeds.
-                eligible = []
-                for symbol in symbols:
-                    try:
-                        history = await router.request({"ticks_history": symbol, "adjust_start_time": 1, "count": run.tick_window, "end": "latest", "style": "ticks"})
-                        prices = history.get("history", {}).get("prices", [])
-                        precision = history.get("pip_size", pip_sizes.get(symbol))
-                        histories[symbol] = deque((last_digit(price, precision) for price in prices), maxlen=run.tick_window)
-                        await router.request({"ticks": symbol, "subscribe": 1})
-                        eligible.append(symbol)
-                    except RuntimeError:
-                        continue
+                seed_limit = asyncio.Semaphore(8)
+
+                async def seed_market(symbol):
+                    async with seed_limit:
+                        try:
+                            history = await router.request({"ticks_history": symbol, "adjust_start_time": 1, "count": run.tick_window, "end": "latest", "style": "ticks"})
+                            prices = history.get("history", {}).get("prices", [])
+                            precision = history.get("pip_size", pip_sizes.get(symbol))
+                            histories[symbol] = deque((last_digit(price, precision) for price in prices), maxlen=run.tick_window)
+                            await router.request({"ticks": symbol, "subscribe": 1})
+                            return symbol
+                        except (RuntimeError, asyncio.TimeoutError):
+                            return None
+
+                seeded = await asyncio.gather(*(seed_market(symbol) for symbol in symbols))
+                eligible = [symbol for symbol in seeded if symbol]
                 if not eligible:
                     raise RuntimeError("Deriv has no eligible Volatility markets available for this account.")
                 symbols = eligible
@@ -421,38 +429,25 @@ class AutomationWorker:
                 even_odd_recovery_pending = run.strategy == "even_odd" and await self.loss_streak(run) > 0
                 for contract_id in sorted(active_contracts):
                     await subscribe_open_contract(router, contract_id)
-                last_save = 0
-                last_history_sync = timezone.now().timestamp()
+                loop = asyncio.get_running_loop()
+                last_save = 0.0
+                next_state_check = 0.0
                 while True:
-                    state = await self.current_run(run_id)
-                    if not state.bot.enabled:
-                        await self.stop(run_id, "Disabled by administrator.")
-                        return
-                    if state.status == "stopped":
-                        return
-                    if state.status == "stopping" and not active_contracts:
-                        await self.stop(run_id)
-                        return
-                    # Keep the dashboard aligned with Deriv's current
-                    # rolling history, while the live subscriptions remain
-                    # responsible for immediate entry decisions.
-                    if timezone.now().timestamp() - last_history_sync >= 5:
-                        for market in symbols:
-                            try:
-                                history = await router.request({"ticks_history": market, "adjust_start_time": 1, "count": state.tick_window, "end": "latest", "style": "ticks"})
-                                prices = history.get("history", {}).get("prices", [])
-                                precision = history.get("pip_size", pip_sizes.get(market))
-                                histories[market] = deque((last_digit(price, precision) for price in prices), maxlen=state.tick_window)
-                            except RuntimeError:
-                                # Retain the last verified Deriv sample if a
-                                # particular market temporarily rejects this request.
-                                continue
-                        last_history_sync = timezone.now().timestamp()
+                    if loop.time() >= next_state_check:
+                        state = await self.current_run(run_id)
+                        next_state_check = loop.time() + 0.25
+                        if not state.bot.enabled:
+                            await self.stop(run_id, "Disabled by administrator.")
+                            return
+                        if state.status == "stopped":
+                            return
+                        if state.status == "stopping" and not active_contracts:
+                            await self.stop(run_id)
+                            return
                     try:
-                        message = await asyncio.wait_for(router.events.get(), timeout=1)
+                        message = await asyncio.wait_for(router.events.get(), timeout=0.25)
                     except asyncio.TimeoutError:
-                        # Re-check the persisted stop state even during a
-                        # quiet or interrupted tick stream.
+                        # The next loop checks stop and disable state promptly.
                         continue
                     if message.get("msg_type") == "connection_error":
                         raise RuntimeError(message.get("error", {}).get("message", "Connection interrupted"))
@@ -680,7 +675,8 @@ class AutomationWorker:
                                     await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(active_contract_id=active, selected_symbol=selected, waiting_for="")
                                     active_contracts.add(active)
                                     await subscribe_open_contract(router, active)
-                        if timezone.now().timestamp() - last_save >= 1:
+                        now = loop.time()
+                        if now - last_save >= 1:
                             waiting_for = (
                                 f"Recovering {len(active_contracts)} open contracts"
                                 if recovery_only and active_contracts
@@ -697,7 +693,7 @@ class AutomationWorker:
                                 else:
                                     waiting_for = "Collecting volatility ticks"
                             await sync_to_async(AutomationRun.objects.filter(pk=run_id).update)(selected_symbol=selected, waiting_for=waiting_for, stats={"markets": snapshot, "selected": selected, "selected_strategy": selected_candidate["strategy"] if selected_candidate else ("even_odd" if state.strategy == "even_odd" and selected else ""), "selected_metrics": snapshot.get(selected, {}) if selected else {}, "progress": {"markets_ready": sum(1 for item in snapshot.values() if item["ticks"] >= state.tick_window), "markets_total": len(symbols), "tick_window": state.tick_window}, "updated_at": timezone.now().isoformat()})
-                            last_save = timezone.now().timestamp()
+                            last_save = now
                         previous_distributions = {market: item["digits"] for market, item in snapshot.items()}
             finally:
                 await router.close()
@@ -824,10 +820,23 @@ class AutomationWorker:
         if run.bot.max_stake and stake > run.bot.max_stake:
             await self.stop(run.id, "Martingale recovery stake exceeds this bot's maximum stake.")
             return ""
+        async def still_authorized_to_enter():
+            fresh = await self.current_run(run.id)
+            return (
+                fresh.status == "running"
+                and fresh.bot.enabled
+                and not fresh.active_contract_id
+                and fresh.account.account_type in {"demo", "real"}
+                and (fresh.account.account_type == "demo" or (fresh.bot.live_trading_enabled and fresh.live_trading_confirmed_at))
+            )
+
         result = await buy_with_fresh_proposal(
             router,
             proposal_payload(stake, run.account.currency, symbol, contract_type, barrier),
+            before_buy=still_authorized_to_enter,
         )
+        if not result:
+            return ""
         contract_id = str(result["buy"]["contract_id"])
         await sync_to_async(AutomationTrade.objects.create)(run=run, symbol=symbol, strategy=strategy, trigger_digit=digit, contract_id=contract_id, contract_type=contract_type, stake=stake, raw=result)
         return contract_id

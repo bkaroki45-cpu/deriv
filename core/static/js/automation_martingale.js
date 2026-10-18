@@ -261,7 +261,6 @@
             }
         };
         document.querySelector('#reset-activity')?.addEventListener('click', async () => {
-            if (!window.confirm('Clear the recent trades, scanner summary, and journal for this bot?')) return;
             try {
                 await json(`${api}bots/${botId}/run/reset/`, { method: 'POST' });
                 status();
