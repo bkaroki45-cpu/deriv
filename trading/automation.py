@@ -481,7 +481,7 @@ class AutomationWorker:
                             if recovery_only:
                                 await self.complete_sequence(run_id, "Existing open contracts settled. Restart the bot to continue.")
                                 return
-                            if run.strategy in {"even_odd", "high_pair"}:
+                            if run.strategy in {"auto", "over_2", "under_7", "even_odd", "high_pair"}:
                                 previous_trade = settled_trade
                                 if previous_trade.strategy != run.strategy:
                                     await self.complete_sequence(run_id, "Existing trade used a different strategy. Restart the bot to continue.")
@@ -492,8 +492,9 @@ class AutomationWorker:
                                     loss_streak,
                                     None if run.strategy == "even_odd" else run.max_martingale_steps,
                                 )
-                                if action == "complete_win" and run.strategy == "high_pair":
-                                    high_pair_fired.discard(previous_trade.symbol)
+                                if action == "complete_win" and run.strategy not in {"even_odd"}:
+                                    if run.strategy == "high_pair":
+                                        high_pair_fired.discard(previous_trade.symbol)
                                     continue
                                 if action == "complete_win" and run.strategy == "even_odd":
                                     await self.complete_sequence(run_id, "Trade won. Press Start for the next trade.")
@@ -825,9 +826,9 @@ class AutomationWorker:
         else:
             contract_type, barrier = "DIGITDIFF", str(digit)
         stake = run.stake
-        if strategy in {"even_odd", "high_pair"}:
+        if strategy in {"auto", "over_2", "under_7", "even_odd", "high_pair"}:
             loss_streak = await self.loss_streak(run)
-            if strategy == "high_pair" and loss_streak > run.max_martingale_steps:
+            if strategy != "even_odd" and loss_streak > run.max_martingale_steps:
                 await self.complete_sequence(run.id, "Recovery limit reached.")
                 return ""
             stake = recovery_stake(run.stake, run.martingale_multiplier, loss_streak)

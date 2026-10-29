@@ -20,7 +20,7 @@
 
         stake.closest('label')?.insertAdjacentHTML(
             'afterend',
-            '<label>Recovery retries<input id="max_martingale_steps" type="number" min="0" max="10" step="1" value="3"><small>Used by the High Pair bot only.</small></label><label>Martingale multiplier<input id="martingale_multiplier" value="2" type="number" min="1" max="15" step="0.1" aria-describedby="martingale_help"><small>After a loss, the recovery stake is multiplied by this amount.</small></label>'
+            '<label>Recovery retries<input id="max_martingale_steps" type="number" min="0" max="10" step="1" value="3"><small>Maximum consecutive loss recovery trades; 0 disables retries.</small></label><label>Martingale multiplier<input id="martingale_multiplier" value="2" type="number" min="1" max="15" step="0.1" aria-describedby="martingale_help"><small>After a loss, the recovery stake is multiplied by this amount.</small></label>'
         );
         document.querySelector('.actions')?.insertAdjacentHTML(
             'beforeend',
@@ -93,8 +93,8 @@
         document.querySelector('#thresholds')?.classList.toggle('hidden', isManagedBot);
         setSymbolControl(isEvenOdd);
         document.querySelector('#symbols')?.closest('label')?.classList.toggle('hidden', isHighPair);
-        document.querySelector('#max_martingale_steps')?.closest('label')?.classList.toggle('hidden', isEvenOdd || !isManagedBot);
-        document.querySelector('#martingale_multiplier')?.closest('label')?.classList.toggle('hidden', !isManagedBot);
+        document.querySelector('#max_martingale_steps')?.closest('label')?.classList.toggle('hidden', isEvenOdd);
+        document.querySelector('#martingale_multiplier')?.closest('label')?.classList.toggle('hidden', false);
         document.querySelector('#tradecap')?.closest('label')?.classList.toggle('hidden', isEvenOdd);
         const stopLossLabel = document.querySelector('#daily')?.closest('label');
         if (stopLossLabel) stopLossLabel.firstChild.textContent = isEvenOdd ? 'Stop loss (maximum daily loss) ' : 'Daily loss cap (optional) ';
@@ -253,7 +253,7 @@
                         scan_all_volatility: true,
                         strategy: selectedStrategy,
                         stake: document.querySelector('#stake').value,
-                        max_martingale_steps: isManagedBot && !isEvenOdd ? document.querySelector('#max_martingale_steps').value : 0,
+                        max_martingale_steps: isEvenOdd ? 0 : document.querySelector('#max_martingale_steps').value,
                         martingale_multiplier: document.querySelector('#martingale_multiplier').value,
                         tick_window: document.querySelector('#window').value,
                         digit_thresholds: thresholds,
