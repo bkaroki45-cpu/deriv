@@ -427,8 +427,7 @@ class AutomationWorker:
                 even_odd_armed_direction = ""
                 even_odd_trigger_streak = 0
                 even_odd_trigger_fired = False
-                # Each manual start arms one normal trade. Losses enter an
-                # automatic recovery sequence; a win returns control to the user.
+                # Even/Odd keeps its one-trade start flow; digit scanners stay active after settlements.
                 even_odd_manual_armed = run.strategy == "even_odd"
                 even_odd_recovery_pending = run.strategy == "even_odd" and await self.loss_streak(run) > 0
                 for contract_id in sorted(active_contracts):
@@ -483,7 +482,12 @@ class AutomationWorker:
                                 return
                             if run.strategy in {"auto", "over_2", "under_7", "even_odd", "high_pair"}:
                                 previous_trade = settled_trade
-                                if previous_trade.strategy != run.strategy:
+                                auto_trade_strategies = {"over_2", "under_7", "differ"}
+                                trade_strategy = previous_trade.strategy if run.strategy == "auto" else run.strategy
+                                strategy_matches_run = previous_trade.strategy == run.strategy
+                                if run.strategy == "auto":
+                                    strategy_matches_run = previous_trade.strategy in auto_trade_strategies
+                                if not strategy_matches_run:
                                     await self.complete_sequence(run_id, "Existing trade used a different strategy. Restart the bot to continue.")
                                     return
                                 loss_streak = await self.loss_streak(run)
@@ -500,11 +504,15 @@ class AutomationWorker:
                                     await self.complete_sequence(run_id, "Trade won. Press Start for the next trade.")
                                     return
                                 if action != "retry":
+                                    if action == "complete_limit" and run.strategy in {"auto", "over_2", "under_7"}:
+                                        continue
                                     message = "Won. Recovery sequence complete." if action == "complete_win" else "Recovery limit reached."
                                     await self.complete_sequence(run_id, message)
                                     return
                                 fresh = await self.current_run(run_id)
                                 if not await self.allowed(run_id, fresh):
+                                    if run.strategy in {"auto", "over_2", "under_7"}:
+                                        continue
                                     await self.complete_sequence(run_id, "Daily risk limit reached.")
                                     return
                                 if not await self.entry_allowed(run_id, fresh):
@@ -531,7 +539,7 @@ class AutomationWorker:
                                     fresh,
                                     previous_trade.symbol,
                                     previous_trade.trigger_digit,
-                                    run.strategy,
+                                    trade_strategy,
                                     previous_trade.contract_type if run.strategy == "even_odd" else None,
                                 )
                                 if not active:
@@ -826,12 +834,16 @@ class AutomationWorker:
         else:
             contract_type, barrier = "DIGITDIFF", str(digit)
         stake = run.stake
-        if strategy in {"auto", "over_2", "under_7", "even_odd", "high_pair"}:
+        if strategy in {"auto", "over_2", "under_7", "even_odd", "high_pair", "differ"}:
             loss_streak = await self.loss_streak(run)
             if strategy != "even_odd" and loss_streak > run.max_martingale_steps:
-                await self.complete_sequence(run.id, "Recovery limit reached.")
-                return ""
-            stake = recovery_stake(run.stake, run.martingale_multiplier, loss_streak)
+                if strategy in {"auto", "over_2", "under_7", "differ"}:
+                    stake = run.stake
+                else:
+                    await self.complete_sequence(run.id, "Recovery limit reached.")
+                    return ""
+            else:
+                stake = recovery_stake(run.stake, run.martingale_multiplier, loss_streak)
         if run.bot.max_stake and stake > run.bot.max_stake:
             await self.stop(run.id, "Martingale recovery stake exceeds this bot's maximum stake.")
             return ""
