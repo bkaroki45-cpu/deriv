@@ -258,9 +258,25 @@ def _first_account(data):
 
 
 def sync_accounts(user, accounts_payload, active_account_id=""):
-    accounts = accounts_payload.get("accounts") if isinstance(accounts_payload, dict) else accounts_payload
-    if isinstance(accounts, dict):
-        accounts = accounts.get("items") or accounts.get("data") or list(accounts.values())
+    accounts = accounts_payload
+    # Deriv's account list may be returned as a list, {accounts: [...]}, or
+    # wrapped by the REST client as {data: {accounts: [...]}} / {data: [...]}.
+    # Normalize these response forms before syncing so valid live accounts do
+    # not disappear merely because the envelope differs.
+    for _ in range(4):
+        if isinstance(accounts, list):
+            break
+        if not isinstance(accounts, dict):
+            accounts = []
+            break
+        next_accounts = next(
+            (accounts[key] for key in ("accounts", "data", "items") if key in accounts),
+            None,
+        )
+        if next_accounts is None:
+            accounts = []
+            break
+        accounts = next_accounts
     if not isinstance(accounts, list):
         accounts = []
     saved = []

@@ -108,18 +108,22 @@
     function updateAccountOptions() {
         const picker = document.querySelector('#account');
         if (!picker) return;
-        const isManagedBot = ['even_odd', 'high_pair'].includes(selectedBot?.strategy);
+        const realAccountAllowed = !!selectedBot && !selectedBot.demo_only && selectedBot.live_trading_enabled;
         for (const option of picker.options) {
             const isReal = option.dataset.live === '1';
-            option.disabled = isManagedBot && isReal;
-            option.hidden = isManagedBot && isReal;
+            option.disabled = isReal && !realAccountAllowed;
+            option.textContent = option.textContent.replace(/ · demo only| · live trading disabled/g, '');
+            if (isReal && !realAccountAllowed) {
+                option.textContent += selectedBot?.demo_only ? ' · demo only' : ' · live trading disabled';
+            }
         }
-        if (isManagedBot && picker.selectedOptions[0]?.dataset.live === '1') {
+        if (!realAccountAllowed && picker.selectedOptions[0]?.dataset.live === '1') {
             const demo = [...picker.options].find(option => option.dataset.live === '0');
             if (demo) picker.value = demo.value;
+            else picker.selectedIndex = -1;
         }
         const liveConfirmation = document.querySelector('#liveconfirm');
-        liveConfirmation?.classList.toggle('hidden', isManagedBot || picker.selectedOptions[0]?.dataset.live !== '1');
+        liveConfirmation?.classList.toggle('hidden', picker.selectedOptions[0]?.dataset.live !== '1');
     }
 
     async function loadBotLibrary() {

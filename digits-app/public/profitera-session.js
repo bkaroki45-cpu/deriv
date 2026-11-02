@@ -12,5 +12,27 @@
   sessionUrl.searchParams.set('next', next);
   fetch(sessionUrl, { credentials: 'include', headers: { Accept: 'application/json' } })
     .then(async response => ({ ok: response.ok, body: await response.json() }))
-    .then(({ ok, body }) => { if (!ok) { if (body.login_url) window.location.replace(new URL(body.login_url, djangoOrigin)); return; } const current = localStorage.getItem('auth_info'); const authInfo = JSON.stringify(body.auth_info); if (current === authInfo) return; localStorage.setItem('auth_info', authInfo); localStorage.setItem('deriv_accounts', JSON.stringify(body.accounts || [])); if (body.active_account_id) localStorage.setItem('active_loginid', body.active_account_id); const active = (body.accounts || []).find(account => account.account_id === body.active_account_id) || body.accounts?.[0]; if (active?.account_type) localStorage.setItem('account_type', active.account_type); window.location.reload(); }).catch(() => {});
+    .then(({ ok, body }) => {
+      if (!ok) {
+        if (body.login_url) window.location.replace(new URL(body.login_url, djangoOrigin));
+        return;
+      }
+      const authInfo = body.auth_info;
+      if (!authInfo?.access_token) return;
+      let previousAuth = null;
+      try { previousAuth = JSON.parse(localStorage.getItem('auth_info') || 'null'); } catch {}
+      const accounts = Array.isArray(body.accounts) ? body.accounts : [];
+      const accountKey = items => JSON.stringify((Array.isArray(items) ? items : []).map(account => [account?.account_id, account?.account_type]).sort());
+      const previousAccounts = (() => { try { const items = JSON.parse(localStorage.getItem('deriv_accounts') || '[]'); return Array.isArray(items) ? items : []; } catch { return []; } })();
+      const previousAccountId = localStorage.getItem('active_loginid');
+      const changed = !previousAuth?.access_token || previousAuth.access_token !== authInfo.access_token ||
+        accountKey(previousAccounts) !== accountKey(accounts) ||
+        (body.active_account_id && previousAccountId !== body.active_account_id);
+      localStorage.setItem('auth_info', JSON.stringify(authInfo));
+      localStorage.setItem('deriv_accounts', JSON.stringify(accounts));
+      if (body.active_account_id) localStorage.setItem('active_loginid', body.active_account_id);
+      const active = accounts.find(account => account.account_id === body.active_account_id) || accounts[0];
+      if (active?.account_type) localStorage.setItem('account_type', active.account_type);
+      if (changed) window.location.reload();
+    }).catch(() => {});
 })();

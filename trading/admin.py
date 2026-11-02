@@ -5,7 +5,7 @@ from .models import AutomationBot, AutomationRun, AutomationTrade, Commission, P
 @admin.register(AutomationBot)
 class AutomationBotAdmin(admin.ModelAdmin):
     list_display = ("name", "enabled", "live_trading_enabled", "demo_only", "max_stake", "max_daily_loss", "max_trades_per_day")
-    list_editable = ("enabled", "live_trading_enabled")
+    list_editable = ("enabled", "live_trading_enabled", "demo_only")
 
 @admin.register(AutomationRun)
 class AutomationRunAdmin(admin.ModelAdmin):

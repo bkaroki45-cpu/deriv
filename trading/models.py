@@ -74,7 +74,10 @@ class AutomationBot(models.Model):
     description = models.TextField(blank=True)
     strategy = models.CharField(max_length=12, choices=STRATEGIES, default="auto")
     enabled = models.BooleanField(default=False, help_text="Only enabled bots can be used by customers.")
-    demo_only = models.BooleanField(default=True, editable=False)
+    demo_only = models.BooleanField(
+        default=True,
+        help_text="Keep this bot restricted to Demo accounts, even when live trading is enabled.",
+    )
     live_trading_enabled = models.BooleanField(default=False, help_text="Allow users to explicitly opt into real-account automation for this bot.")
     max_stake = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Optional administrator ceiling. Leave blank to let users choose their stake.")
     max_daily_loss = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Optional administrator ceiling. Leave blank for no daily loss cap.")

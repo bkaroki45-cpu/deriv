@@ -434,7 +434,7 @@ class AdminDashboardDataView(APIView):
 class AutomationBotsView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
-        return Response({"bots": [{"id": bot.id, "name": bot.name, "description": bot.description, "strategy": bot.strategy, "enabled": bot.enabled, "live_trading_enabled": bot.live_trading_enabled} for bot in AutomationBot.objects.filter(enabled=True)]})
+        return Response({"bots": [{"id": bot.id, "name": bot.name, "description": bot.description, "strategy": bot.strategy, "enabled": bot.enabled, "demo_only": bot.demo_only, "live_trading_enabled": bot.live_trading_enabled} for bot in AutomationBot.objects.filter(enabled=True)]})
 
 
 class AutomationAccountsView(APIView):
