@@ -140,6 +140,7 @@
             }));
             const requested = new URLSearchParams(window.location.search).get('bot');
             const initial = bots.find(bot => String(bot.id) === requested)
+                || bots.find(bot => !bot.demo_only && bot.live_trading_enabled)
                 || bots.find(bot => bot.strategy === 'even_odd')
                 || bots[0];
             picker.value = String(initial.id);
@@ -209,11 +210,6 @@
         ensureBotPicker();
         const accountPicker = document.querySelector('#account');
         accountPicker?.addEventListener('change', () => {
-            if (['even_odd', 'high_pair'].includes(selectedBot?.strategy) && accountPicker.selectedOptions[0]?.dataset.live === '1') {
-                const demo = [...accountPicker.options].find(option => option.dataset.live === '0');
-                if (demo) accountPicker.value = demo.value;
-                alert('This bot is limited to Demo accounts.');
-            }
             updateAccountOptions();
         });
         if (accountPicker) {

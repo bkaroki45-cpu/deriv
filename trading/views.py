@@ -443,27 +443,25 @@ class AutomationAccountsView(APIView):
 
     def get(self, request):
         token = active_token_for_request(request)
+        refresh_error = ""
         if token:
             try:
-                # The Options accounts endpoint returns every Demo and Real
-                # account associated with this authorised Deriv user.
+                # The Options accounts endpoint returns current balances for
+                # each Demo and Real account. OAuth2 tokens for the current
+                # API must not be sent to the legacy authorize/balance socket.
                 remote_accounts = DerivAPIClient(token).accounts()
                 sync_accounts(request.user, remote_accounts, request.session.get("deriv_account_id", ""))
-                authorize, balance = account_snapshot_from_token(token)
-                payload = account_payload_from_snapshot(authorize, balance)
-                account_id = payload.get("account_id")
-                if account_id:
-                    account, _ = DerivAccount.objects.update_or_create(
-                        user=request.user, account_id=account_id,
-                        defaults={"account_type": payload["account_type"], "currency": payload["currency"], "balance": Decimal(str(payload.get("balance") or 0)), "is_active": True, "raw": payload},
-                    )
-                    DerivAccount.objects.filter(user=request.user).exclude(pk=account.pk).update(is_active=False)
-                    if not OAuthToken.objects.filter(user=request.user, active_account=account, is_valid=True).exists():
-                        OAuthToken.objects.create(user=request.user, token_type="oauth", access_token=seal_token(token), active_account=account, is_valid=True, last_validated_at=timezone.now())
+                active_account_id = str(request.session.get("deriv_account_id", ""))
+                if active_account_id:
+                    DerivAccount.objects.filter(user=request.user).update(is_active=False)
+                    DerivAccount.objects.filter(user=request.user, account_id=active_account_id).update(is_active=True)
             except Exception:
-                pass
+                # Do not imply an old cached balance is live when Deriv could
+                # not refresh the account list. Keep saved data available and
+                # let the UI identify it as potentially stale.
+                refresh_error = "Deriv could not refresh account balances. Showing the last saved balances."
         accounts = DerivAccount.objects.filter(user=request.user).order_by("account_type", "account_id")
-        return Response({"accounts": [{"account_id": account.account_id, "account_type": account.account_type, "balance": str(account.balance), "currency": account.currency} for account in accounts]})
+        return Response({"accounts": [{"account_id": account.account_id, "account_type": account.account_type, "balance": str(account.balance), "currency": account.currency, "is_active": account.is_active} for account in accounts], "refresh_error": refresh_error})
 
 
 class AutomationRunView(APIView):
